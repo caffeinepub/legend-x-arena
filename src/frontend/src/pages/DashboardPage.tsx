@@ -11,6 +11,7 @@ import {
 } from "@/backend.d";
 import { CoinShower } from "@/components/CoinShower";
 import { FireAnimation } from "@/components/FireAnimation";
+import { FirstLoginModal } from "@/components/FirstLoginModal";
 import { GameModeCard } from "@/components/GameModeCard";
 import { RifleAnimation } from "@/components/RifleAnimation";
 import { WalletDisplay } from "@/components/WalletDisplay";
@@ -660,6 +661,11 @@ export function DashboardPage() {
   const [activeTab, setActiveTab] = useState<TabId>("play");
   const [joiningMode, setJoiningMode] = useState<string | null>(null);
   const [showCoinShower, setShowCoinShower] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(() => {
+    if (!legendId) return false;
+    const key = `lxa_welcome_shown_${legendId}`;
+    return !localStorage.getItem(key);
+  });
 
   const { data: profile, refetch: refetchProfile } = useQuery({
     queryKey: ["userProfile", legendId],
@@ -1556,6 +1562,15 @@ export function DashboardPage() {
       className="relative min-h-screen"
       style={{ background: "#0a0a0f", paddingBottom: "88px" }}
     >
+      {showWelcomeModal && legendId && (
+        <FirstLoginModal
+          legendId={legendId}
+          onClose={() => {
+            localStorage.setItem(`lxa_welcome_shown_${legendId}`, "1");
+            setShowWelcomeModal(false);
+          }}
+        />
+      )}
       <FireAnimation side="left" intensity="low" />
       <FireAnimation side="right" intensity="low" />
       <CoinShower
