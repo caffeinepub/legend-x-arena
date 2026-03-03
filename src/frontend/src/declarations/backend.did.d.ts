@@ -24,6 +24,13 @@ export type DepositStatus = { 'pending' : null } |
 export type GameMode = { 'csMod' : null } |
   { 'loneWolf' : null } |
   { 'brMod' : null };
+export interface LeaderboardEntry {
+  'legendId' : string,
+  'totalMatches' : bigint,
+  'createdAt' : bigint,
+  'wins' : bigint,
+  'totalDeposited' : bigint,
+}
 export interface Match {
   'result' : Result,
   'date' : bigint,
@@ -64,8 +71,11 @@ export interface UserProfile {
   'legendId' : string,
   'createdAt' : bigint,
   'role' : Role,
+  'jazzCashNumber' : string,
+  'gameUID' : string,
   'isBanned' : boolean,
   'passwordHash' : string,
+  'gameName' : string,
   'selectedProfilePic' : bigint,
   'transactions' : Array<Transaction>,
   'totalDeposited' : bigint,
@@ -81,6 +91,7 @@ export interface _SERVICE {
   >,
   'deleteTournament' : ActorMethod<[string], undefined>,
   'getActiveTournaments' : ActorMethod<[], Array<Tournament>>,
+  'getLeaderboard' : ActorMethod<[], Array<LeaderboardEntry>>,
   'getMyDepositRequests' : ActorMethod<[], Array<DepositRequest>>,
   'getPendingDepositRequests' : ActorMethod<[], Array<DepositRequest>>,
   'getTournamentRoom' : ActorMethod<
@@ -90,12 +101,13 @@ export interface _SERVICE {
   'getTournaments' : ActorMethod<[], Array<Tournament>>,
   'getUserByLegendId' : ActorMethod<[string], UserProfile>,
   'joinTournamentById' : ActorMethod<[string], undefined>,
-  'register' : ActorMethod<[string, string], undefined>,
+  'register' : ActorMethod<[string, string, string, string, string], undefined>,
   'rejectDepositRequest' : ActorMethod<[string], undefined>,
   'setProfilePicture' : ActorMethod<[bigint], undefined>,
   'setTournamentRoom' : ActorMethod<[string, string, string], undefined>,
   'submitDepositRequest' : ActorMethod<[bigint, string], undefined>,
   'toggleBan' : ActorMethod<[string], undefined>,
+  'updatePlayerInfo' : ActorMethod<[string, string, string], undefined>,
   'updateTournament' : ActorMethod<
     [string, string, string, string, bigint, string, bigint, string, boolean],
     undefined

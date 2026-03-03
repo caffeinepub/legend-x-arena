@@ -24,6 +24,13 @@ export const Tournament = IDL.Record({
   'maxPlayers' : IDL.Nat,
   'prizePool' : IDL.Text,
 });
+export const LeaderboardEntry = IDL.Record({
+  'legendId' : IDL.Text,
+  'totalMatches' : IDL.Nat,
+  'createdAt' : IDL.Int,
+  'wins' : IDL.Nat,
+  'totalDeposited' : IDL.Nat,
+});
 export const DepositStatus = IDL.Variant({
   'pending' : IDL.Null,
   'approved' : IDL.Null,
@@ -69,8 +76,11 @@ export const UserProfile = IDL.Record({
   'legendId' : IDL.Text,
   'createdAt' : IDL.Int,
   'role' : Role,
+  'jazzCashNumber' : IDL.Text,
+  'gameUID' : IDL.Text,
   'isBanned' : IDL.Bool,
   'passwordHash' : IDL.Text,
+  'gameName' : IDL.Text,
   'selectedProfilePic' : IDL.Nat,
   'transactions' : IDL.Vec(Transaction),
   'totalDeposited' : IDL.Nat,
@@ -88,6 +98,7 @@ export const idlService = IDL.Service({
     ),
   'deleteTournament' : IDL.Func([IDL.Text], [], []),
   'getActiveTournaments' : IDL.Func([], [IDL.Vec(Tournament)], ['query']),
+  'getLeaderboard' : IDL.Func([], [IDL.Vec(LeaderboardEntry)], ['query']),
   'getMyDepositRequests' : IDL.Func([], [IDL.Vec(DepositRequest)], []),
   'getPendingDepositRequests' : IDL.Func([], [IDL.Vec(DepositRequest)], []),
   'getTournamentRoom' : IDL.Func(
@@ -98,12 +109,17 @@ export const idlService = IDL.Service({
   'getTournaments' : IDL.Func([], [IDL.Vec(Tournament)], ['query']),
   'getUserByLegendId' : IDL.Func([IDL.Text], [UserProfile], ['query']),
   'joinTournamentById' : IDL.Func([IDL.Text], [], []),
-  'register' : IDL.Func([IDL.Text, IDL.Text], [], []),
+  'register' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
   'rejectDepositRequest' : IDL.Func([IDL.Text], [], []),
   'setProfilePicture' : IDL.Func([IDL.Nat], [], []),
   'setTournamentRoom' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'submitDepositRequest' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   'toggleBan' : IDL.Func([IDL.Text], [], []),
+  'updatePlayerInfo' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'updateTournament' : IDL.Func(
       [
         IDL.Text,
@@ -139,6 +155,13 @@ export const idlFactory = ({ IDL }) => {
     'roomId' : IDL.Text,
     'maxPlayers' : IDL.Nat,
     'prizePool' : IDL.Text,
+  });
+  const LeaderboardEntry = IDL.Record({
+    'legendId' : IDL.Text,
+    'totalMatches' : IDL.Nat,
+    'createdAt' : IDL.Int,
+    'wins' : IDL.Nat,
+    'totalDeposited' : IDL.Nat,
   });
   const DepositStatus = IDL.Variant({
     'pending' : IDL.Null,
@@ -185,8 +208,11 @@ export const idlFactory = ({ IDL }) => {
     'legendId' : IDL.Text,
     'createdAt' : IDL.Int,
     'role' : Role,
+    'jazzCashNumber' : IDL.Text,
+    'gameUID' : IDL.Text,
     'isBanned' : IDL.Bool,
     'passwordHash' : IDL.Text,
+    'gameName' : IDL.Text,
     'selectedProfilePic' : IDL.Nat,
     'transactions' : IDL.Vec(Transaction),
     'totalDeposited' : IDL.Nat,
@@ -204,6 +230,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'deleteTournament' : IDL.Func([IDL.Text], [], []),
     'getActiveTournaments' : IDL.Func([], [IDL.Vec(Tournament)], ['query']),
+    'getLeaderboard' : IDL.Func([], [IDL.Vec(LeaderboardEntry)], ['query']),
     'getMyDepositRequests' : IDL.Func([], [IDL.Vec(DepositRequest)], []),
     'getPendingDepositRequests' : IDL.Func([], [IDL.Vec(DepositRequest)], []),
     'getTournamentRoom' : IDL.Func(
@@ -214,12 +241,17 @@ export const idlFactory = ({ IDL }) => {
     'getTournaments' : IDL.Func([], [IDL.Vec(Tournament)], ['query']),
     'getUserByLegendId' : IDL.Func([IDL.Text], [UserProfile], ['query']),
     'joinTournamentById' : IDL.Func([IDL.Text], [], []),
-    'register' : IDL.Func([IDL.Text, IDL.Text], [], []),
+    'register' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
     'rejectDepositRequest' : IDL.Func([IDL.Text], [], []),
     'setProfilePicture' : IDL.Func([IDL.Nat], [], []),
     'setTournamentRoom' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'submitDepositRequest' : IDL.Func([IDL.Nat, IDL.Text], [], []),
     'toggleBan' : IDL.Func([IDL.Text], [], []),
+    'updatePlayerInfo' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'updateTournament' : IDL.Func(
         [
           IDL.Text,

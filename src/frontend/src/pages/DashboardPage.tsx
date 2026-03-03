@@ -3,12 +3,14 @@ import {
   type DepositRequest,
   DepositStatus,
   GameMode,
+  type LeaderboardEntry,
   type Match,
   Result,
   Role,
   type Tournament,
   type Transaction,
   TransactionType,
+  type UserProfile,
 } from "@/backend.d";
 import { CoinShower } from "@/components/CoinShower";
 import { FireAnimation } from "@/components/FireAnimation";
@@ -24,12 +26,16 @@ import {
   CheckCircle2,
   Clock,
   Copy,
+  Edit2,
+  Gamepad2,
+  History,
   ImageIcon,
   Loader2,
   Lock,
   LogOut,
   Medal,
   Shield,
+  Star,
   Swords,
   Trophy,
   User,
@@ -41,7 +47,7 @@ import { toast } from "sonner";
 
 /* ─── Default Joker profile pic (FREE, always unlocked) ───────── */
 const DEFAULT_PROFILE_PIC =
-  "/assets/uploads/eca553eded03ba3da1b6cdce6d22ba73-1.jpg";
+  "/assets/uploads/WhatsApp-Image-2026-03-03-at-6.18.49-PM-1.jpeg";
 
 /* ─── Profile Picture Tiers ──────────────────────────────────── */
 const AVATAR_TIERS = [
@@ -113,19 +119,27 @@ function formatDate(ts: bigint): string {
 
 type TabId = "matches" | "ranking" | "play" | "deposit" | "profile";
 
-/* ─── Mock leaderboard ─────────────────────────────────────── */
-const MOCK_LEADERBOARD = [
-  { rank: 1, id: "DragonSlayer_X", wins: 312, lc: 48200 },
-  { rank: 2, id: "GhostReaper99", wins: 297, lc: 43100 },
-  { rank: 3, id: "BlazeFire_Pro", wins: 281, lc: 39750 },
-  { rank: 4, id: "ShadowKing_V2", wins: 264, lc: 35900 },
-  { rank: 5, id: "StormHawk_Elite", wins: 248, lc: 32400 },
-  { rank: 6, id: "CrimsonBlade_07", wins: 235, lc: 29800 },
-  { rank: 7, id: "IronWolf_BR", wins: 219, lc: 27100 },
-  { rank: 8, id: "PhoenixRise_FF", wins: 204, lc: 24600 },
-  { rank: 9, id: "NightHunter_Z", wins: 191, lc: 22300 },
-  { rank: 10, id: "LegendArcher_1", wins: 178, lc: 20000 },
-];
+/* ─── Leaderboard helpers ──────────────────────────────────── */
+function formatJoinDate(ts: bigint): string {
+  try {
+    const ms = Number(ts) / 1_000_000;
+    return new Date(ms).toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+function getPrimeLevel(totalDeposited: bigint): string {
+  const d = Number(totalDeposited);
+  if (d >= 1000) return "Diamond";
+  if (d >= 500) return "Platinum";
+  if (d >= 200) return "Gold";
+  if (d >= 100) return "Silver";
+  return "Bronze";
+}
 
 /* ─── Match Row ────────────────────────────────────────────── */
 function MatchHistoryRow({ match, index }: { match: Match; index: number }) {
@@ -1005,6 +1019,331 @@ function ViewDetailsModal({
   );
 }
 
+/* ─── Player Info Card ─────────────────────────────────────── */
+function PlayerInfoCard({
+  profile,
+  actor,
+  refetchProfile,
+}: {
+  profile: UserProfile | null | undefined;
+  actor: backendInterface | null;
+  refetchProfile: () => void;
+}) {
+  const [showEdit, setShowEdit] = useState(false);
+  const [editGameName, setEditGameName] = useState("");
+  const [editGameUID, setEditGameUID] = useState("");
+  const [editJazzCash, setEditJazzCash] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  function openEdit() {
+    setEditGameName(profile?.gameName ?? "");
+    setEditGameUID(profile?.gameUID ?? "");
+    setEditJazzCash(profile?.jazzCashNumber ?? "");
+    setShowEdit(true);
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!actor) return;
+    setIsSaving(true);
+    try {
+      await actor.updatePlayerInfo(
+        editGameName.trim(),
+        editGameUID.trim(),
+        editJazzCash.trim(),
+      );
+      toast.success("Player info updated!");
+      refetchProfile();
+      setShowEdit(false);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update player info.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <>
+      {/* Edit Modal */}
+      {showEdit && (
+        // biome-ignore lint/a11y/useKeyWithClickEvents: backdrop close
+        <div
+          data-ocid="profile.player_info.modal"
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          style={{ background: "rgba(0,0,0,0.8)", backdropFilter: "blur(8px)" }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowEdit(false);
+          }}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl overflow-hidden"
+            style={{
+              background: "rgba(13,13,26,0.98)",
+              border: "1px solid rgba(0,153,255,0.25)",
+              boxShadow: "0 24px 60px rgba(0,0,0,0.6)",
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              className="relative p-5"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(0,153,255,0.08), rgba(0,102,255,0.04))",
+                borderBottom: "1px solid rgba(255,255,255,0.07)",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: "2px",
+                  background:
+                    "linear-gradient(90deg, transparent, #0099ff 40%, transparent)",
+                }}
+              />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Gamepad2 className="w-5 h-5" style={{ color: "#0099ff" }} />
+                  <h3
+                    className="font-display font-black text-base uppercase tracking-wider"
+                    style={{ color: "#0099ff" }}
+                  >
+                    Edit Player Info
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  data-ocid="profile.player_info.close_button"
+                  onClick={() => setShowEdit(false)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center transition-opacity hover:opacity-70"
+                  style={{
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                  }}
+                >
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </div>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSave} className="p-5 space-y-4">
+              <div>
+                <label
+                  htmlFor="edit-game-name"
+                  className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5"
+                  style={{ color: "rgba(255,255,255,0.5)" }}
+                >
+                  Free Fire Name
+                </label>
+                <input
+                  id="edit-game-name"
+                  data-ocid="profile.player_info.game_name_input"
+                  type="text"
+                  value={editGameName}
+                  onChange={(e) => setEditGameName(e.target.value)}
+                  placeholder="Your Free Fire in-game name"
+                  className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(0,153,255,0.25)",
+                    outline: "none",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "rgba(0,153,255,0.6)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "rgba(0,153,255,0.25)";
+                  }}
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="edit-game-uid"
+                  className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5"
+                  style={{ color: "rgba(255,255,255,0.5)" }}
+                >
+                  Free Fire UID
+                </label>
+                <input
+                  id="edit-game-uid"
+                  data-ocid="profile.player_info.game_uid_input"
+                  type="text"
+                  value={editGameUID}
+                  onChange={(e) => setEditGameUID(e.target.value)}
+                  placeholder="Your Free Fire unique ID"
+                  className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(0,153,255,0.25)",
+                    outline: "none",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "rgba(0,153,255,0.6)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "rgba(0,153,255,0.25)";
+                  }}
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="edit-jazzcash"
+                  className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5"
+                  style={{ color: "rgba(255,255,255,0.5)" }}
+                >
+                  JazzCash Number
+                </label>
+                <input
+                  id="edit-jazzcash"
+                  data-ocid="profile.player_info.jazzcash_input"
+                  type="tel"
+                  value={editJazzCash}
+                  onChange={(e) => setEditJazzCash(e.target.value)}
+                  placeholder="Your JazzCash mobile number"
+                  className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(0,153,255,0.25)",
+                    outline: "none",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "rgba(0,153,255,0.6)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "rgba(0,153,255,0.25)";
+                  }}
+                />
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="submit"
+                  data-ocid="profile.player_info.save_button"
+                  disabled={isSaving}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, rgba(0,153,255,0.9), rgba(0,100,200,0.9))",
+                    color: "#fff",
+                  }}
+                >
+                  {isSaving ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : null}
+                  {isSaving ? "Saving…" : "Save"}
+                </button>
+                <button
+                  type="button"
+                  data-ocid="profile.player_info.cancel_button"
+                  onClick={() => setShowEdit(false)}
+                  disabled={isSaving}
+                  className="flex-1 py-3 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-80 disabled:opacity-50"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    color: "rgba(255,255,255,0.6)",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Card */}
+      <div
+        data-ocid="profile.player_info.card"
+        className="rounded-xl p-4 mb-5"
+        style={{
+          background: "rgba(0,102,255,0.04)",
+          border: "1px solid rgba(0,153,255,0.18)",
+        }}
+      >
+        {/* Card header */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Gamepad2
+              className="w-4 h-4"
+              style={{ color: "rgba(0,153,255,0.8)" }}
+            />
+            <h4
+              className="font-display font-black text-xs uppercase tracking-[0.2em]"
+              style={{ color: "rgba(0,153,255,0.9)" }}
+            >
+              Player Info
+            </h4>
+          </div>
+          <button
+            type="button"
+            data-ocid="profile.player_info.edit_button"
+            onClick={openEdit}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-80"
+            style={{
+              background: "rgba(0,153,255,0.1)",
+              border: "1px solid rgba(0,153,255,0.25)",
+              color: "#0099ff",
+            }}
+          >
+            <Edit2 className="w-3 h-3" />
+            Edit
+          </button>
+        </div>
+
+        {/* Info rows */}
+        <div className="space-y-2">
+          {[
+            { label: "Game Name", value: profile?.gameName || "—", icon: "🎮" },
+            { label: "Game UID", value: profile?.gameUID || "—", icon: "🆔" },
+            {
+              label: "JazzCash",
+              value: profile?.jazzCashNumber || "—",
+              icon: "💳",
+            },
+          ].map(({ label, value, icon }) => (
+            <div
+              key={label}
+              className="flex items-center justify-between py-2 px-3 rounded-lg"
+              style={{
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.05)",
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <span style={{ fontSize: "14px" }}>{icon}</span>
+                <span
+                  className="text-xs font-display font-bold uppercase tracking-wider"
+                  style={{ color: "rgba(255,255,255,0.4)" }}
+                >
+                  {label}
+                </span>
+              </div>
+              <span
+                className="text-sm font-body font-medium tabular-nums"
+                style={{
+                  color:
+                    value === "—"
+                      ? "rgba(255,255,255,0.2)"
+                      : "rgba(255,255,255,0.85)",
+                }}
+              >
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
 /* ─── Tournament Card ──────────────────────────────────────── */
 function TournamentCard({
   tournament,
@@ -1432,6 +1771,9 @@ export function DashboardPage() {
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<TabId>("play");
+  const [rankingSection, setRankingSection] = useState<
+    "global" | "prime" | "oldest"
+  >("global");
   const [joiningTournamentId, setJoiningTournamentId] = useState<string | null>(
     null,
   );
@@ -1450,6 +1792,17 @@ export function DashboardPage() {
     },
     enabled: !!actor && !isFetching && !!legendId,
   });
+
+  const { data: leaderboardRaw = [], isLoading: isLeaderboardLoading } =
+    useQuery<LeaderboardEntry[]>({
+      queryKey: ["leaderboard"],
+      queryFn: async () => {
+        if (!actor) return [];
+        return actor.getLeaderboard();
+      },
+      enabled: !!actor && !isFetching,
+      refetchInterval: 60_000,
+    });
 
   const handleLogout = useCallback(() => {
     logout();
@@ -1491,6 +1844,21 @@ export function DashboardPage() {
   const transactions = profile?.transactions ?? [];
   const totalDeposited = Number(profile?.totalDeposited ?? BigInt(0));
   const selectedProfilePic = Number(profile?.selectedProfilePic ?? BigInt(0));
+
+  /* ── Live leaderboard derived lists ── */
+  const globalLeaderboard = [...leaderboardRaw].sort(
+    (a, b) => Number(b.wins) - Number(a.wins),
+  );
+
+  const primeLeaderboard = [...leaderboardRaw].sort(
+    (a, b) => Number(b.totalDeposited) - Number(a.totalDeposited),
+  );
+
+  // Oldest by createdAt ascending (earliest = oldest member). createdAt is unique per user.
+  const oldestLeaderboard = [...leaderboardRaw].sort((a, b) => {
+    const diff = Number(a.createdAt) - Number(b.createdAt);
+    return diff;
+  });
 
   /* set of tournament IDs the user has already joined */
   const joinedMatchIds = new Set<string>(allMatches.map((m) => m.matchId));
@@ -1593,103 +1961,515 @@ export function DashboardPage() {
 
     /* ── RANKING ── */
     ranking: (
-      <section className="animate-tab-in px-4 py-6" aria-label="Global Ranking">
-        <div className="mb-6">
+      <section className="animate-tab-in px-4 py-6" aria-label="Rankings">
+        {/* Header */}
+        <div className="mb-5">
           <h2 className="font-display font-black text-xl uppercase tracking-wider text-foreground mb-1">
-            Global Leaderboard
+            Leaderboard
           </h2>
           <p className="text-xs font-body text-muted-foreground">
-            Top Free Fire warriors worldwide
+            The elite warriors of Legend X Arena
           </p>
         </div>
 
-        <div className="space-y-2">
-          {MOCK_LEADERBOARD.map((player, i) => {
-            const isMe =
-              player.id.toLowerCase() === (legendId ?? "").toLowerCase();
-            const medalColor =
-              player.rank === 1
-                ? "#ffd700"
-                : player.rank === 2
-                  ? "#c0c0c0"
-                  : player.rank === 3
-                    ? "#cd7f32"
-                    : "rgba(255,255,255,0.3)";
+        {/* Section Toggle Tabs */}
+        <div
+          className="flex gap-1 p-1 rounded-xl mb-5"
+          style={{
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.07)",
+          }}
+        >
+          {/* Global Winners */}
+          <button
+            type="button"
+            data-ocid="ranking.global_tab"
+            onClick={() => setRankingSection("global")}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-lg font-display font-bold text-xs uppercase tracking-wider transition-all duration-200"
+            style={
+              rankingSection === "global"
+                ? {
+                    background:
+                      "linear-gradient(135deg, rgba(255,215,0,0.2), rgba(255,150,0,0.15))",
+                    border: "1px solid rgba(255,215,0,0.35)",
+                    color: "#ffd700",
+                    boxShadow: "0 0 12px rgba(255,215,0,0.15)",
+                  }
+                : {
+                    background: "transparent",
+                    border: "1px solid transparent",
+                    color: "rgba(255,255,255,0.35)",
+                  }
+            }
+          >
+            <Trophy className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="hidden sm:inline">Global</span>
+            <span className="sm:hidden">Global</span>
+          </button>
 
-            return (
-              <div
-                key={player.rank}
-                data-ocid={`ranking.item.${i + 1}`}
-                className="flex items-center gap-3 py-3 px-4 rounded-xl transition-all"
+          {/* Prime Legends */}
+          <button
+            type="button"
+            data-ocid="ranking.prime_tab"
+            onClick={() => setRankingSection("prime")}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-lg font-display font-bold text-xs uppercase tracking-wider transition-all duration-200"
+            style={
+              rankingSection === "prime"
+                ? {
+                    background:
+                      "linear-gradient(135deg, rgba(180,80,255,0.2), rgba(120,40,200,0.15))",
+                    border: "1px solid rgba(180,80,255,0.4)",
+                    color: "#cc66ff",
+                    boxShadow: "0 0 12px rgba(180,80,255,0.2)",
+                  }
+                : {
+                    background: "transparent",
+                    border: "1px solid transparent",
+                    color: "rgba(255,255,255,0.35)",
+                  }
+            }
+          >
+            <Star className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="hidden sm:inline">Prime</span>
+            <span className="sm:hidden">Prime</span>
+          </button>
+
+          {/* Oldest Legends */}
+          <button
+            type="button"
+            data-ocid="ranking.oldest_tab"
+            onClick={() => setRankingSection("oldest")}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-lg font-display font-bold text-xs uppercase tracking-wider transition-all duration-200"
+            style={
+              rankingSection === "oldest"
+                ? {
+                    background:
+                      "linear-gradient(135deg, rgba(0,204,255,0.2), rgba(0,120,200,0.15))",
+                    border: "1px solid rgba(0,204,255,0.35)",
+                    color: "#00ccff",
+                    boxShadow: "0 0 12px rgba(0,204,255,0.15)",
+                  }
+                : {
+                    background: "transparent",
+                    border: "1px solid transparent",
+                    color: "rgba(255,255,255,0.35)",
+                  }
+            }
+          >
+            <History className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="hidden sm:inline">Oldest</span>
+            <span className="sm:hidden">Oldest</span>
+          </button>
+        </div>
+
+        {/* Section Title + Description */}
+        <div
+          className="mb-4 px-4 py-3 rounded-xl"
+          style={{
+            background:
+              rankingSection === "global"
+                ? "linear-gradient(135deg, rgba(255,215,0,0.06), rgba(255,150,0,0.03))"
+                : rankingSection === "prime"
+                  ? "linear-gradient(135deg, rgba(180,80,255,0.06), rgba(120,40,200,0.03))"
+                  : "linear-gradient(135deg, rgba(0,204,255,0.06), rgba(0,120,200,0.03))",
+            border: `1px solid ${rankingSection === "global" ? "rgba(255,215,0,0.12)" : rankingSection === "prime" ? "rgba(180,80,255,0.15)" : "rgba(0,204,255,0.12)"}`,
+          }}
+        >
+          <div className="flex items-center gap-2">
+            {rankingSection === "global" && (
+              <Trophy
+                className="w-4 h-4 flex-shrink-0"
+                style={{ color: "#ffd700" }}
+              />
+            )}
+            {rankingSection === "prime" && (
+              <Star
+                className="w-4 h-4 flex-shrink-0"
+                style={{ color: "#cc66ff" }}
+              />
+            )}
+            {rankingSection === "oldest" && (
+              <History
+                className="w-4 h-4 flex-shrink-0"
+                style={{ color: "#00ccff" }}
+              />
+            )}
+            <div>
+              <p
+                className="font-display font-black text-sm uppercase tracking-wider"
                 style={{
-                  background: isMe
-                    ? "rgba(255,215,0,0.08)"
-                    : "rgba(255,255,255,0.03)",
-                  border: isMe
-                    ? "1px solid rgba(255,215,0,0.3)"
-                    : "1px solid rgba(255,255,255,0.06)",
-                  boxShadow: isMe ? "0 0 12px rgba(255,215,0,0.15)" : "none",
+                  color:
+                    rankingSection === "global"
+                      ? "#ffd700"
+                      : rankingSection === "prime"
+                        ? "#cc66ff"
+                        : "#00ccff",
                 }}
               >
-                {/* Rank badge */}
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 font-display font-black text-sm"
-                  style={{
-                    background:
-                      player.rank <= 3
-                        ? `radial-gradient(circle at 35% 35%, ${medalColor}88, ${medalColor}44)`
-                        : "rgba(255,255,255,0.06)",
-                    border: `1.5px solid ${medalColor}`,
-                    color:
-                      player.rank <= 3 ? medalColor : "rgba(255,255,255,0.5)",
-                  }}
-                >
-                  {player.rank <= 3 ? (
-                    <Medal
-                      className="w-3.5 h-3.5"
-                      style={{ color: medalColor }}
-                    />
-                  ) : (
-                    player.rank
-                  )}
-                </div>
+                {rankingSection === "global"
+                  ? "Global Winners"
+                  : rankingSection === "prime"
+                    ? "Prime Legends"
+                    : "Oldest Legends"}
+              </p>
+              <p className="text-xs font-body text-muted-foreground mt-0.5">
+                {rankingSection === "global"
+                  ? "Ranked by total tournament wins"
+                  : rankingSection === "prime"
+                    ? "Ranked by Legend Coins earned"
+                    : "Ranked by account seniority"}
+              </p>
+            </div>
+          </div>
+        </div>
 
-                {/* Player ID */}
-                <div className="flex-1 min-w-0">
+        {/* ── Loading state ── */}
+        {isLeaderboardLoading && (
+          <div
+            data-ocid="ranking.loading_state"
+            className="flex items-center justify-center gap-2 py-16 text-muted-foreground"
+          >
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="font-body text-sm">Loading rankings…</span>
+          </div>
+        )}
+
+        {/* ── Empty state ── */}
+        {!isLeaderboardLoading && leaderboardRaw.length === 0 && (
+          <div
+            data-ocid="ranking.empty_state"
+            className="rounded-xl py-16 text-center"
+            style={{
+              background: "rgba(255,255,255,0.02)",
+              border: "1px dashed rgba(255,255,255,0.08)",
+            }}
+          >
+            <Trophy
+              className="w-10 h-10 mx-auto mb-3"
+              style={{ color: "rgba(255,255,255,0.12)" }}
+            />
+            <p className="font-body text-muted-foreground text-sm">
+              No players registered yet.
+            </p>
+          </div>
+        )}
+
+        {/* ── Global Winners List ── */}
+        {!isLeaderboardLoading &&
+          rankingSection === "global" &&
+          globalLeaderboard.length > 0 && (
+            <div className="space-y-2">
+              {globalLeaderboard.map((player, i) => {
+                const rank = i + 1;
+                const isMe =
+                  player.legendId.toLowerCase() ===
+                  (legendId ?? "").toLowerCase();
+                const medalColor =
+                  rank === 1
+                    ? "#ffd700"
+                    : rank === 2
+                      ? "#c0c0c0"
+                      : rank === 3
+                        ? "#cd7f32"
+                        : "rgba(255,255,255,0.3)";
+
+                return (
                   <div
-                    className="font-display font-bold text-sm truncate"
+                    key={player.legendId}
+                    data-ocid={`ranking.item.${rank}`}
+                    className="flex items-center gap-3 py-3 px-4 rounded-xl transition-all"
                     style={{
-                      color: isMe ? "#ffd700" : "rgba(255,255,255,0.9)",
+                      background: isMe
+                        ? "rgba(255,215,0,0.08)"
+                        : "rgba(255,255,255,0.03)",
+                      border: isMe
+                        ? "1px solid rgba(255,215,0,0.3)"
+                        : "1px solid rgba(255,255,255,0.06)",
+                      boxShadow: isMe
+                        ? "0 0 12px rgba(255,215,0,0.15)"
+                        : "none",
                     }}
                   >
-                    {player.id}
-                    {isMe && (
-                      <span className="ml-2 text-xs font-body text-muted-foreground">
-                        (you)
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs font-body text-muted-foreground">
-                    {player.wins} wins
-                  </div>
-                </div>
+                    {/* Rank badge */}
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 font-display font-black text-sm"
+                      style={{
+                        background:
+                          rank <= 3
+                            ? `radial-gradient(circle at 35% 35%, ${medalColor}88, ${medalColor}44)`
+                            : "rgba(255,255,255,0.06)",
+                        border: `1.5px solid ${medalColor}`,
+                        color: rank <= 3 ? medalColor : "rgba(255,255,255,0.5)",
+                      }}
+                    >
+                      {rank <= 3 ? (
+                        <Medal
+                          className="w-3.5 h-3.5"
+                          style={{ color: medalColor }}
+                        />
+                      ) : (
+                        rank
+                      )}
+                    </div>
 
-                {/* LC total */}
-                <div className="text-right">
+                    {/* Player ID */}
+                    <div className="flex-1 min-w-0">
+                      <div
+                        className="font-display font-bold text-sm truncate"
+                        style={{
+                          color: isMe ? "#ffd700" : "rgba(255,255,255,0.9)",
+                        }}
+                      >
+                        {player.legendId}
+                        {isMe && (
+                          <span className="ml-2 text-xs font-body text-muted-foreground">
+                            (you)
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs font-body text-muted-foreground">
+                        {Number(player.wins)} wins ·{" "}
+                        {Number(player.totalMatches)} matches
+                      </div>
+                    </div>
+
+                    {/* Wins count */}
+                    <div className="text-right">
+                      <div
+                        className="font-display font-bold text-sm tabular-nums"
+                        style={{ color: "#ffd700" }}
+                      >
+                        {Number(player.wins)}
+                      </div>
+                      <div className="text-xs font-body text-muted-foreground">
+                        Wins
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+        {/* ── Prime Legends List ── */}
+        {!isLeaderboardLoading &&
+          rankingSection === "prime" &&
+          primeLeaderboard.length > 0 && (
+            <div className="space-y-2">
+              {primeLeaderboard.map((player, i) => {
+                const rank = i + 1;
+                const isMe =
+                  player.legendId.toLowerCase() ===
+                  (legendId ?? "").toLowerCase();
+                const medalColor =
+                  rank === 1
+                    ? "#ffd700"
+                    : rank === 2
+                      ? "#c0c0c0"
+                      : rank === 3
+                        ? "#cd7f32"
+                        : "rgba(255,255,255,0.3)";
+                const level = getPrimeLevel(player.totalDeposited);
+                const levelColor =
+                  level === "Diamond"
+                    ? "#00ccff"
+                    : level === "Platinum"
+                      ? "#cc66ff"
+                      : level === "Gold"
+                        ? "#ffd700"
+                        : level === "Silver"
+                          ? "#c0c0c0"
+                          : "#cd7f32";
+
+                return (
                   <div
-                    className="font-display font-bold text-sm tabular-nums"
-                    style={{ color: "#ffd700" }}
+                    key={player.legendId}
+                    data-ocid={`ranking.item.${rank}`}
+                    className="flex items-center gap-3 py-3 px-4 rounded-xl transition-all"
+                    style={{
+                      background: isMe
+                        ? "rgba(180,80,255,0.08)"
+                        : "rgba(255,255,255,0.03)",
+                      border: isMe
+                        ? "1px solid rgba(180,80,255,0.3)"
+                        : "1px solid rgba(255,255,255,0.06)",
+                      boxShadow: isMe
+                        ? "0 0 12px rgba(180,80,255,0.15)"
+                        : "none",
+                    }}
                   >
-                    ₡{player.lc.toLocaleString()}
+                    {/* Rank badge */}
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 font-display font-black text-sm"
+                      style={{
+                        background:
+                          rank <= 3
+                            ? `radial-gradient(circle at 35% 35%, ${medalColor}88, ${medalColor}44)`
+                            : "rgba(255,255,255,0.06)",
+                        border: `1.5px solid ${medalColor}`,
+                        color: rank <= 3 ? medalColor : "rgba(255,255,255,0.5)",
+                      }}
+                    >
+                      {rank <= 3 ? (
+                        <Medal
+                          className="w-3.5 h-3.5"
+                          style={{ color: medalColor }}
+                        />
+                      ) : (
+                        rank
+                      )}
+                    </div>
+
+                    {/* Player ID */}
+                    <div className="flex-1 min-w-0">
+                      <div
+                        className="font-display font-bold text-sm truncate"
+                        style={{
+                          color: isMe ? "#cc66ff" : "rgba(255,255,255,0.9)",
+                        }}
+                      >
+                        {player.legendId}
+                        {isMe && (
+                          <span className="ml-2 text-xs font-body text-muted-foreground">
+                            (you)
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span
+                          className="text-xs font-display font-bold uppercase px-1.5 py-px rounded"
+                          style={{
+                            background: `${levelColor}18`,
+                            border: `1px solid ${levelColor}35`,
+                            color: levelColor,
+                            fontSize: "9px",
+                            letterSpacing: "0.1em",
+                          }}
+                        >
+                          {level}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Total deposited */}
+                    <div className="text-right">
+                      <div
+                        className="font-display font-bold text-sm tabular-nums"
+                        style={{ color: "#cc66ff" }}
+                      >
+                        ₡{Number(player.totalDeposited).toLocaleString()}
+                      </div>
+                      <div className="text-xs font-body text-muted-foreground">
+                        Deposited
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-xs font-body text-muted-foreground">
-                    Legend Coins
+                );
+              })}
+            </div>
+          )}
+
+        {/* ── Oldest Legends List ── */}
+        {!isLeaderboardLoading &&
+          rankingSection === "oldest" &&
+          oldestLeaderboard.length > 0 && (
+            <div className="space-y-2">
+              {oldestLeaderboard.map((player, i) => {
+                const rank = i + 1;
+                const isMe =
+                  player.legendId.toLowerCase() ===
+                  (legendId ?? "").toLowerCase();
+                const medalColor =
+                  rank === 1
+                    ? "#ffd700"
+                    : rank === 2
+                      ? "#c0c0c0"
+                      : rank === 3
+                        ? "#cd7f32"
+                        : "rgba(255,255,255,0.3)";
+
+                return (
+                  <div
+                    key={player.legendId}
+                    data-ocid={`ranking.item.${rank}`}
+                    className="flex items-center gap-3 py-3 px-4 rounded-xl transition-all"
+                    style={{
+                      background: isMe
+                        ? "rgba(0,204,255,0.08)"
+                        : "rgba(255,255,255,0.03)",
+                      border: isMe
+                        ? "1px solid rgba(0,204,255,0.3)"
+                        : "1px solid rgba(255,255,255,0.06)",
+                      boxShadow: isMe
+                        ? "0 0 12px rgba(0,204,255,0.15)"
+                        : "none",
+                    }}
+                  >
+                    {/* Rank badge */}
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 font-display font-black text-sm"
+                      style={{
+                        background:
+                          rank <= 3
+                            ? `radial-gradient(circle at 35% 35%, ${medalColor}88, ${medalColor}44)`
+                            : "rgba(255,255,255,0.06)",
+                        border: `1.5px solid ${medalColor}`,
+                        color: rank <= 3 ? medalColor : "rgba(255,255,255,0.5)",
+                      }}
+                    >
+                      {rank <= 3 ? (
+                        <Medal
+                          className="w-3.5 h-3.5"
+                          style={{ color: medalColor }}
+                        />
+                      ) : (
+                        rank
+                      )}
+                    </div>
+
+                    {/* Player ID + join date */}
+                    <div className="flex-1 min-w-0">
+                      <div
+                        className="font-display font-bold text-sm truncate"
+                        style={{
+                          color: isMe ? "#00ccff" : "rgba(255,255,255,0.9)",
+                        }}
+                      >
+                        {player.legendId}
+                        {isMe && (
+                          <span className="ml-2 text-xs font-body text-muted-foreground">
+                            (you)
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <Clock
+                          className="w-3 h-3 flex-shrink-0"
+                          style={{ color: "rgba(0,204,255,0.5)" }}
+                        />
+                        <span className="text-xs font-body text-muted-foreground">
+                          Since {formatJoinDate(player.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Match count */}
+                    <div className="text-right">
+                      <div
+                        className="font-display font-bold text-sm tabular-nums"
+                        style={{ color: "#00ccff" }}
+                      >
+                        {Number(player.totalMatches).toLocaleString()}
+                      </div>
+                      <div className="text-xs font-body text-muted-foreground">
+                        Matches
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          )}
       </section>
     ),
 
@@ -1904,6 +2684,13 @@ export function DashboardPage() {
             </div>
           ))}
         </div>
+
+        {/* ── Player Info Card ── */}
+        <PlayerInfoCard
+          profile={profile}
+          actor={actor}
+          refetchProfile={refetchProfile}
+        />
 
         {/* ── Unlock Progress Bar ── */}
         <div

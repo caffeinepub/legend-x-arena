@@ -127,6 +127,45 @@ function UserCard({
                 </span>
               </span>
             </div>
+            {/* Player game info */}
+            <div className="flex flex-wrap gap-3 mt-2">
+              {profile.gameName && (
+                <span
+                  className="flex items-center gap-1.5 text-xs font-body px-2.5 py-1 rounded-lg"
+                  style={{
+                    background: "rgba(0,153,255,0.08)",
+                    border: "1px solid rgba(0,153,255,0.2)",
+                    color: "rgba(0,153,255,0.9)",
+                  }}
+                >
+                  🎮 <span className="font-bold">{profile.gameName}</span>
+                </span>
+              )}
+              {profile.gameUID && (
+                <span
+                  className="flex items-center gap-1.5 text-xs font-body px-2.5 py-1 rounded-lg"
+                  style={{
+                    background: "rgba(255,215,0,0.08)",
+                    border: "1px solid rgba(255,215,0,0.2)",
+                    color: "rgba(255,215,0,0.9)",
+                  }}
+                >
+                  🆔 <span className="font-mono">{profile.gameUID}</span>
+                </span>
+              )}
+              {profile.jazzCashNumber && (
+                <span
+                  className="flex items-center gap-1.5 text-xs font-body px-2.5 py-1 rounded-lg"
+                  style={{
+                    background: "rgba(34,204,102,0.08)",
+                    border: "1px solid rgba(34,204,102,0.2)",
+                    color: "rgba(34,204,102,0.9)",
+                  }}
+                >
+                  💳 <span className="font-mono">{profile.jazzCashNumber}</span>
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-3">

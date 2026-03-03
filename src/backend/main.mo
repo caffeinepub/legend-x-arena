@@ -27,6 +27,9 @@ actor {
     transactions : [Transaction];
     totalDeposited : Nat;
     selectedProfilePic : Nat;
+    jazzCashNumber : Text;
+    gameName : Text;
+    gameUID : Text;
   };
 
   type Match = {
@@ -120,7 +123,8 @@ actor {
     users.add(principal, updateFunc(profile));
   };
 
-  public shared ({ caller }) func register(legendId : Text, passwordHash : Text) : async () {
+  // UPDATED: Registration now takes jazzCashNumber, gameName, and gameUID
+  public shared ({ caller }) func register(legendId : Text, passwordHash : Text, jazzCash : Text, uid : Text, ignName : Text) : async () {
     if (users.values().any(func(p) { p.legendId == legendId })) {
       Runtime.trap("Legend ID already taken");
     };
@@ -140,9 +144,24 @@ actor {
       transactions = [];
       totalDeposited = 0;
       selectedProfilePic = 0;
+      jazzCashNumber = jazzCash;
+      gameName = ignName;
+      gameUID = uid;
     };
 
     users.add(caller, newUser);
+  };
+
+  // NEW METHOD: Only update IGN, UID, and JazzCash
+  public shared ({ caller }) func updatePlayerInfo(gameName : Text, gameUID : Text, jazzCashNumber : Text) : async () {
+    let userProfile = getUserByPrincipalOrTrap(caller);
+    let updatedProfile = {
+      userProfile with
+      gameName;
+      gameUID;
+      jazzCashNumber;
+    };
+    users.add(caller, updatedProfile);
   };
 
   public shared ({ caller }) func authenticate(legendId : Text, passwordHash : Text) : async Bool {
@@ -443,5 +462,33 @@ actor {
         { roomId = tournament.roomId; roomPassword = tournament.roomPassword };
       };
     };
+  };
+
+  // New leaderboard query implementation // <-------------------- COMMENT: EXPLAIN THIS
+  type LeaderboardEntry = {
+    legendId : Text;
+    wins : Nat;
+    totalDeposited : Nat;
+    createdAt : Int;
+    totalMatches : Nat;
+  };
+
+  public query ({ caller }) func getLeaderboard() : async [LeaderboardEntry] {
+    users.values().toArray().map(
+      func(user) {
+        {
+          legendId = user.legendId;
+          wins = user.matchHistory.foldLeft(
+            0,
+            func(acc, match) {
+              if (match.result == #win) { acc + 1 } else { acc };
+            },
+          );
+          totalDeposited = user.totalDeposited;
+          createdAt = user.createdAt;
+          totalMatches = user.matchHistory.size();
+        };
+      }
+    );
   };
 };

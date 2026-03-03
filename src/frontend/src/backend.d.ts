@@ -13,6 +13,13 @@ export interface Transaction {
     txType: TransactionType;
     amount: bigint;
 }
+export interface LeaderboardEntry {
+    legendId: string;
+    totalMatches: bigint;
+    createdAt: bigint;
+    wins: bigint;
+    totalDeposited: bigint;
+}
 export interface DepositRequest {
     id: string;
     status: DepositStatus;
@@ -48,8 +55,11 @@ export interface UserProfile {
     legendId: string;
     createdAt: bigint;
     role: Role;
+    jazzCashNumber: string;
+    gameUID: string;
     isBanned: boolean;
     passwordHash: string;
+    gameName: string;
     selectedProfilePic: bigint;
     transactions: Array<Transaction>;
     totalDeposited: bigint;
@@ -85,6 +95,7 @@ export interface backendInterface {
     createTournament(title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string): Promise<string>;
     deleteTournament(id: string): Promise<void>;
     getActiveTournaments(): Promise<Array<Tournament>>;
+    getLeaderboard(): Promise<Array<LeaderboardEntry>>;
     getMyDepositRequests(): Promise<Array<DepositRequest>>;
     getPendingDepositRequests(): Promise<Array<DepositRequest>>;
     getTournamentRoom(tournamentId: string, legendId: string): Promise<{
@@ -94,11 +105,12 @@ export interface backendInterface {
     getTournaments(): Promise<Array<Tournament>>;
     getUserByLegendId(legendId: string): Promise<UserProfile>;
     joinTournamentById(tournamentId: string): Promise<void>;
-    register(legendId: string, passwordHash: string): Promise<void>;
+    register(legendId: string, passwordHash: string, jazzCash: string, uid: string, ignName: string): Promise<void>;
     rejectDepositRequest(requestId: string): Promise<void>;
     setProfilePicture(picIndex: bigint): Promise<void>;
     setTournamentRoom(tournamentId: string, roomId: string, roomPassword: string): Promise<void>;
     submitDepositRequest(amount: bigint, transactionId: string): Promise<void>;
     toggleBan(legendId: string): Promise<void>;
+    updatePlayerInfo(gameName: string, gameUID: string, jazzCashNumber: string): Promise<void>;
     updateTournament(id: string, title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, isActive: boolean): Promise<void>;
 }

@@ -9,9 +9,17 @@ import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-type FormValues = {
+type LoginFormValues = {
   legendId: string;
   password: string;
+};
+
+type RegisterFormValues = {
+  legendId: string;
+  password: string;
+  gameName: string;
+  gameUID: string;
+  jazzCashNumber: string;
 };
 
 export function AuthPage() {
@@ -22,10 +30,10 @@ export function AuthPage() {
   const { actor } = useActor();
   const login = useAuthStore((s) => s.login);
 
-  const loginForm = useForm<FormValues>();
-  const registerForm = useForm<FormValues>();
+  const loginForm = useForm<LoginFormValues>();
+  const registerForm = useForm<RegisterFormValues>();
 
-  async function handleLogin(data: FormValues) {
+  async function handleLogin(data: LoginFormValues) {
     if (!actor) {
       toast.error("Backend not ready. Please wait…");
       return;
@@ -55,7 +63,7 @@ export function AuthPage() {
     }
   }
 
-  async function handleRegister(data: FormValues) {
+  async function handleRegister(data: RegisterFormValues) {
     if (!actor) {
       toast.error("Backend not ready. Please wait…");
       return;
@@ -70,7 +78,13 @@ export function AuthPage() {
     setIsSubmitting(true);
     try {
       const hash = await hashPassword(data.password);
-      await actor.register(data.legendId.trim(), hash);
+      await actor.register(
+        data.legendId.trim(),
+        hash,
+        data.jazzCashNumber.trim(),
+        data.gameUID.trim(),
+        data.gameName.trim(),
+      );
       // After register, authenticate and get profile
       const ok = await actor.authenticate(data.legendId.trim(), hash);
       if (!ok) {
@@ -378,6 +392,117 @@ export function AuthPage() {
                           style={{ color: "#ff4422" }}
                         >
                           {registerForm.formState.errors.password.message}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Game Name */}
+                    <div>
+                      <label
+                        className="block text-xs font-body uppercase tracking-wider mb-2"
+                        style={{ color: "rgba(255,255,255,0.5)" }}
+                        htmlFor="register-game-name"
+                      >
+                        Free Fire Name
+                      </label>
+                      <input
+                        id="register-game-name"
+                        data-ocid="auth.game_name_input"
+                        type="text"
+                        className="input-fire-blue w-full px-4 py-3 rounded-lg font-body text-sm text-foreground transition-all duration-200"
+                        placeholder="Enter your Free Fire name"
+                        autoComplete="off"
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(0,102,255,0.25)",
+                          outline: "none",
+                        }}
+                        {...registerForm.register("gameName", {
+                          required: "Free Fire name is required",
+                          minLength: { value: 2, message: "Min 2 characters" },
+                        })}
+                      />
+                      {registerForm.formState.errors.gameName && (
+                        <p
+                          className="text-xs mt-1.5 font-body"
+                          style={{ color: "#ff4422" }}
+                        >
+                          {registerForm.formState.errors.gameName.message}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Game UID */}
+                    <div>
+                      <label
+                        className="block text-xs font-body uppercase tracking-wider mb-2"
+                        style={{ color: "rgba(255,255,255,0.5)" }}
+                        htmlFor="register-game-uid"
+                      >
+                        Free Fire UID
+                      </label>
+                      <input
+                        id="register-game-uid"
+                        data-ocid="auth.game_uid_input"
+                        type="text"
+                        className="input-fire-blue w-full px-4 py-3 rounded-lg font-body text-sm text-foreground transition-all duration-200"
+                        placeholder="Enter your Free Fire UID"
+                        autoComplete="off"
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(0,102,255,0.25)",
+                          outline: "none",
+                        }}
+                        {...registerForm.register("gameUID", {
+                          required: "Free Fire UID is required",
+                          minLength: { value: 4, message: "Min 4 characters" },
+                        })}
+                      />
+                      {registerForm.formState.errors.gameUID && (
+                        <p
+                          className="text-xs mt-1.5 font-body"
+                          style={{ color: "#ff4422" }}
+                        >
+                          {registerForm.formState.errors.gameUID.message}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* JazzCash Number */}
+                    <div>
+                      <label
+                        className="block text-xs font-body uppercase tracking-wider mb-2"
+                        style={{ color: "rgba(255,255,255,0.5)" }}
+                        htmlFor="register-jazzcash"
+                      >
+                        JazzCash Number
+                      </label>
+                      <input
+                        id="register-jazzcash"
+                        data-ocid="auth.jazzcash_input"
+                        type="tel"
+                        className="input-fire-blue w-full px-4 py-3 rounded-lg font-body text-sm text-foreground transition-all duration-200"
+                        placeholder="Enter your JazzCash number"
+                        autoComplete="tel"
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(0,102,255,0.25)",
+                          outline: "none",
+                        }}
+                        {...registerForm.register("jazzCashNumber", {
+                          required: "JazzCash number is required",
+                          minLength: {
+                            value: 10,
+                            message: "Enter a valid JazzCash number",
+                          },
+                        })}
+                      />
+                      {registerForm.formState.errors.jazzCashNumber && (
+                        <p
+                          className="text-xs mt-1.5 font-body"
+                          style={{ color: "#ff4422" }}
+                        >
+                          {registerForm.formState.errors.jazzCashNumber.message}
                         </p>
                       )}
                     </div>

@@ -95,6 +95,13 @@ export interface Transaction {
     txType: TransactionType;
     amount: bigint;
 }
+export interface LeaderboardEntry {
+    legendId: string;
+    totalMatches: bigint;
+    createdAt: bigint;
+    wins: bigint;
+    totalDeposited: bigint;
+}
 export interface DepositRequest {
     id: string;
     status: DepositStatus;
@@ -130,8 +137,11 @@ export interface UserProfile {
     legendId: string;
     createdAt: bigint;
     role: Role;
+    jazzCashNumber: string;
+    gameUID: string;
     isBanned: boolean;
     passwordHash: string;
+    gameName: string;
     selectedProfilePic: bigint;
     transactions: Array<Transaction>;
     totalDeposited: bigint;
@@ -167,6 +177,7 @@ export interface backendInterface {
     createTournament(title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string): Promise<string>;
     deleteTournament(id: string): Promise<void>;
     getActiveTournaments(): Promise<Array<Tournament>>;
+    getLeaderboard(): Promise<Array<LeaderboardEntry>>;
     getMyDepositRequests(): Promise<Array<DepositRequest>>;
     getPendingDepositRequests(): Promise<Array<DepositRequest>>;
     getTournamentRoom(tournamentId: string, legendId: string): Promise<{
@@ -176,12 +187,13 @@ export interface backendInterface {
     getTournaments(): Promise<Array<Tournament>>;
     getUserByLegendId(legendId: string): Promise<UserProfile>;
     joinTournamentById(tournamentId: string): Promise<void>;
-    register(legendId: string, passwordHash: string): Promise<void>;
+    register(legendId: string, passwordHash: string, jazzCash: string, uid: string, ignName: string): Promise<void>;
     rejectDepositRequest(requestId: string): Promise<void>;
     setProfilePicture(picIndex: bigint): Promise<void>;
     setTournamentRoom(tournamentId: string, roomId: string, roomPassword: string): Promise<void>;
     submitDepositRequest(amount: bigint, transactionId: string): Promise<void>;
     toggleBan(legendId: string): Promise<void>;
+    updatePlayerInfo(gameName: string, gameUID: string, jazzCashNumber: string): Promise<void>;
     updateTournament(id: string, title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, isActive: boolean): Promise<void>;
 }
 import type { DepositRequest as _DepositRequest, DepositStatus as _DepositStatus, GameMode as _GameMode, Match as _Match, Result as _Result, Role as _Role, Transaction as _Transaction, TransactionType as _TransactionType, UserProfile as _UserProfile } from "./declarations/backend.did.d.ts";
@@ -254,6 +266,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getActiveTournaments();
+            return result;
+        }
+    }
+    async getLeaderboard(): Promise<Array<LeaderboardEntry>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getLeaderboard();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getLeaderboard();
             return result;
         }
     }
@@ -344,17 +370,17 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async register(arg0: string, arg1: string): Promise<void> {
+    async register(arg0: string, arg1: string, arg2: string, arg3: string, arg4: string): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.register(arg0, arg1);
+                const result = await this.actor.register(arg0, arg1, arg2, arg3, arg4);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.register(arg0, arg1);
+            const result = await this.actor.register(arg0, arg1, arg2, arg3, arg4);
             return result;
         }
     }
@@ -425,6 +451,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.toggleBan(arg0);
+            return result;
+        }
+    }
+    async updatePlayerInfo(arg0: string, arg1: string, arg2: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updatePlayerInfo(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updatePlayerInfo(arg0, arg1, arg2);
             return result;
         }
     }
@@ -537,8 +577,11 @@ function from_candid_record_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint
     legendId: string;
     createdAt: bigint;
     role: _Role;
+    jazzCashNumber: string;
+    gameUID: string;
     isBanned: boolean;
     passwordHash: string;
+    gameName: string;
     selectedProfilePic: bigint;
     transactions: Array<_Transaction>;
     totalDeposited: bigint;
@@ -548,8 +591,11 @@ function from_candid_record_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint
     legendId: string;
     createdAt: bigint;
     role: Role;
+    jazzCashNumber: string;
+    gameUID: string;
     isBanned: boolean;
     passwordHash: string;
+    gameName: string;
     selectedProfilePic: bigint;
     transactions: Array<Transaction>;
     totalDeposited: bigint;
@@ -560,8 +606,11 @@ function from_candid_record_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint
         legendId: value.legendId,
         createdAt: value.createdAt,
         role: from_candid_Role_n8(_uploadFile, _downloadFile, value.role),
+        jazzCashNumber: value.jazzCashNumber,
+        gameUID: value.gameUID,
         isBanned: value.isBanned,
         passwordHash: value.passwordHash,
+        gameName: value.gameName,
         selectedProfilePic: value.selectedProfilePic,
         transactions: from_candid_vec_n10(_uploadFile, _downloadFile, value.transactions),
         totalDeposited: value.totalDeposited,
