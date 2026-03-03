@@ -23,12 +23,25 @@ export interface Transaction {
     txType: TransactionType;
     amount: bigint;
 }
+export interface DepositRequest {
+    id: string;
+    status: DepositStatus;
+    legendId: string;
+    submittedAt: bigint;
+    amount: bigint;
+    transactionId: string;
+}
 export interface Match {
     result: Result;
     date: bigint;
     mode: GameMode;
     matchId: string;
     coinsWagered: bigint;
+}
+export enum DepositStatus {
+    pending = "pending",
+    approved = "approved",
+    rejected = "rejected"
 }
 export enum GameMode {
     csMod = "csMod",
@@ -49,9 +62,14 @@ export enum TransactionType {
     deposit = "deposit"
 }
 export interface backendInterface {
+    approveDepositRequest(requestId: string): Promise<void>;
     authenticate(legendId: string, passwordHash: string): Promise<boolean>;
+    getMyDepositRequests(): Promise<Array<DepositRequest>>;
+    getPendingDepositRequests(): Promise<Array<DepositRequest>>;
     getUserByLegendId(legendId: string): Promise<UserProfile>;
     joinTournament(mode: GameMode, wager: bigint): Promise<void>;
     register(legendId: string, passwordHash: string): Promise<void>;
+    rejectDepositRequest(requestId: string): Promise<void>;
+    submitDepositRequest(amount: bigint, transactionId: string): Promise<void>;
     toggleBan(legendId: string): Promise<void>;
 }

@@ -8,6 +8,19 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
+export const DepositStatus = IDL.Variant({
+  'pending' : IDL.Null,
+  'approved' : IDL.Null,
+  'rejected' : IDL.Null,
+});
+export const DepositRequest = IDL.Record({
+  'id' : IDL.Text,
+  'status' : DepositStatus,
+  'legendId' : IDL.Text,
+  'submittedAt' : IDL.Int,
+  'amount' : IDL.Nat,
+  'transactionId' : IDL.Text,
+});
 export const Role = IDL.Variant({ 'admin' : IDL.Null, 'user' : IDL.Null });
 export const TransactionType = IDL.Variant({
   'withdraw' : IDL.Null,
@@ -48,16 +61,34 @@ export const UserProfile = IDL.Record({
 });
 
 export const idlService = IDL.Service({
+  'approveDepositRequest' : IDL.Func([IDL.Text], [], []),
   'authenticate' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
+  'getMyDepositRequests' : IDL.Func([], [IDL.Vec(DepositRequest)], []),
+  'getPendingDepositRequests' : IDL.Func([], [IDL.Vec(DepositRequest)], []),
   'getUserByLegendId' : IDL.Func([IDL.Text], [UserProfile], ['query']),
   'joinTournament' : IDL.Func([GameMode, IDL.Nat], [], []),
   'register' : IDL.Func([IDL.Text, IDL.Text], [], []),
+  'rejectDepositRequest' : IDL.Func([IDL.Text], [], []),
+  'submitDepositRequest' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   'toggleBan' : IDL.Func([IDL.Text], [], []),
 });
 
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
+  const DepositStatus = IDL.Variant({
+    'pending' : IDL.Null,
+    'approved' : IDL.Null,
+    'rejected' : IDL.Null,
+  });
+  const DepositRequest = IDL.Record({
+    'id' : IDL.Text,
+    'status' : DepositStatus,
+    'legendId' : IDL.Text,
+    'submittedAt' : IDL.Int,
+    'amount' : IDL.Nat,
+    'transactionId' : IDL.Text,
+  });
   const Role = IDL.Variant({ 'admin' : IDL.Null, 'user' : IDL.Null });
   const TransactionType = IDL.Variant({
     'withdraw' : IDL.Null,
@@ -98,10 +129,15 @@ export const idlFactory = ({ IDL }) => {
   });
   
   return IDL.Service({
+    'approveDepositRequest' : IDL.Func([IDL.Text], [], []),
     'authenticate' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
+    'getMyDepositRequests' : IDL.Func([], [IDL.Vec(DepositRequest)], []),
+    'getPendingDepositRequests' : IDL.Func([], [IDL.Vec(DepositRequest)], []),
     'getUserByLegendId' : IDL.Func([IDL.Text], [UserProfile], ['query']),
     'joinTournament' : IDL.Func([GameMode, IDL.Nat], [], []),
     'register' : IDL.Func([IDL.Text, IDL.Text], [], []),
+    'rejectDepositRequest' : IDL.Func([IDL.Text], [], []),
+    'submitDepositRequest' : IDL.Func([IDL.Nat, IDL.Text], [], []),
     'toggleBan' : IDL.Func([IDL.Text], [], []),
   });
 };

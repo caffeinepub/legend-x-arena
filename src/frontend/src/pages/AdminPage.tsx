@@ -1,4 +1,6 @@
 import {
+  type DepositRequest,
+  DepositStatus,
   GameMode,
   type Match,
   type Transaction,
@@ -23,6 +25,7 @@ import {
   Coins,
   Loader2,
   LogOut,
+  RefreshCcw,
   Search,
   Shield,
   Users,
@@ -355,6 +358,252 @@ function UserCard({
   );
 }
 
+/* ─── Pending Deposits Section ─────────────────────────────── */
+function PendingDepositsSection() {
+  const { actor, isFetching } = useActor();
+  const queryClient = useQueryClient();
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+
+  const {
+    data: pendingDeposits = [],
+    isFetching: isLoadingDeposits,
+    refetch: refetchDeposits,
+  } = useQuery<DepositRequest[]>({
+    queryKey: ["pendingDeposits"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getPendingDepositRequests();
+    },
+    enabled: !!actor && !isFetching,
+  });
+
+  async function handleApprove(req: DepositRequest) {
+    if (!actor) return;
+    setLoadingId(req.id);
+    try {
+      await actor.approveDepositRequest(req.id);
+      toast.success(
+        `Deposit approved! ₡${Number(req.amount).toLocaleString()} added to ${req.legendId}`,
+      );
+      queryClient.invalidateQueries({ queryKey: ["pendingDeposits"] });
+      await refetchDeposits();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to approve deposit request");
+    } finally {
+      setLoadingId(null);
+    }
+  }
+
+  async function handleReject(req: DepositRequest) {
+    if (!actor) return;
+    setLoadingId(req.id);
+    try {
+      await actor.rejectDepositRequest(req.id);
+      toast.success("Deposit request rejected");
+      queryClient.invalidateQueries({ queryKey: ["pendingDeposits"] });
+      await refetchDeposits();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to reject deposit request");
+    } finally {
+      setLoadingId(null);
+    }
+  }
+
+  function formatDate(ts: bigint): string {
+    try {
+      const ms = Number(ts) / 1_000_000;
+      return new Date(ms).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return "—";
+    }
+  }
+
+  return (
+    <div
+      className="rounded-2xl p-6 mb-8"
+      style={{
+        background: "rgba(13, 13, 26, 0.9)",
+        border: "1px solid rgba(255,215,0,0.15)",
+      }}
+    >
+      {/* Section heading */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <h2 className="font-display font-bold text-base uppercase tracking-wider text-foreground">
+            Pending Deposit Requests
+          </h2>
+          <span
+            className="text-xs font-display font-black px-2.5 py-0.5 rounded-full"
+            style={{
+              background:
+                pendingDeposits.length > 0
+                  ? "rgba(255,165,0,0.2)"
+                  : "rgba(255,255,255,0.08)",
+              border:
+                pendingDeposits.length > 0
+                  ? "1px solid rgba(255,165,0,0.45)"
+                  : "1px solid rgba(255,255,255,0.12)",
+              color:
+                pendingDeposits.length > 0
+                  ? "#ffaa00"
+                  : "rgba(255,255,255,0.4)",
+            }}
+          >
+            {pendingDeposits.length} pending
+          </span>
+        </div>
+        <button
+          type="button"
+          data-ocid="admin.deposit.refresh_button"
+          onClick={() => refetchDeposits()}
+          disabled={isLoadingDeposits}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-display font-bold uppercase tracking-wider transition-all duration-200 hover:opacity-80 disabled:opacity-50"
+          style={{
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            color: "rgba(255,255,255,0.6)",
+          }}
+        >
+          <RefreshCcw
+            className={`w-3.5 h-3.5 ${isLoadingDeposits ? "animate-spin" : ""}`}
+          />
+          Refresh
+        </button>
+      </div>
+
+      {/* Loading state */}
+      {isLoadingDeposits && pendingDeposits.length === 0 && (
+        <div
+          data-ocid="admin.deposit.loading_state"
+          className="flex items-center justify-center py-10 gap-3 text-muted-foreground"
+        >
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span className="font-body text-sm">Loading requests…</span>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!isLoadingDeposits && pendingDeposits.length === 0 && (
+        <div
+          data-ocid="admin.deposit.empty_state"
+          className="rounded-xl py-12 text-center"
+          style={{
+            background: "rgba(255,255,255,0.02)",
+            border: "1px dashed rgba(255,255,255,0.08)",
+          }}
+        >
+          <Coins
+            className="w-10 h-10 mx-auto mb-3"
+            style={{ color: "rgba(255,255,255,0.15)" }}
+          />
+          <p className="font-body text-muted-foreground text-sm">
+            No pending deposit requests
+          </p>
+        </div>
+      )}
+
+      {/* Requests list */}
+      {pendingDeposits.length > 0 && (
+        <div className="space-y-3">
+          {pendingDeposits.map((req, i) => {
+            const isProcessing = loadingId === req.id;
+            return (
+              <div
+                key={req.id}
+                data-ocid={`admin.deposit.item.${i + 1}`}
+                className="rounded-xl p-4"
+                style={{
+                  background: "rgba(255,165,0,0.04)",
+                  border: "1px solid rgba(255,165,0,0.15)",
+                }}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 flex-wrap mb-1.5">
+                      <span className="font-display font-black text-lg text-foreground">
+                        {req.legendId}
+                      </span>
+                      <span
+                        className="font-display font-black text-base tabular-nums"
+                        style={{ color: "#ffd700" }}
+                      >
+                        ₡{Number(req.amount).toLocaleString()} LC
+                      </span>
+                    </div>
+                    <p
+                      className="text-xs font-mono mb-1 truncate max-w-xs"
+                      style={{ color: "rgba(255,255,255,0.5)" }}
+                    >
+                      TxID: {req.transactionId}
+                    </p>
+                    <p
+                      className="text-xs font-body"
+                      style={{ color: "rgba(255,255,255,0.3)" }}
+                    >
+                      {formatDate(req.submittedAt)}
+                    </p>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      type="button"
+                      data-ocid={`admin.deposit.accept_button.${i + 1}`}
+                      onClick={() => handleApprove(req)}
+                      disabled={isProcessing || loadingId !== null}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50"
+                      style={{
+                        background: "rgba(34,204,102,0.15)",
+                        border: "1px solid rgba(34,204,102,0.4)",
+                        color: "#22cc66",
+                      }}
+                    >
+                      {isProcessing ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <CheckCircle className="w-3.5 h-3.5" />
+                      )}
+                      Accept
+                    </button>
+                    <button
+                      type="button"
+                      data-ocid={`admin.deposit.reject_button.${i + 1}`}
+                      onClick={() => handleReject(req)}
+                      disabled={isProcessing || loadingId !== null}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50"
+                      style={{
+                        background: "rgba(255,34,0,0.15)",
+                        border: "1px solid rgba(255,34,0,0.4)",
+                        color: "#ff4422",
+                      }}
+                    >
+                      {isProcessing ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Ban className="w-3.5 h-3.5" />
+                      )}
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AdminPage() {
   const navigate = useNavigate();
   const { legendId } = useAuthStore();
@@ -558,6 +807,9 @@ export function AdminPage() {
             </div>
           </div>
         </div>
+
+        {/* ── Pending Deposit Requests ── */}
+        <PendingDepositsSection />
 
         {/* Search bar */}
         <div

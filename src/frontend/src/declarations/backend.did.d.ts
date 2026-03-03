@@ -10,6 +10,17 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
+export interface DepositRequest {
+  'id' : string,
+  'status' : DepositStatus,
+  'legendId' : string,
+  'submittedAt' : bigint,
+  'amount' : bigint,
+  'transactionId' : string,
+}
+export type DepositStatus = { 'pending' : null } |
+  { 'approved' : null } |
+  { 'rejected' : null };
 export type GameMode = { 'csMod' : null } |
   { 'loneWolf' : null } |
   { 'brMod' : null };
@@ -44,10 +55,15 @@ export interface UserProfile {
   'matchHistory' : Array<Match>,
 }
 export interface _SERVICE {
+  'approveDepositRequest' : ActorMethod<[string], undefined>,
   'authenticate' : ActorMethod<[string, string], boolean>,
+  'getMyDepositRequests' : ActorMethod<[], Array<DepositRequest>>,
+  'getPendingDepositRequests' : ActorMethod<[], Array<DepositRequest>>,
   'getUserByLegendId' : ActorMethod<[string], UserProfile>,
   'joinTournament' : ActorMethod<[GameMode, bigint], undefined>,
   'register' : ActorMethod<[string, string], undefined>,
+  'rejectDepositRequest' : ActorMethod<[string], undefined>,
+  'submitDepositRequest' : ActorMethod<[bigint, string], undefined>,
   'toggleBan' : ActorMethod<[string], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;

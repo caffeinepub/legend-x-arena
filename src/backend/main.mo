@@ -1,20 +1,20 @@
 import Iter "mo:core/Iter";
 import Array "mo:core/Array";
 import Text "mo:core/Text";
+import Nat "mo:core/Nat";
 import Map "mo:core/Map";
 import Time "mo:core/Time";
-import Runtime "mo:core/Runtime";
 import Order "mo:core/Order";
+import Runtime "mo:core/Runtime";
 import Principal "mo:core/Principal";
+import Migration "migration";
 
+(with migration = Migration.run)
 actor {
   type Role = { #admin; #user };
   type GameMode = { #loneWolf; #csMod; #brMod };
   type Result = { #win; #loss; #draw };
-  type TransactionType = {
-    #deposit;
-    #withdraw;
-  };
+  type TransactionType = { #deposit; #withdraw };
 
   type UserProfile = {
     legendId : Text;
@@ -42,9 +42,21 @@ actor {
     description : Text;
   };
 
-  var isFirstAdminSet = false;
+  type DepositStatus = { #pending; #approved; #rejected };
 
+  type DepositRequest = {
+    id : Text;
+    legendId : Text;
+    amount : Nat;
+    transactionId : Text;
+    status : DepositStatus;
+    submittedAt : Int;
+  };
+
+  var isFirstAdminSet = false;
   let users = Map.empty<Principal, UserProfile>();
+  let depositRequests = Map.empty<Text, DepositRequest>();
+  var depositIdCounter = 0;
 
   module UserProfile {
     public func compare(a : UserProfile, b : UserProfile) : Order.Order {
@@ -56,13 +68,35 @@ actor {
     switch (users.get(caller)) {
       case (null) { false };
       case (?userProfile) {
-        userProfile.role == #admin;
+        switch (userProfile.role) {
+          case (#admin) { true };
+          case (#user) { false };
+        };
       };
     };
   };
 
   func assertAdmin(caller : Principal) {
     if (not isAdmin(caller)) { Runtime.trap("Admin privileges required") };
+  };
+
+  func getUserByLegendIdInternal(legendId : Text) : ?(Principal, UserProfile) {
+    users.entries().find(func((_, profile)) { profile.legendId == legendId });
+  };
+
+  func getUserByPrincipalOrTrap(principal : Principal) : UserProfile {
+    switch (users.get(principal)) {
+      case (null) { Runtime.trap("User not found") };
+      case (?profile) { profile };
+    };
+  };
+
+  func updateUser(
+    principal : Principal,
+    updateFunc : UserProfile -> UserProfile,
+  ) {
+    let profile = getUserByPrincipalOrTrap(principal);
+    users.add(principal, updateFunc(profile));
   };
 
   public shared ({ caller }) func register(legendId : Text, passwordHash : Text) : async () {
@@ -98,46 +132,112 @@ actor {
   };
 
   public query ({ caller }) func getUserByLegendId(legendId : Text) : async UserProfile {
-    switch (users.values().find(func(p) { p.legendId == legendId })) {
+    switch (getUserByLegendIdInternal(legendId)) {
       case (null) { Runtime.trap("User not found") };
-      case (?profile) { profile };
+      case (?(_, profile)) { profile };
     };
   };
 
   public shared ({ caller }) func toggleBan(legendId : Text) : async () {
     assertAdmin(caller);
-    let entry = users.entries().find(func((_, profile)) { profile.legendId == legendId });
-    switch (entry) {
+    switch (getUserByLegendIdInternal(legendId)) {
       case (null) { Runtime.trap("User not found") };
       case (?(principal, profile)) {
-        let updatedProfile = {
-          profile with
-          isBanned = not profile.isBanned;
-        };
+        let updatedProfile = { profile with isBanned = not profile.isBanned };
         users.add(principal, updatedProfile);
       };
     };
   };
 
   public shared ({ caller }) func joinTournament(mode : GameMode, wager : Nat) : async () {
-    switch (users.get(caller)) {
-      case (null) { Runtime.trap("User not found") };
-      case (?userProfile) {
+    updateUser(
+      caller,
+      func(userProfile) {
         if (userProfile.isBanned) {
           Runtime.trap("Banned users cannot join tournaments");
         };
-
         if (userProfile.walletBalance < wager) {
           Runtime.trap("Insufficient balance");
         };
+        { userProfile with walletBalance = userProfile.walletBalance - wager };
+      },
+    );
+  };
 
-        let updatedProfile : UserProfile = {
-          userProfile with
-          walletBalance = userProfile.walletBalance - wager;
+  // Deposit Management
+
+  public shared ({ caller }) func submitDepositRequest(amount : Nat, transactionId : Text) : async () {
+    let userProfile = getUserByPrincipalOrTrap(caller);
+
+    let depositId = depositIdCounter.toText();
+    depositIdCounter += 1;
+
+    let newRequest : DepositRequest = {
+      id = depositId;
+      legendId = userProfile.legendId;
+      amount;
+      transactionId;
+      status = #pending;
+      submittedAt = Time.now();
+    };
+
+    depositRequests.add(depositId, newRequest);
+  };
+
+  public shared ({ caller }) func getMyDepositRequests() : async [DepositRequest] {
+    let userProfile = getUserByPrincipalOrTrap(caller);
+    depositRequests.values().toArray().filter(
+      func(r) {
+        r.legendId == userProfile.legendId;
+      }
+    );
+  };
+
+  public shared ({ caller }) func getPendingDepositRequests() : async [DepositRequest] {
+    assertAdmin(caller);
+    depositRequests.values().toArray().filter(
+      func(r) { r.status == #pending }
+    );
+  };
+
+  public shared ({ caller }) func approveDepositRequest(requestId : Text) : async () {
+    assertAdmin(caller);
+    let request = switch (depositRequests.get(requestId)) {
+      case (null) { Runtime.trap("Deposit request not found") };
+      case (?r) { r };
+    };
+
+    let userEntry = getUserByLegendIdInternal(request.legendId);
+    switch (userEntry) {
+      case (null) { Runtime.trap("User not found for deposit") };
+      case (?(userPrincipal, userData)) {
+        // Update deposit status
+        depositRequests.add(requestId, { request with status = #approved });
+
+        let newTransaction : Transaction = {
+          txType = #deposit;
+          amount = request.amount;
+          date = Time.now();
+          description = "Deposit Approved";
         };
 
-        users.add(caller, updatedProfile);
+        // Update user and transactions
+        let updatedProfile = {
+          userData with
+          walletBalance = userData.walletBalance + request.amount;
+          transactions = userData.transactions.concat([newTransaction]);
+        };
+        users.add(userPrincipal, updatedProfile);
       };
     };
+  };
+
+  public shared ({ caller }) func rejectDepositRequest(requestId : Text) : async () {
+    assertAdmin(caller);
+    let request = switch (depositRequests.get(requestId)) {
+      case (null) { Runtime.trap("Deposit request not found") };
+      case (?r) { r };
+    };
+    depositRequests.add(requestId, { request with status = #rejected });
   };
 };
