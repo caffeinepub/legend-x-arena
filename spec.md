@@ -1,34 +1,32 @@
 # Legend X Arena
 
 ## Current State
-- Full dashboard with 5-tab bottom nav (Matches, Ranking, Play, Deposit, Profile)
-- Deposit tab shows balance and coin preset buttons (100/500/1000/5000) but they just show "Coming soon" toast
-- Admin panel has user search and ban/unban functionality
-- Backend has UserProfile with walletBalance, transactions array, register/authenticate/toggleBan/joinTournament
+Full Free Fire esports app with:
+- 5-tab bottom navigation (Matches, Ranking, Play, Deposit, Profile)
+- JazzCash deposit system with admin approve/reject
+- User walletBalance tracks total deposited Legend Coins
+- Profile tab shows avatar (initials-based), stats, and logout
 
 ## Requested Changes (Diff)
 
 ### Add
-- JazzCash deposit number **0324-2646964** displayed prominently in Deposit tab
-- Deposit request form: user enters amount + JazzCash transaction ID and submits request
-- Backend: DepositRequest type with fields (legendId, amount, transactionId, status: pending/approved/rejected, submittedAt)
-- Backend: submitDepositRequest(amount, transactionId) -- stores pending request linked to caller
-- Backend: getMyDepositRequests() -- returns caller's deposit requests
-- Backend: getPendingDepositRequests() -- admin only, returns all pending requests
-- Backend: approveDepositRequest(requestId) -- admin only, sets status to approved and credits coins to user's wallet + adds transaction record
-- Backend: rejectDepositRequest(requestId) -- admin only, sets status to rejected
-- Admin panel: new "Deposit Requests" tab/section showing all pending requests with Accept/Reject buttons
-- Deposit tab: show user's own submitted requests with status badges (Pending / Approved / Rejected)
+- **Profile Picture Unlock System**: 6 tiered profile pictures that unlock based on total coins ever deposited (cumulative lifetime deposit, not current balance)
+- Unlock tiers: 50 LC = Pic 1, 100 LC = Pic 2, 200 LC = Pic 3, 500 LC = Pic 4, 800 LC = Pic 5, 1000 LC = Pic 6
+- **Avatar Selector UI**: In Profile tab, show all 6 avatars. Locked ones show lock icon + required deposit. Unlocked ones are selectable.
+- **setProfilePicture** backend API: stores which picture the user has selected
+- **totalDeposited** field tracked in backend UserProfile (incremented on each approved deposit)
+- Selected profile picture shown in profile header and anywhere avatar is displayed
 
 ### Modify
-- Deposit tab: replace "Coming soon" coin preset buttons with JazzCash payment instructions + deposit request submission form
-- Admin panel: add deposit requests management section alongside existing user search
+- `UserProfile` backend type: add `selectedProfilePic: Nat` (0 = default initials) and `totalDeposited: Nat`
+- `approveDepositRequest` to also increment `totalDeposited`
+- Profile tab avatar area: replace initials circle with selected profile image (or initials if none selected)
 
 ### Remove
-- "Coming soon" toast on coin preset buttons (replaced with actual JazzCash flow)
+- Nothing removed
 
 ## Implementation Plan
-1. Update backend main.mo: add DepositRequest type, requestsMap, submitDepositRequest, getMyDepositRequests, getPendingDepositRequests, approveDepositRequest, rejectDepositRequest
-2. Regenerate backend.d.ts bindings
-3. Update DashboardPage Deposit tab: show JazzCash number, amount input, transaction ID input, submit button, list of user's own requests with status
-4. Update AdminPage: add "Deposit Requests" section with list of pending requests, Accept/Reject buttons per request
+1. Update `main.mo`: add `selectedProfilePic` and `totalDeposited` to UserProfile, add `setProfilePicture` update function, update `approveDepositRequest` to increment `totalDeposited`
+2. Generate 6 gaming-themed Free Fire style avatar images
+3. Frontend: Profile tab update -- show avatar grid with lock/unlock states, allow selecting unlocked pics, display selected pic in header
+4. Wire `setProfilePicture` call to backend on selection

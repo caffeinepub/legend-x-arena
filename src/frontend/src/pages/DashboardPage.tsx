@@ -20,8 +20,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
   BarChart2,
+  CheckCircle2,
   Copy,
   Globe,
+  Lock,
   LogOut,
   Medal,
   Shield,
@@ -32,6 +34,52 @@ import {
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+
+/* ─── Profile Picture Tiers ──────────────────────────────────── */
+const AVATAR_TIERS = [
+  {
+    index: 1,
+    src: "/assets/generated/avatar1-transparent.dim_200x200.png",
+    required: 50,
+    label: "T1",
+    glowColor: "#ff4422",
+  },
+  {
+    index: 2,
+    src: "/assets/generated/avatar2-transparent.dim_200x200.png",
+    required: 100,
+    label: "T2",
+    glowColor: "#0099ff",
+  },
+  {
+    index: 3,
+    src: "/assets/generated/avatar3-transparent.dim_200x200.png",
+    required: 200,
+    label: "T3",
+    glowColor: "#22cc66",
+  },
+  {
+    index: 4,
+    src: "/assets/generated/avatar4-transparent.dim_200x200.png",
+    required: 500,
+    label: "T4",
+    glowColor: "#ff9900",
+  },
+  {
+    index: 5,
+    src: "/assets/generated/avatar5-transparent.dim_200x200.png",
+    required: 800,
+    label: "T5",
+    glowColor: "#cc44ff",
+  },
+  {
+    index: 6,
+    src: "/assets/generated/avatar6-transparent.dim_200x200.png",
+    required: 1000,
+    label: "T6",
+    glowColor: "#ffd700",
+  },
+] as const;
 
 /* ─── helpers ─────────────────────────────────────────────── */
 
@@ -607,6 +655,7 @@ export function DashboardPage() {
   const { legendId, role } = useAuthStore();
   const logout = useAuthStore((s) => s.logout);
   const { actor, isFetching } = useActor();
+  const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<TabId>("play");
   const [joiningMode, setJoiningMode] = useState<string | null>(null);
@@ -657,6 +706,38 @@ export function DashboardPage() {
   const balance = profile?.walletBalance ?? BigInt(0);
   const allMatches = profile?.matchHistory ?? [];
   const transactions = profile?.transactions ?? [];
+  const totalDeposited = Number(profile?.totalDeposited ?? BigInt(0));
+  const selectedProfilePic = Number(profile?.selectedProfilePic ?? BigInt(0));
+
+  /* avatar helpers */
+  const highestUnlocked = AVATAR_TIERS.filter(
+    (t) => totalDeposited >= t.required,
+  ).at(-1);
+  const avatarGlowColor = highestUnlocked?.glowColor ?? "rgba(255,255,255,0.2)";
+
+  const nextTier = AVATAR_TIERS.find((t) => totalDeposited < t.required);
+  const allUnlocked = !nextTier;
+  const progressPercent = nextTier
+    ? Math.min(Math.round((totalDeposited / nextTier.required) * 100), 100)
+    : 100;
+
+  const [selectingPic, setSelectingPic] = useState<number | null>(null);
+
+  async function handleSelectAvatar(picIndex: number) {
+    if (!actor) return;
+    setSelectingPic(picIndex);
+    try {
+      await actor.setProfilePicture(BigInt(picIndex));
+      await refetchProfile();
+      queryClient.invalidateQueries({ queryKey: ["userProfile", legendId] });
+      toast.success("Profile picture updated!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update profile picture.");
+    } finally {
+      setSelectingPic(null);
+    }
+  }
 
   /* stats */
   const wins = allMatches.filter((m) => m.result === Result.win).length;
@@ -943,18 +1024,50 @@ export function DashboardPage() {
                 "linear-gradient(90deg, #ff2200, #ffd700 50%, #0066ff)",
             }}
           />
-          {/* Avatar */}
+          {/* Smart Avatar */}
           <div
-            className="w-16 h-16 rounded-full flex-shrink-0 flex items-center justify-center font-display font-black text-xl uppercase"
-            style={{
-              background:
-                "radial-gradient(circle at 35% 35%, rgba(255,60,0,0.6), rgba(200,0,0,0.8))",
-              border: "2px solid rgba(255,100,0,0.5)",
-              color: "#fff",
-              boxShadow: "0 0 20px rgba(255,34,0,0.4)",
-            }}
+            className="flex-shrink-0 relative"
+            style={{ width: 72, height: 72 }}
           >
-            {(legendId ?? "??").substring(0, 2).toUpperCase()}
+            {/* Glow ring based on highest tier unlocked */}
+            <div
+              style={{
+                position: "absolute",
+                inset: -4,
+                borderRadius: "50%",
+                border: `2px solid ${avatarGlowColor}`,
+                boxShadow: `0 0 16px ${avatarGlowColor}88, 0 0 32px ${avatarGlowColor}44`,
+                animation: highestUnlocked
+                  ? "profileGlowPulse 2.5s ease-in-out infinite"
+                  : "none",
+              }}
+            />
+            {selectedProfilePic > 0 ? (
+              <img
+                src={
+                  AVATAR_TIERS.find((t) => t.index === selectedProfilePic)
+                    ?.src ?? ""
+                }
+                alt="Profile avatar"
+                className="w-full h-full rounded-full object-cover"
+                style={{
+                  border: `2px solid ${avatarGlowColor}`,
+                  boxShadow: `0 0 12px ${avatarGlowColor}66`,
+                }}
+              />
+            ) : (
+              <div
+                className="w-full h-full rounded-full flex items-center justify-center font-display font-black text-xl uppercase"
+                style={{
+                  background:
+                    "radial-gradient(circle at 35% 35%, rgba(255,60,0,0.6), rgba(200,0,0,0.8))",
+                  border: "2px solid rgba(255,100,0,0.5)",
+                  color: "#fff",
+                }}
+              >
+                {(legendId ?? "??").substring(0, 2).toUpperCase()}
+              </div>
+            )}
           </div>
           <div>
             <div
@@ -988,6 +1101,15 @@ export function DashboardPage() {
               />
               <span className="text-xs font-body text-muted-foreground">
                 Online
+              </span>
+            </div>
+            {/* Total deposited badge */}
+            <div className="mt-1.5">
+              <span
+                className="text-xs font-display font-bold tracking-wider"
+                style={{ color: "rgba(255,215,0,0.7)" }}
+              >
+                ₡{totalDeposited.toLocaleString()} total deposited
               </span>
             </div>
           </div>
@@ -1034,6 +1156,267 @@ export function DashboardPage() {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* ── Unlock Progress Bar ── */}
+        <div
+          data-ocid="profile.avatar_unlock_progress"
+          className="rounded-xl p-4 mb-5"
+          style={{
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.07)",
+          }}
+        >
+          {allUnlocked ? (
+            <div className="flex items-center justify-center gap-2 py-1">
+              <CheckCircle2 className="w-5 h-5" style={{ color: "#ffd700" }} />
+              <span
+                className="font-display font-black text-sm tracking-wider"
+                style={{ color: "#ffd700" }}
+              >
+                All pictures unlocked! 🏆
+              </span>
+            </div>
+          ) : (
+            <>
+              <div className="flex justify-between items-center mb-2">
+                <span
+                  className="text-xs font-display font-bold uppercase tracking-wider"
+                  style={{ color: "rgba(255,255,255,0.6)" }}
+                >
+                  Next Unlock: {nextTier?.label} at ₡{nextTier?.required}
+                </span>
+                <span
+                  className="text-xs font-display font-black tabular-nums"
+                  style={{ color: nextTier?.glowColor ?? "#ffd700" }}
+                >
+                  {progressPercent}%
+                </span>
+              </div>
+              <div
+                className="h-2 rounded-full overflow-hidden"
+                style={{ background: "rgba(255,255,255,0.06)" }}
+              >
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${progressPercent}%`,
+                    background: `linear-gradient(90deg, ${nextTier?.glowColor ?? "#ffd700"}88, ${nextTier?.glowColor ?? "#ffd700"})`,
+                    boxShadow: `0 0 8px ${nextTier?.glowColor ?? "#ffd700"}66`,
+                  }}
+                />
+              </div>
+              <div
+                className="mt-1.5 text-xs font-body text-center"
+                style={{ color: "rgba(255,255,255,0.35)" }}
+              >
+                ₡{totalDeposited} / ₡{nextTier?.required} deposited
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* ── Avatar Gallery ── */}
+        <div
+          data-ocid="profile.avatar_gallery.section"
+          className="rounded-xl p-4 mb-6"
+          style={{
+            background: "rgba(255,255,255,0.02)",
+            border: "1px solid rgba(255,255,255,0.07)",
+          }}
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <Lock
+              className="w-3.5 h-3.5"
+              style={{ color: "rgba(255,215,0,0.7)" }}
+            />
+            <h4
+              className="font-display font-black text-xs uppercase tracking-[0.2em]"
+              style={{ color: "rgba(255,215,0,0.9)" }}
+            >
+              Profile Pictures
+            </h4>
+          </div>
+
+          {/* Scrollable grid */}
+          <div
+            className="flex gap-3 overflow-x-auto pb-2"
+            style={{ scrollbarWidth: "none" }}
+          >
+            {AVATAR_TIERS.map((tier) => {
+              const isUnlocked = totalDeposited >= tier.required;
+              const isSelected = selectedProfilePic === tier.index;
+              const isLoading = selectingPic === tier.index;
+
+              return (
+                <button
+                  key={tier.index}
+                  type="button"
+                  data-ocid={`profile.avatar_item.${tier.index}`}
+                  disabled={!isUnlocked || isLoading}
+                  onClick={() =>
+                    isUnlocked && !isSelected && handleSelectAvatar(tier.index)
+                  }
+                  className="flex-shrink-0 flex flex-col items-center gap-2 transition-all duration-200"
+                  style={{
+                    outline: "none",
+                    cursor:
+                      isUnlocked && !isSelected
+                        ? "pointer"
+                        : isSelected
+                          ? "default"
+                          : "not-allowed",
+                    opacity: isUnlocked ? 1 : 0.65,
+                    transform: isSelected ? "scale(1.05)" : "scale(1)",
+                  }}
+                >
+                  {/* Avatar image container */}
+                  <div className="relative" style={{ width: 80, height: 80 }}>
+                    {/* Ring: gold for selected, green for unlocked, dark for locked */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        inset: isSelected ? -3 : -2,
+                        borderRadius: "50%",
+                        border: isSelected
+                          ? "3px solid #ffd700"
+                          : isUnlocked
+                            ? `2px solid ${tier.glowColor}88`
+                            : "2px solid rgba(255,255,255,0.1)",
+                        boxShadow: isSelected
+                          ? "0 0 16px #ffd70088, 0 0 32px #ffd70044"
+                          : isUnlocked
+                            ? `0 0 12px ${tier.glowColor}55`
+                            : "none",
+                        animation: isSelected
+                          ? "profileGlowPulse 2s ease-in-out infinite"
+                          : "none",
+                        zIndex: 2,
+                      }}
+                    />
+
+                    <img
+                      src={tier.src}
+                      alt={`Avatar tier ${tier.index}`}
+                      className="w-full h-full rounded-full object-cover"
+                      style={{
+                        filter: isUnlocked
+                          ? "none"
+                          : "grayscale(80%) brightness(0.4)",
+                      }}
+                    />
+
+                    {/* Lock overlay */}
+                    {!isUnlocked && (
+                      <div
+                        className="absolute inset-0 rounded-full flex items-center justify-center"
+                        style={{
+                          background: "rgba(0,0,0,0.55)",
+                          backdropFilter: "blur(1px)",
+                        }}
+                      >
+                        <Lock
+                          className="w-5 h-5"
+                          style={{ color: "rgba(255,255,255,0.5)" }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Loading spinner */}
+                    {isLoading && (
+                      <div
+                        className="absolute inset-0 rounded-full flex items-center justify-center"
+                        style={{ background: "rgba(0,0,0,0.6)" }}
+                      >
+                        <svg
+                          className="w-5 h-5 animate-spin"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          aria-label="Loading"
+                          role="img"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="#ffd700"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="#ffd700"
+                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                          />
+                        </svg>
+                      </div>
+                    )}
+
+                    {/* Active badge */}
+                    {isSelected && (
+                      <div
+                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-2 py-px rounded-full"
+                        style={{
+                          background: "#ffd700",
+                          zIndex: 3,
+                        }}
+                      >
+                        <span
+                          className="font-display font-black uppercase"
+                          style={{
+                            fontSize: "8px",
+                            color: "#000",
+                            letterSpacing: "0.1em",
+                          }}
+                        >
+                          ACTIVE
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tier label */}
+                  <span
+                    className="font-display font-black uppercase"
+                    style={{
+                      fontSize: "10px",
+                      letterSpacing: "0.12em",
+                      color: isSelected
+                        ? "#ffd700"
+                        : isUnlocked
+                          ? tier.glowColor
+                          : "rgba(255,255,255,0.3)",
+                    }}
+                  >
+                    {tier.label}
+                  </span>
+
+                  {/* Deposit requirement */}
+                  <span
+                    className="font-body text-center"
+                    style={{
+                      fontSize: "10px",
+                      color: isUnlocked ? "rgba(255,255,255,0.4)" : "#ff4422",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {isUnlocked ? (
+                      <span style={{ color: "rgba(34,204,102,0.7)" }}>
+                        ✓ Unlocked
+                      </span>
+                    ) : (
+                      <>
+                        ₡{tier.required}
+                        <br />
+                        to unlock
+                      </>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Mode breakdown bars */}

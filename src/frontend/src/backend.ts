@@ -95,7 +95,9 @@ export interface UserProfile {
     role: Role;
     isBanned: boolean;
     passwordHash: string;
+    selectedProfilePic: bigint;
     transactions: Array<Transaction>;
+    totalDeposited: bigint;
     walletBalance: bigint;
     matchHistory: Array<Match>;
 }
@@ -152,6 +154,7 @@ export interface backendInterface {
     joinTournament(mode: GameMode, wager: bigint): Promise<void>;
     register(legendId: string, passwordHash: string): Promise<void>;
     rejectDepositRequest(requestId: string): Promise<void>;
+    setProfilePicture(picIndex: bigint): Promise<void>;
     submitDepositRequest(amount: bigint, transactionId: string): Promise<void>;
     toggleBan(legendId: string): Promise<void>;
 }
@@ -267,6 +270,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.rejectDepositRequest(arg0);
+            return result;
+        }
+    }
+    async setProfilePicture(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.setProfilePicture(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.setProfilePicture(arg0);
             return result;
         }
     }
@@ -395,7 +412,9 @@ function from_candid_record_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint
     role: _Role;
     isBanned: boolean;
     passwordHash: string;
+    selectedProfilePic: bigint;
     transactions: Array<_Transaction>;
+    totalDeposited: bigint;
     walletBalance: bigint;
     matchHistory: Array<_Match>;
 }): {
@@ -404,7 +423,9 @@ function from_candid_record_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint
     role: Role;
     isBanned: boolean;
     passwordHash: string;
+    selectedProfilePic: bigint;
     transactions: Array<Transaction>;
+    totalDeposited: bigint;
     walletBalance: bigint;
     matchHistory: Array<Match>;
 } {
@@ -414,7 +435,9 @@ function from_candid_record_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint
         role: from_candid_Role_n8(_uploadFile, _downloadFile, value.role),
         isBanned: value.isBanned,
         passwordHash: value.passwordHash,
+        selectedProfilePic: value.selectedProfilePic,
         transactions: from_candid_vec_n10(_uploadFile, _downloadFile, value.transactions),
+        totalDeposited: value.totalDeposited,
         walletBalance: value.walletBalance,
         matchHistory: from_candid_vec_n15(_uploadFile, _downloadFile, value.matchHistory)
     };

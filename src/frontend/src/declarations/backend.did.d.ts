@@ -50,7 +50,9 @@ export interface UserProfile {
   'role' : Role,
   'isBanned' : boolean,
   'passwordHash' : string,
+  'selectedProfilePic' : bigint,
   'transactions' : Array<Transaction>,
+  'totalDeposited' : bigint,
   'walletBalance' : bigint,
   'matchHistory' : Array<Match>,
 }
@@ -63,6 +65,7 @@ export interface _SERVICE {
   'joinTournament' : ActorMethod<[GameMode, bigint], undefined>,
   'register' : ActorMethod<[string, string], undefined>,
   'rejectDepositRequest' : ActorMethod<[string], undefined>,
+  'setProfilePicture' : ActorMethod<[bigint], undefined>,
   'submitDepositRequest' : ActorMethod<[bigint, string], undefined>,
   'toggleBan' : ActorMethod<[string], undefined>,
 }

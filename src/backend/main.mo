@@ -25,6 +25,8 @@ actor {
     createdAt : Int;
     matchHistory : [Match];
     transactions : [Transaction];
+    totalDeposited : Nat;
+    selectedProfilePic : Nat;
   };
 
   type Match = {
@@ -117,6 +119,8 @@ actor {
       createdAt = Time.now();
       matchHistory = [];
       transactions = [];
+      totalDeposited = 0;
+      selectedProfilePic = 0;
     };
 
     users.add(caller, newUser);
@@ -226,6 +230,7 @@ actor {
           userData with
           walletBalance = userData.walletBalance + request.amount;
           transactions = userData.transactions.concat([newTransaction]);
+          totalDeposited = userData.totalDeposited + request.amount;
         };
         users.add(userPrincipal, updatedProfile);
       };
@@ -239,5 +244,27 @@ actor {
       case (?r) { r };
     };
     depositRequests.add(requestId, { request with status = #rejected });
+  };
+
+  public shared ({ caller }) func setProfilePicture(picIndex : Nat) : async () {
+    let userProfile = getUserByPrincipalOrTrap(caller);
+
+    let minDeposit = switch (picIndex) {
+      case (0) { 0 };
+      case (1) { 50 };
+      case (2) { 100 };
+      case (3) { 200 };
+      case (4) { 500 };
+      case (5) { 800 };
+      case (6) { 1000 };
+      case (_) { Runtime.trap("Invalid profile picture index") };
+    };
+
+    if (userProfile.totalDeposited < minDeposit) {
+      Runtime.trap("Insufficient total deposits to unlock this profile picture");
+    };
+
+    let updatedProfile = { userProfile with selectedProfilePic = picIndex };
+    users.add(caller, updatedProfile);
   };
 };

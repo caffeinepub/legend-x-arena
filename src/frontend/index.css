@@ -388,6 +388,12 @@
   100% { opacity: 0.6; }
 }
 
+/* Profile avatar glow ring pulse */
+@keyframes profileGlowPulse {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50%       { opacity: 1; transform: scale(1.04); }
+}
+
 /* Reduce motion */
 @media (prefers-reduced-motion: reduce) {
   .animate-fire-rise,

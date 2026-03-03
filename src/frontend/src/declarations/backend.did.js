@@ -55,7 +55,9 @@ export const UserProfile = IDL.Record({
   'role' : Role,
   'isBanned' : IDL.Bool,
   'passwordHash' : IDL.Text,
+  'selectedProfilePic' : IDL.Nat,
   'transactions' : IDL.Vec(Transaction),
+  'totalDeposited' : IDL.Nat,
   'walletBalance' : IDL.Nat,
   'matchHistory' : IDL.Vec(Match),
 });
@@ -69,6 +71,7 @@ export const idlService = IDL.Service({
   'joinTournament' : IDL.Func([GameMode, IDL.Nat], [], []),
   'register' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'rejectDepositRequest' : IDL.Func([IDL.Text], [], []),
+  'setProfilePicture' : IDL.Func([IDL.Nat], [], []),
   'submitDepositRequest' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   'toggleBan' : IDL.Func([IDL.Text], [], []),
 });
@@ -123,7 +126,9 @@ export const idlFactory = ({ IDL }) => {
     'role' : Role,
     'isBanned' : IDL.Bool,
     'passwordHash' : IDL.Text,
+    'selectedProfilePic' : IDL.Nat,
     'transactions' : IDL.Vec(Transaction),
+    'totalDeposited' : IDL.Nat,
     'walletBalance' : IDL.Nat,
     'matchHistory' : IDL.Vec(Match),
   });
@@ -137,6 +142,7 @@ export const idlFactory = ({ IDL }) => {
     'joinTournament' : IDL.Func([GameMode, IDL.Nat], [], []),
     'register' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'rejectDepositRequest' : IDL.Func([IDL.Text], [], []),
+    'setProfilePicture' : IDL.Func([IDL.Nat], [], []),
     'submitDepositRequest' : IDL.Func([IDL.Nat, IDL.Text], [], []),
     'toggleBan' : IDL.Func([IDL.Text], [], []),
   });

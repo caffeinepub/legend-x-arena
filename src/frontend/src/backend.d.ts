@@ -13,7 +13,9 @@ export interface UserProfile {
     role: Role;
     isBanned: boolean;
     passwordHash: string;
+    selectedProfilePic: bigint;
     transactions: Array<Transaction>;
+    totalDeposited: bigint;
     walletBalance: bigint;
     matchHistory: Array<Match>;
 }
@@ -70,6 +72,7 @@ export interface backendInterface {
     joinTournament(mode: GameMode, wager: bigint): Promise<void>;
     register(legendId: string, passwordHash: string): Promise<void>;
     rejectDepositRequest(requestId: string): Promise<void>;
+    setProfilePicture(picIndex: bigint): Promise<void>;
     submitDepositRequest(amount: bigint, transactionId: string): Promise<void>;
     toggleBan(legendId: string): Promise<void>;
 }
