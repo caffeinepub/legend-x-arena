@@ -1,0 +1,332 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Fonts ─────────────────────────────────────────────── */
+@font-face {
+  font-family: "Mona Sans";
+  src: url("/assets/fonts/mona-sans.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Outfit";
+  src: url("/assets/fonts/outfit.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ─── Design Tokens ──────────────────────────────────────── */
+@layer base {
+  :root {
+    --radius: 0.5rem;
+
+    /* Arena dark palette */
+    --background: 0.08 0.01 260;
+    --foreground: 0.95 0.01 260;
+
+    --card: 0.11 0.015 260;
+    --card-foreground: 0.95 0.01 260;
+
+    --popover: 0.13 0.015 260;
+    --popover-foreground: 0.95 0.01 260;
+
+    /* Fire red */
+    --primary: 0.55 0.22 25;
+    --primary-foreground: 0.98 0 0;
+
+    /* Fire blue */
+    --secondary: 0.45 0.20 250;
+    --secondary-foreground: 0.98 0 0;
+
+    /* Gold */
+    --accent: 0.78 0.18 85;
+    --accent-foreground: 0.08 0 0;
+
+    --muted: 0.18 0.01 260;
+    --muted-foreground: 0.55 0.02 260;
+
+    --destructive: 0.55 0.22 25;
+    --destructive-foreground: 0.98 0 0;
+
+    --border: 0.25 0.03 260;
+    --input: 0.18 0.02 260;
+    --ring: 0.55 0.22 25;
+
+    --chart-1: 0.55 0.22 25;
+    --chart-2: 0.45 0.20 250;
+    --chart-3: 0.78 0.18 85;
+    --chart-4: 0.60 0.18 300;
+    --chart-5: 0.65 0.15 160;
+
+    --sidebar: 0.10 0.015 260;
+    --sidebar-foreground: 0.95 0.01 260;
+    --sidebar-primary: 0.55 0.22 25;
+    --sidebar-primary-foreground: 0.98 0 0;
+    --sidebar-accent: 0.18 0.01 260;
+    --sidebar-accent-foreground: 0.95 0.01 260;
+    --sidebar-border: 0.25 0.03 260;
+    --sidebar-ring: 0.55 0.22 25;
+  }
+
+  .dark {
+    --background: 0.08 0.01 260;
+    --foreground: 0.95 0.01 260;
+
+    --card: 0.11 0.015 260;
+    --card-foreground: 0.95 0.01 260;
+
+    --popover: 0.13 0.015 260;
+    --popover-foreground: 0.95 0.01 260;
+
+    --primary: 0.55 0.22 25;
+    --primary-foreground: 0.98 0 0;
+
+    --secondary: 0.45 0.20 250;
+    --secondary-foreground: 0.98 0 0;
+
+    --accent: 0.78 0.18 85;
+    --accent-foreground: 0.08 0 0;
+
+    --muted: 0.18 0.01 260;
+    --muted-foreground: 0.55 0.02 260;
+
+    --destructive: 0.55 0.22 25;
+    --destructive-foreground: 0.98 0 0;
+
+    --border: 0.25 0.03 260;
+    --input: 0.18 0.02 260;
+    --ring: 0.55 0.22 25;
+
+    --chart-1: 0.55 0.22 25;
+    --chart-2: 0.45 0.20 250;
+    --chart-3: 0.78 0.18 85;
+    --chart-4: 0.60 0.18 300;
+    --chart-5: 0.65 0.15 160;
+
+    --sidebar: 0.10 0.015 260;
+    --sidebar-foreground: 0.95 0.01 260;
+    --sidebar-primary: 0.55 0.22 25;
+    --sidebar-primary-foreground: 0.98 0 0;
+    --sidebar-accent: 0.18 0.01 260;
+    --sidebar-accent-foreground: 0.95 0.01 260;
+    --sidebar-border: 0.25 0.03 260;
+    --sidebar-ring: 0.55 0.22 25;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Outfit", ui-sans-serif, system-ui, sans-serif;
+    background-color: #0a0a0f;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Mona Sans", ui-sans-serif, system-ui, sans-serif;
+  }
+}
+
+/* ─── Keyframe Animations ────────────────────────────────── */
+
+/* Fire rise for edge particles */
+@keyframes fireRise {
+  0% { transform: translateY(0) scale(1); opacity: 0.9; }
+  100% { transform: translateY(-120px) scale(0); opacity: 0; }
+}
+
+/* Coin fall shower */
+@keyframes coinFall {
+  0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+/* Fire explosion on register */
+@keyframes fireExplosion {
+  0% { transform: scale(1); box-shadow: 0 0 10px #ff2200; }
+  50% { transform: scale(1.08); box-shadow: 0 0 60px #ff4400, 0 0 120px #ff2200; }
+  100% { transform: scale(1); box-shadow: 0 0 10px #ff2200; }
+}
+
+/* Pulsing glow for CTA button */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 20px #ff2200, 0 0 40px #ff6600; }
+  50% { box-shadow: 0 0 40px #ff2200, 0 0 80px #ff6600, 0 0 120px #ff2200; }
+}
+
+/* Blue pulse glow */
+@keyframes pulseGlowBlue {
+  0%, 100% { box-shadow: 0 0 20px #0066ff, 0 0 40px #00ccff; }
+  50% { box-shadow: 0 0 40px #0066ff, 0 0 80px #00ccff, 0 0 120px #0066ff; }
+}
+
+/* Text glow red/gold */
+@keyframes textGlow {
+  0%, 100% { text-shadow: 0 0 20px #ff2200, 0 0 40px #ff6600, 0 0 60px #ff2200; }
+  50% { text-shadow: 0 0 30px #ffd700, 0 0 60px #ff6600, 0 0 10px #fff; }
+}
+
+/* Floating animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+/* Scan line effect */
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+
+/* Flicker */
+@keyframes flicker {
+  0%, 95%, 100% { opacity: 1; }
+  96% { opacity: 0.8; }
+  97% { opacity: 1; }
+  98% { opacity: 0.6; }
+}
+
+/* Shimmer for gold */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* Slide in from left */
+@keyframes slideInLeft {
+  from { transform: translateX(-40px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Fade up */
+@keyframes fadeUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* ─── Utility Classes ────────────────────────────────────── */
+
+.animate-fire-rise {
+  animation: fireRise linear infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.animate-pulse-glow-blue {
+  animation: pulseGlowBlue 2s ease-in-out infinite;
+}
+
+.animate-text-glow {
+  animation: textGlow 3s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-fire-explosion {
+  animation: fireExplosion 0.6s ease-in-out;
+}
+
+.animate-coin-fall {
+  animation: coinFall linear forwards;
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.6s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.5s ease-out forwards;
+}
+
+/* Gold shimmer text */
+.text-shimmer-gold {
+  background: linear-gradient(
+    90deg,
+    #ffd700 0%,
+    #fff8cc 40%,
+    #ffd700 60%,
+    #ff9900 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
+
+/* Fire border glow */
+.border-fire-red {
+  border-color: #ff2200;
+  box-shadow: 0 0 15px rgba(255, 34, 0, 0.4), inset 0 0 15px rgba(255, 34, 0, 0.05);
+}
+
+.border-fire-blue {
+  border-color: #0066ff;
+  box-shadow: 0 0 15px rgba(0, 102, 255, 0.4), inset 0 0 15px rgba(0, 102, 255, 0.05);
+}
+
+.border-fire-gold {
+  border-color: #ffd700;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.4), inset 0 0 15px rgba(255, 215, 0, 0.05);
+}
+
+/* Input fire focus */
+.input-fire-red:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 34, 0, 0.5), 0 0 20px rgba(255, 34, 0, 0.2);
+  border-color: #ff2200 !important;
+}
+
+.input-fire-blue:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 102, 255, 0.5), 0 0 20px rgba(0, 102, 255, 0.2);
+  border-color: #0066ff !important;
+}
+
+/* Arena scanline overlay */
+.arena-scanline::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.05) 2px,
+    rgba(0, 0, 0, 0.05) 4px
+  );
+  pointer-events: none;
+}
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fire-rise,
+  .animate-pulse-glow,
+  .animate-pulse-glow-blue,
+  .animate-text-glow,
+  .animate-float,
+  .animate-fire-explosion,
+  .animate-coin-fall,
+  .animate-fade-up,
+  .animate-slide-in-left,
+  .text-shimmer-gold {
+    animation: none !important;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}
