@@ -89,18 +89,6 @@ export class ExternalBlob {
         return this;
     }
 }
-export interface UserProfile {
-    legendId: string;
-    createdAt: bigint;
-    role: Role;
-    isBanned: boolean;
-    passwordHash: string;
-    selectedProfilePic: bigint;
-    transactions: Array<Transaction>;
-    totalDeposited: bigint;
-    walletBalance: bigint;
-    matchHistory: Array<Match>;
-}
 export interface Transaction {
     date: bigint;
     description: string;
@@ -115,12 +103,40 @@ export interface DepositRequest {
     amount: bigint;
     transactionId: string;
 }
+export interface Tournament {
+    id: string;
+    title: string;
+    mode: string;
+    createdAt: bigint;
+    isActive: boolean;
+    roomPassword: string;
+    imageUrl: string;
+    currentPlayers: bigint;
+    category: string;
+    entryFee: bigint;
+    joinedPlayers: Array<string>;
+    roomId: string;
+    maxPlayers: bigint;
+    prizePool: string;
+}
 export interface Match {
     result: Result;
     date: bigint;
     mode: GameMode;
     matchId: string;
     coinsWagered: bigint;
+}
+export interface UserProfile {
+    legendId: string;
+    createdAt: bigint;
+    role: Role;
+    isBanned: boolean;
+    passwordHash: string;
+    selectedProfilePic: bigint;
+    transactions: Array<Transaction>;
+    totalDeposited: bigint;
+    walletBalance: bigint;
+    matchHistory: Array<Match>;
 }
 export enum DepositStatus {
     pending = "pending",
@@ -148,15 +164,25 @@ export enum TransactionType {
 export interface backendInterface {
     approveDepositRequest(requestId: string): Promise<void>;
     authenticate(legendId: string, passwordHash: string): Promise<boolean>;
+    createTournament(title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string): Promise<string>;
+    deleteTournament(id: string): Promise<void>;
+    getActiveTournaments(): Promise<Array<Tournament>>;
     getMyDepositRequests(): Promise<Array<DepositRequest>>;
     getPendingDepositRequests(): Promise<Array<DepositRequest>>;
+    getTournamentRoom(tournamentId: string, legendId: string): Promise<{
+        roomPassword: string;
+        roomId: string;
+    }>;
+    getTournaments(): Promise<Array<Tournament>>;
     getUserByLegendId(legendId: string): Promise<UserProfile>;
-    joinTournament(mode: GameMode, wager: bigint): Promise<void>;
+    joinTournamentById(tournamentId: string): Promise<void>;
     register(legendId: string, passwordHash: string): Promise<void>;
     rejectDepositRequest(requestId: string): Promise<void>;
     setProfilePicture(picIndex: bigint): Promise<void>;
+    setTournamentRoom(tournamentId: string, roomId: string, roomPassword: string): Promise<void>;
     submitDepositRequest(amount: bigint, transactionId: string): Promise<void>;
     toggleBan(legendId: string): Promise<void>;
+    updateTournament(id: string, title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, isActive: boolean): Promise<void>;
 }
 import type { DepositRequest as _DepositRequest, DepositStatus as _DepositStatus, GameMode as _GameMode, Match as _Match, Result as _Result, Role as _Role, Transaction as _Transaction, TransactionType as _TransactionType, UserProfile as _UserProfile } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -189,6 +215,48 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async createTournament(arg0: string, arg1: string, arg2: string, arg3: bigint, arg4: string, arg5: bigint, arg6: string): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.createTournament(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.createTournament(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+            return result;
+        }
+    }
+    async deleteTournament(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteTournament(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteTournament(arg0);
+            return result;
+        }
+    }
+    async getActiveTournaments(): Promise<Array<Tournament>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getActiveTournaments();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getActiveTournaments();
+            return result;
+        }
+    }
     async getMyDepositRequests(): Promise<Array<DepositRequest>> {
         if (this.processError) {
             try {
@@ -217,6 +285,37 @@ export class Backend implements backendInterface {
             return from_candid_vec_n1(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getTournamentRoom(arg0: string, arg1: string): Promise<{
+        roomPassword: string;
+        roomId: string;
+    }> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getTournamentRoom(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getTournamentRoom(arg0, arg1);
+            return result;
+        }
+    }
+    async getTournaments(): Promise<Array<Tournament>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getTournaments();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getTournaments();
+            return result;
+        }
+    }
     async getUserByLegendId(arg0: string): Promise<UserProfile> {
         if (this.processError) {
             try {
@@ -231,17 +330,17 @@ export class Backend implements backendInterface {
             return from_candid_UserProfile_n6(this._uploadFile, this._downloadFile, result);
         }
     }
-    async joinTournament(arg0: GameMode, arg1: bigint): Promise<void> {
+    async joinTournamentById(arg0: string): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.joinTournament(to_candid_GameMode_n22(this._uploadFile, this._downloadFile, arg0), arg1);
+                const result = await this.actor.joinTournamentById(arg0);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.joinTournament(to_candid_GameMode_n22(this._uploadFile, this._downloadFile, arg0), arg1);
+            const result = await this.actor.joinTournamentById(arg0);
             return result;
         }
     }
@@ -287,6 +386,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async setTournamentRoom(arg0: string, arg1: string, arg2: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.setTournamentRoom(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.setTournamentRoom(arg0, arg1, arg2);
+            return result;
+        }
+    }
     async submitDepositRequest(arg0: bigint, arg1: string): Promise<void> {
         if (this.processError) {
             try {
@@ -312,6 +425,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.toggleBan(arg0);
+            return result;
+        }
+    }
+    async updateTournament(arg0: string, arg1: string, arg2: string, arg3: string, arg4: bigint, arg5: string, arg6: bigint, arg7: string, arg8: boolean): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateTournament(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateTournament(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
             return result;
         }
     }
@@ -491,24 +618,6 @@ function from_candid_vec_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8A
 }
 function from_candid_vec_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Match>): Array<Match> {
     return value.map((x)=>from_candid_Match_n16(_uploadFile, _downloadFile, x));
-}
-function to_candid_GameMode_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: GameMode): _GameMode {
-    return to_candid_variant_n23(_uploadFile, _downloadFile, value);
-}
-function to_candid_variant_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: GameMode): {
-    csMod: null;
-} | {
-    loneWolf: null;
-} | {
-    brMod: null;
-} {
-    return value == GameMode.csMod ? {
-        csMod: null
-    } : value == GameMode.loneWolf ? {
-        loneWolf: null
-    } : value == GameMode.brMod ? {
-        brMod: null
-    } : value;
 }
 export interface CreateActorOptions {
     agent?: Agent;

@@ -55,10 +55,29 @@ actor {
     submittedAt : Int;
   };
 
+  type Tournament = {
+    id : Text;
+    title : Text;
+    category : Text;
+    mode : Text;
+    entryFee : Nat;
+    prizePool : Text;
+    maxPlayers : Nat;
+    currentPlayers : Nat;
+    imageUrl : Text;
+    isActive : Bool;
+    createdAt : Int;
+    roomId : Text;
+    roomPassword : Text;
+    joinedPlayers : [Text];
+  };
+
   var isFirstAdminSet = false;
   let users = Map.empty<Principal, UserProfile>();
   let depositRequests = Map.empty<Text, DepositRequest>();
+  let tournaments = Map.empty<Text, Tournament>();
   var depositIdCounter = 0;
+  var tournamentIdCounter = 0;
 
   module UserProfile {
     public func compare(a : UserProfile, b : UserProfile) : Order.Order {
@@ -151,21 +170,6 @@ actor {
         users.add(principal, updatedProfile);
       };
     };
-  };
-
-  public shared ({ caller }) func joinTournament(mode : GameMode, wager : Nat) : async () {
-    updateUser(
-      caller,
-      func(userProfile) {
-        if (userProfile.isBanned) {
-          Runtime.trap("Banned users cannot join tournaments");
-        };
-        if (userProfile.walletBalance < wager) {
-          Runtime.trap("Insufficient balance");
-        };
-        { userProfile with walletBalance = userProfile.walletBalance - wager };
-      },
-    );
   };
 
   // Deposit Management
@@ -266,5 +270,178 @@ actor {
 
     let updatedProfile = { userProfile with selectedProfilePic = picIndex };
     users.add(caller, updatedProfile);
+  };
+
+  // Tournament Management
+
+  public shared ({ caller }) func createTournament(
+    title : Text,
+    category : Text,
+    mode : Text,
+    entryFee : Nat,
+    prizePool : Text,
+    maxPlayers : Nat,
+    imageUrl : Text,
+  ) : async Text {
+    assertAdmin(caller);
+
+    let tournamentId = tournamentIdCounter.toText();
+    tournamentIdCounter += 1;
+
+    let newTournament : Tournament = {
+      id = tournamentId;
+      title;
+      category;
+      mode;
+      entryFee;
+      prizePool;
+      maxPlayers;
+      currentPlayers = 0;
+      imageUrl;
+      isActive = true;
+      createdAt = Time.now();
+      roomId = "";
+      roomPassword = "";
+      joinedPlayers = [];
+    };
+
+    tournaments.add(tournamentId, newTournament);
+    tournamentId;
+  };
+
+  public shared ({ caller }) func updateTournament(
+    id : Text,
+    title : Text,
+    category : Text,
+    mode : Text,
+    entryFee : Nat,
+    prizePool : Text,
+    maxPlayers : Nat,
+    imageUrl : Text,
+    isActive : Bool,
+  ) : async () {
+    assertAdmin(caller);
+
+    let tournament = switch (tournaments.get(id)) {
+      case (null) { Runtime.trap("Tournament not found") };
+      case (?t) { t };
+    };
+
+    let updatedTournament = {
+      id = tournament.id;
+      title;
+      category;
+      mode;
+      entryFee;
+      prizePool;
+      maxPlayers;
+      currentPlayers = tournament.currentPlayers; // Preserve existing players count
+      imageUrl;
+      isActive;
+      createdAt = tournament.createdAt;
+      roomId = tournament.roomId; // Preserve roomId
+      roomPassword = tournament.roomPassword; // Preserve roomPassword
+      joinedPlayers = tournament.joinedPlayers; // Preserve joinedPlayers
+    };
+
+    tournaments.add(id, updatedTournament);
+  };
+
+  public shared ({ caller }) func deleteTournament(id : Text) : async () {
+    assertAdmin(caller);
+
+    switch (tournaments.get(id)) {
+      case (null) { Runtime.trap("Tournament not found") };
+      case (?_) {
+        tournaments.remove(id);
+      };
+    };
+  };
+
+  public query ({ caller }) func getTournaments() : async [Tournament] {
+    assertAdmin(caller);
+    tournaments.values().toArray();
+  };
+
+  public query ({ caller }) func getActiveTournaments() : async [Tournament] {
+    tournaments.values().toArray().filter(
+      func(t) { t.isActive }
+    );
+  };
+
+  public shared ({ caller }) func setTournamentRoom(tournamentId : Text, roomId : Text, roomPassword : Text) : async () {
+    assertAdmin(caller);
+
+    switch (tournaments.get(tournamentId)) {
+      case (null) { Runtime.trap("Tournament not found") };
+      case (?tournament) {
+        let updatedTournament = { tournament with roomId; roomPassword };
+        tournaments.add(tournamentId, updatedTournament);
+      };
+    };
+  };
+
+  public shared ({ caller }) func joinTournamentById(tournamentId : Text) : async () {
+    switch (tournaments.get(tournamentId)) {
+      case (null) { Runtime.trap("Tournament not found") };
+      case (?tournament) {
+        if (not tournament.isActive) {
+          Runtime.trap("This tournament is no longer active");
+        };
+        if (tournament.currentPlayers >= tournament.maxPlayers) {
+          Runtime.trap("Tournament is full");
+        };
+
+        let userProfile = getUserByPrincipalOrTrap(caller);
+
+        if (userProfile.isBanned) {
+          Runtime.trap("Banned users cannot join tournaments");
+        };
+
+        if (userProfile.walletBalance < tournament.entryFee) {
+          Runtime.trap("Insufficient balance");
+        };
+
+        // Check if already joined
+        if (tournament.joinedPlayers.any(func(pid) { pid == userProfile.legendId })) {
+          Runtime.trap("Already joined this tournament");
+        };
+
+        let updatedMatchHistory = userProfile.matchHistory.concat([{
+          matchId = tournamentId;
+          mode = #loneWolf;
+          result = #loss;
+          coinsWagered = tournament.entryFee;
+          date = Time.now();
+        }]);
+
+        users.add(caller, {
+          userProfile with
+          walletBalance = userProfile.walletBalance - tournament.entryFee;
+          matchHistory = updatedMatchHistory;
+        });
+
+        // Add user to joinedPlayers
+        let updatedTournament = {
+          tournament with
+          currentPlayers = tournament.currentPlayers + 1;
+          joinedPlayers = tournament.joinedPlayers.concat([userProfile.legendId]);
+        };
+        tournaments.add(tournamentId, updatedTournament);
+      };
+    };
+  };
+
+  public query ({ caller }) func getTournamentRoom(tournamentId : Text, legendId : Text) : async { roomId : Text; roomPassword : Text } {
+    switch (tournaments.get(tournamentId)) {
+      case (null) { Runtime.trap("Tournament not found") };
+      case (?tournament) {
+        // Check if user has joined
+        if (not tournament.joinedPlayers.any(func(id) { id == legendId })) {
+          Runtime.trap("You must join the tournament to view room details");
+        };
+        { roomId = tournament.roomId; roomPassword = tournament.roomPassword };
+      };
+    };
   };
 };

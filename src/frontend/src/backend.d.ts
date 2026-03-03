@@ -7,18 +7,6 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
-export interface UserProfile {
-    legendId: string;
-    createdAt: bigint;
-    role: Role;
-    isBanned: boolean;
-    passwordHash: string;
-    selectedProfilePic: bigint;
-    transactions: Array<Transaction>;
-    totalDeposited: bigint;
-    walletBalance: bigint;
-    matchHistory: Array<Match>;
-}
 export interface Transaction {
     date: bigint;
     description: string;
@@ -33,12 +21,40 @@ export interface DepositRequest {
     amount: bigint;
     transactionId: string;
 }
+export interface Tournament {
+    id: string;
+    title: string;
+    mode: string;
+    createdAt: bigint;
+    isActive: boolean;
+    roomPassword: string;
+    imageUrl: string;
+    currentPlayers: bigint;
+    category: string;
+    entryFee: bigint;
+    joinedPlayers: Array<string>;
+    roomId: string;
+    maxPlayers: bigint;
+    prizePool: string;
+}
 export interface Match {
     result: Result;
     date: bigint;
     mode: GameMode;
     matchId: string;
     coinsWagered: bigint;
+}
+export interface UserProfile {
+    legendId: string;
+    createdAt: bigint;
+    role: Role;
+    isBanned: boolean;
+    passwordHash: string;
+    selectedProfilePic: bigint;
+    transactions: Array<Transaction>;
+    totalDeposited: bigint;
+    walletBalance: bigint;
+    matchHistory: Array<Match>;
 }
 export enum DepositStatus {
     pending = "pending",
@@ -66,13 +82,23 @@ export enum TransactionType {
 export interface backendInterface {
     approveDepositRequest(requestId: string): Promise<void>;
     authenticate(legendId: string, passwordHash: string): Promise<boolean>;
+    createTournament(title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string): Promise<string>;
+    deleteTournament(id: string): Promise<void>;
+    getActiveTournaments(): Promise<Array<Tournament>>;
     getMyDepositRequests(): Promise<Array<DepositRequest>>;
     getPendingDepositRequests(): Promise<Array<DepositRequest>>;
+    getTournamentRoom(tournamentId: string, legendId: string): Promise<{
+        roomPassword: string;
+        roomId: string;
+    }>;
+    getTournaments(): Promise<Array<Tournament>>;
     getUserByLegendId(legendId: string): Promise<UserProfile>;
-    joinTournament(mode: GameMode, wager: bigint): Promise<void>;
+    joinTournamentById(tournamentId: string): Promise<void>;
     register(legendId: string, passwordHash: string): Promise<void>;
     rejectDepositRequest(requestId: string): Promise<void>;
     setProfilePicture(picIndex: bigint): Promise<void>;
+    setTournamentRoom(tournamentId: string, roomId: string, roomPassword: string): Promise<void>;
     submitDepositRequest(amount: bigint, transactionId: string): Promise<void>;
     toggleBan(legendId: string): Promise<void>;
+    updateTournament(id: string, title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, isActive: boolean): Promise<void>;
 }

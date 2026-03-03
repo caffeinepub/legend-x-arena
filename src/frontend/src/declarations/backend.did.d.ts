@@ -36,6 +36,22 @@ export type Result = { 'win' : null } |
   { 'loss' : null };
 export type Role = { 'admin' : null } |
   { 'user' : null };
+export interface Tournament {
+  'id' : string,
+  'title' : string,
+  'mode' : string,
+  'createdAt' : bigint,
+  'isActive' : boolean,
+  'roomPassword' : string,
+  'imageUrl' : string,
+  'currentPlayers' : bigint,
+  'category' : string,
+  'entryFee' : bigint,
+  'joinedPlayers' : Array<string>,
+  'roomId' : string,
+  'maxPlayers' : bigint,
+  'prizePool' : string,
+}
 export interface Transaction {
   'date' : bigint,
   'description' : string,
@@ -59,15 +75,31 @@ export interface UserProfile {
 export interface _SERVICE {
   'approveDepositRequest' : ActorMethod<[string], undefined>,
   'authenticate' : ActorMethod<[string, string], boolean>,
+  'createTournament' : ActorMethod<
+    [string, string, string, bigint, string, bigint, string],
+    string
+  >,
+  'deleteTournament' : ActorMethod<[string], undefined>,
+  'getActiveTournaments' : ActorMethod<[], Array<Tournament>>,
   'getMyDepositRequests' : ActorMethod<[], Array<DepositRequest>>,
   'getPendingDepositRequests' : ActorMethod<[], Array<DepositRequest>>,
+  'getTournamentRoom' : ActorMethod<
+    [string, string],
+    { 'roomPassword' : string, 'roomId' : string }
+  >,
+  'getTournaments' : ActorMethod<[], Array<Tournament>>,
   'getUserByLegendId' : ActorMethod<[string], UserProfile>,
-  'joinTournament' : ActorMethod<[GameMode, bigint], undefined>,
+  'joinTournamentById' : ActorMethod<[string], undefined>,
   'register' : ActorMethod<[string, string], undefined>,
   'rejectDepositRequest' : ActorMethod<[string], undefined>,
   'setProfilePicture' : ActorMethod<[bigint], undefined>,
+  'setTournamentRoom' : ActorMethod<[string, string, string], undefined>,
   'submitDepositRequest' : ActorMethod<[bigint, string], undefined>,
   'toggleBan' : ActorMethod<[string], undefined>,
+  'updateTournament' : ActorMethod<
+    [string, string, string, string, bigint, string, bigint, string, boolean],
+    undefined
+  >,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

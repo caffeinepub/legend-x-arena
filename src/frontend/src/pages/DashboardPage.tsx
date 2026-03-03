@@ -6,13 +6,13 @@ import {
   type Match,
   Result,
   Role,
+  type Tournament,
   type Transaction,
   TransactionType,
 } from "@/backend.d";
 import { CoinShower } from "@/components/CoinShower";
 import { FireAnimation } from "@/components/FireAnimation";
 import { FirstLoginModal } from "@/components/FirstLoginModal";
-import { GameModeCard } from "@/components/GameModeCard";
 import { RifleAnimation } from "@/components/RifleAnimation";
 import { WalletDisplay } from "@/components/WalletDisplay";
 import { useActor } from "@/hooks/useActor";
@@ -22,19 +22,26 @@ import { useNavigate } from "@tanstack/react-router";
 import {
   BarChart2,
   CheckCircle2,
+  Clock,
   Copy,
-  Globe,
+  ImageIcon,
+  Loader2,
   Lock,
   LogOut,
   Medal,
   Shield,
-  Sword,
+  Swords,
   Trophy,
   User,
   Wallet,
+  X,
 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+
+/* ─── Default Joker profile pic (FREE, always unlocked) ───────── */
+const DEFAULT_PROFILE_PIC =
+  "/assets/uploads/eca553eded03ba3da1b6cdce6d22ba73-1.jpg";
 
 /* ─── Profile Picture Tiers ──────────────────────────────────── */
 const AVATAR_TIERS = [
@@ -81,6 +88,13 @@ const AVATAR_TIERS = [
     glowColor: "#ffd700",
   },
 ] as const;
+
+/* ─── Get profile pic src by index ──────────────────────────── */
+function getProfilePicSrc(picIndex: number): string {
+  if (picIndex === 0) return DEFAULT_PROFILE_PIC;
+  const tier = AVATAR_TIERS.find((t) => t.index === picIndex);
+  return tier?.src ?? DEFAULT_PROFILE_PIC;
+}
 
 /* ─── helpers ─────────────────────────────────────────────── */
 
@@ -650,6 +664,765 @@ function DepositTab({
   );
 }
 
+/* ─── Category badge colors ────────────────────────────────── */
+function categoryColor(cat: string): {
+  bg: string;
+  border: string;
+  text: string;
+} {
+  const c = cat.toLowerCase();
+  if (c.includes("solo") || c.includes("lone"))
+    return {
+      bg: "rgba(255,34,0,0.12)",
+      border: "rgba(255,34,0,0.35)",
+      text: "#ff4422",
+    };
+  if (c.includes("duo"))
+    return {
+      bg: "rgba(255,180,0,0.12)",
+      border: "rgba(255,180,0,0.35)",
+      text: "#ffb400",
+    };
+  if (c.includes("squad"))
+    return {
+      bg: "rgba(0,153,255,0.12)",
+      border: "rgba(0,153,255,0.35)",
+      text: "#0099ff",
+    };
+  if (c.includes("cs"))
+    return {
+      bg: "rgba(0,204,102,0.12)",
+      border: "rgba(0,204,102,0.35)",
+      text: "#00cc66",
+    };
+  return {
+    bg: "rgba(180,80,255,0.12)",
+    border: "rgba(180,80,255,0.35)",
+    text: "#b450ff",
+  };
+}
+
+/* ─── View Details Modal ───────────────────────────────────── */
+function ViewDetailsModal({
+  tournament,
+  legendId,
+  actor,
+  onClose,
+}: {
+  tournament: Tournament;
+  legendId: string | null;
+  actor: backendInterface | null;
+  onClose: () => void;
+}) {
+  const { data: roomInfo, isLoading: isLoadingRoom } = useQuery({
+    queryKey: ["tournamentRoom", tournament.id, legendId],
+    queryFn: async () => {
+      if (!actor || !legendId) return null;
+      return actor.getTournamentRoom(tournament.id, legendId);
+    },
+    enabled: !!actor && !!legendId,
+  });
+
+  function copyToClipboard(text: string, label: string) {
+    navigator.clipboard.writeText(text).then(() => {
+      toast.success(`${label} copied!`);
+    });
+  }
+
+  const hasRoomSet = roomInfo?.roomId && roomInfo.roomId.trim() !== "";
+
+  return (
+    /* Backdrop */
+    // biome-ignore lint/a11y/useKeyWithClickEvents: backdrop close handled via Escape in close button
+    <div
+      data-ocid="play.tournament.modal"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      {/* Card */}
+      <div
+        className="w-full max-w-sm rounded-2xl overflow-hidden animate-fade-up"
+        style={{
+          background: "rgba(13,13,26,0.98)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.6)",
+        }}
+      >
+        {/* Header */}
+        <div
+          className="relative p-5"
+          style={{
+            background:
+              "linear-gradient(135deg, rgba(34,204,102,0.08), rgba(0,180,80,0.04))",
+            borderBottom: "1px solid rgba(255,255,255,0.07)",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: "2px",
+              background:
+                "linear-gradient(90deg, transparent, #22cc66 40%, transparent)",
+            }}
+          />
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <p
+                className="text-xs font-body uppercase tracking-[0.2em] mb-0.5"
+                style={{ color: "rgba(34,204,102,0.6)" }}
+              >
+                Match Details
+              </p>
+              <h3 className="font-display font-black text-lg text-foreground leading-snug truncate">
+                {tournament.title}
+              </h3>
+              <p
+                className="text-xs font-body mt-0.5"
+                style={{ color: "rgba(255,255,255,0.4)" }}
+              >
+                {tournament.category} · {tournament.mode}
+              </p>
+            </div>
+            <button
+              type="button"
+              data-ocid="play.tournament.close_button"
+              onClick={onClose}
+              className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-opacity hover:opacity-70"
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.1)",
+              }}
+            >
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-4">
+          {/* Loading */}
+          {isLoadingRoom && (
+            <div
+              data-ocid="play.tournament.loading_state"
+              className="flex items-center justify-center gap-2 py-6 text-muted-foreground"
+            >
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="font-body text-sm">Fetching room details…</span>
+            </div>
+          )}
+
+          {/* Wait state */}
+          {!isLoadingRoom && !hasRoomSet && (
+            <div
+              data-ocid="play.tournament.success_state"
+              className="rounded-xl p-5 text-center"
+              style={{
+                background: "rgba(255,170,0,0.06)",
+                border: "1px solid rgba(255,170,0,0.2)",
+              }}
+            >
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
+                style={{
+                  background: "rgba(255,170,0,0.12)",
+                  border: "1px solid rgba(255,170,0,0.3)",
+                  animation: "profileGlowPulse 2s ease-in-out infinite",
+                }}
+              >
+                <Clock className="w-6 h-6" style={{ color: "#ffaa00" }} />
+              </div>
+              <p
+                className="font-display font-black text-sm uppercase tracking-wider mb-1"
+                style={{ color: "#ffaa00" }}
+              >
+                Please Wait
+              </p>
+              <p
+                className="font-body text-xs"
+                style={{ color: "rgba(255,170,0,0.7)" }}
+              >
+                Admin has not set the Room ID &amp; Password yet.
+                <br />
+                Please wait for Admin response.
+              </p>
+            </div>
+          )}
+
+          {/* Room details */}
+          {!isLoadingRoom && hasRoomSet && (
+            <div className="space-y-3">
+              {/* Room ID */}
+              <div>
+                <p
+                  className="text-xs font-display font-bold uppercase tracking-[0.2em] mb-1.5"
+                  style={{ color: "rgba(255,255,255,0.4)" }}
+                >
+                  Room ID
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    copyToClipboard(roomInfo?.roomId ?? "", "Room ID")
+                  }
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:opacity-80 active:scale-[0.99]"
+                  style={{
+                    background: "rgba(255,215,0,0.07)",
+                    border: "1px solid rgba(255,215,0,0.25)",
+                  }}
+                >
+                  <span
+                    className="font-display font-black text-xl tabular-nums tracking-widest"
+                    style={{
+                      color: "#ffd700",
+                      textShadow: "0 0 12px rgba(255,215,0,0.4)",
+                    }}
+                  >
+                    {roomInfo?.roomId}
+                  </span>
+                  <Copy
+                    className="w-4 h-4 flex-shrink-0"
+                    style={{ color: "rgba(255,215,0,0.6)" }}
+                  />
+                </button>
+                <p
+                  className="text-xs font-body mt-1 text-center"
+                  style={{ color: "rgba(255,215,0,0.4)" }}
+                >
+                  Tap to copy
+                </p>
+              </div>
+
+              {/* Room Password */}
+              <div>
+                <p
+                  className="text-xs font-display font-bold uppercase tracking-[0.2em] mb-1.5"
+                  style={{ color: "rgba(255,255,255,0.4)" }}
+                >
+                  Password
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    copyToClipboard(roomInfo?.roomPassword ?? "", "Password")
+                  }
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:opacity-80 active:scale-[0.99]"
+                  style={{
+                    background: "rgba(34,204,102,0.07)",
+                    border: "1px solid rgba(34,204,102,0.25)",
+                  }}
+                >
+                  <span
+                    className="font-display font-black text-xl tabular-nums tracking-widest"
+                    style={{
+                      color: "#22cc66",
+                      textShadow: "0 0 12px rgba(34,204,102,0.4)",
+                    }}
+                  >
+                    {roomInfo?.roomPassword}
+                  </span>
+                  <Copy
+                    className="w-4 h-4 flex-shrink-0"
+                    style={{ color: "rgba(34,204,102,0.6)" }}
+                  />
+                </button>
+                <p
+                  className="text-xs font-body mt-1 text-center"
+                  style={{ color: "rgba(34,204,102,0.4)" }}
+                >
+                  Tap to copy
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Entry / Prize recap */}
+          <div className="flex items-center gap-3 pt-1">
+            <div
+              className="flex-1 rounded-lg px-3 py-2 text-center"
+              style={{
+                background: "rgba(255,215,0,0.05)",
+                border: "1px solid rgba(255,215,0,0.12)",
+              }}
+            >
+              <p
+                className="text-xs font-body mb-0.5"
+                style={{ color: "rgba(255,215,0,0.5)" }}
+              >
+                Entry
+              </p>
+              <p
+                className="font-display font-black text-sm tabular-nums"
+                style={{ color: "#ffd700" }}
+              >
+                ₡{Number(tournament.entryFee).toLocaleString()}
+              </p>
+            </div>
+            <div
+              className="flex-1 rounded-lg px-3 py-2 text-center"
+              style={{
+                background: "rgba(34,204,102,0.05)",
+                border: "1px solid rgba(34,204,102,0.12)",
+              }}
+            >
+              <p
+                className="text-xs font-body mb-0.5"
+                style={{ color: "rgba(34,204,102,0.5)" }}
+              >
+                Prize
+              </p>
+              <p
+                className="font-display font-black text-sm"
+                style={{ color: "#22cc66" }}
+              >
+                {tournament.prizePool}
+              </p>
+            </div>
+          </div>
+
+          {/* Close button */}
+          <button
+            type="button"
+            data-ocid="play.tournament.cancel_button"
+            onClick={onClose}
+            className="w-full py-3 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-80"
+            style={{
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "rgba(255,255,255,0.6)",
+            }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Tournament Card ──────────────────────────────────────── */
+function TournamentCard({
+  tournament,
+  index,
+  isJoined,
+  isJoining,
+  onJoin,
+  legendId,
+  actor,
+  balance,
+}: {
+  tournament: Tournament;
+  index: number;
+  isJoined: boolean;
+  isJoining: boolean;
+  onJoin: () => void;
+  legendId: string | null;
+  actor: backendInterface | null;
+  balance: bigint;
+}) {
+  const [showDetails, setShowDetails] = useState(false);
+  const fill = Number(tournament.currentPlayers);
+  const max = Number(tournament.maxPlayers);
+  const fillPct = max > 0 ? Math.min(Math.round((fill / max) * 100), 100) : 0;
+  const catColor = categoryColor(tournament.category);
+  const isFull = fill >= max;
+  const hasEnough = Number(balance) >= Number(tournament.entryFee);
+
+  return (
+    <>
+      {showDetails && (
+        <ViewDetailsModal
+          tournament={tournament}
+          legendId={legendId}
+          actor={actor}
+          onClose={() => setShowDetails(false)}
+        />
+      )}
+      <div
+        data-ocid={`play.tournament.item.${index}`}
+        className="rounded-2xl overflow-hidden flex flex-col transition-all duration-200"
+        style={{
+          background: "rgba(13,13,26,0.95)",
+          border: isJoined
+            ? "1px solid rgba(34,204,102,0.25)"
+            : "1px solid rgba(255,255,255,0.08)",
+          boxShadow: isJoined
+            ? "0 4px 24px rgba(34,204,102,0.08)"
+            : "0 4px 24px rgba(0,0,0,0.3)",
+        }}
+      >
+        {/* Tournament image */}
+        <div
+          className="relative flex-shrink-0"
+          style={{ height: 140, background: "rgba(255,255,255,0.04)" }}
+        >
+          {tournament.imageUrl ? (
+            <img
+              src={tournament.imageUrl}
+              alt={tournament.title}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+              <Swords
+                className="w-10 h-10"
+                style={{ color: "rgba(255,60,0,0.35)" }}
+              />
+              <span
+                className="text-xs font-display font-bold uppercase tracking-wider"
+                style={{ color: "rgba(255,255,255,0.2)" }}
+              >
+                No Image
+              </span>
+            </div>
+          )}
+          {/* Gradient overlay */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background:
+                "linear-gradient(to bottom, transparent 40%, rgba(13,13,26,0.9) 100%)",
+            }}
+          />
+          {/* Category badge over image */}
+          <div className="absolute top-3 left-3">
+            <span
+              className="text-xs font-display font-black px-2.5 py-1 rounded-full"
+              style={{
+                background: catColor.bg,
+                border: `1px solid ${catColor.border}`,
+                color: catColor.text,
+                backdropFilter: "blur(8px)",
+              }}
+            >
+              {tournament.category}
+            </span>
+          </div>
+          {/* Joined badge */}
+          {isJoined && (
+            <div className="absolute top-3 right-3">
+              <span
+                className="text-xs font-display font-black px-2.5 py-1 rounded-full"
+                style={{
+                  background: "rgba(34,204,102,0.85)",
+                  color: "#fff",
+                  backdropFilter: "blur(8px)",
+                }}
+              >
+                JOINED ✓
+              </span>
+            </div>
+          )}
+          {!isJoined && isFull && (
+            <div className="absolute top-3 right-3">
+              <span
+                className="text-xs font-display font-black px-2.5 py-1 rounded-full"
+                style={{
+                  background: "rgba(255,34,0,0.8)",
+                  color: "#fff",
+                  backdropFilter: "blur(8px)",
+                }}
+              >
+                FULL
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Card body */}
+        <div className="p-4 flex flex-col flex-1 gap-3">
+          {/* Title + Mode */}
+          <div>
+            <h4 className="font-display font-black text-base text-foreground leading-snug mb-0.5">
+              {tournament.title}
+            </h4>
+            <p
+              className="text-xs font-body"
+              style={{ color: "rgba(255,255,255,0.45)" }}
+            >
+              {tournament.mode}
+            </p>
+          </div>
+
+          {/* Entry fee + Prize pool row */}
+          <div className="flex items-center gap-3">
+            <div
+              className="flex-1 rounded-lg px-3 py-2 text-center"
+              style={{
+                background: "rgba(255,215,0,0.06)",
+                border: "1px solid rgba(255,215,0,0.15)",
+              }}
+            >
+              <p
+                className="text-xs font-body mb-0.5"
+                style={{ color: "rgba(255,215,0,0.5)" }}
+              >
+                Entry
+              </p>
+              <p
+                className="font-display font-black text-sm tabular-nums"
+                style={{ color: "#ffd700" }}
+              >
+                ₡{Number(tournament.entryFee).toLocaleString()}
+              </p>
+            </div>
+            <div
+              className="flex-1 rounded-lg px-3 py-2 text-center"
+              style={{
+                background: "rgba(34,204,102,0.06)",
+                border: "1px solid rgba(34,204,102,0.15)",
+              }}
+            >
+              <p
+                className="text-xs font-body mb-0.5"
+                style={{ color: "rgba(34,204,102,0.5)" }}
+              >
+                Prize
+              </p>
+              <p
+                className="font-display font-black text-sm"
+                style={{ color: "#22cc66" }}
+              >
+                {tournament.prizePool}
+              </p>
+            </div>
+          </div>
+
+          {/* Players progress */}
+          <div>
+            <div
+              className="flex justify-between text-xs font-body mb-1.5"
+              style={{ color: "rgba(255,255,255,0.45)" }}
+            >
+              <span>Players</span>
+              <span className="font-display font-bold text-foreground">
+                {fill} / {max}
+              </span>
+            </div>
+            <div
+              className="h-1.5 rounded-full overflow-hidden"
+              style={{ background: "rgba(255,255,255,0.06)" }}
+            >
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${fillPct}%`,
+                  background: isFull
+                    ? "linear-gradient(90deg, #ff4422aa, #ff4422)"
+                    : "linear-gradient(90deg, rgba(255,180,0,0.7), #ffb400)",
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Action button -- VIEW DETAILS if joined, JOIN/disabled otherwise */}
+          {isJoined ? (
+            <button
+              type="button"
+              data-ocid={`play.tournament.secondary_button.${index}`}
+              onClick={() => setShowDetails(true)}
+              className="w-full py-3 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90 flex items-center justify-center gap-2 mt-auto"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(34,204,102,0.85), rgba(0,160,70,0.85))",
+                color: "#fff",
+              }}
+            >
+              <Shield className="w-4 h-4" />
+              View Details
+            </button>
+          ) : !hasEnough ? (
+            <button
+              type="button"
+              data-ocid={`play.tournament.join_button.${index}`}
+              disabled
+              className="w-full py-3 rounded-xl font-display font-bold text-sm uppercase tracking-wider flex items-center justify-center gap-2 mt-auto opacity-50 cursor-not-allowed"
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                color: "rgba(255,255,255,0.4)",
+              }}
+            >
+              Insufficient Coins
+            </button>
+          ) : (
+            <button
+              type="button"
+              data-ocid={`play.tournament.join_button.${index}`}
+              onClick={onJoin}
+              disabled={isJoining || isFull}
+              className="w-full py-3 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 mt-auto"
+              style={{
+                background: isFull
+                  ? "rgba(255,255,255,0.06)"
+                  : isJoining
+                    ? "rgba(255,60,0,0.4)"
+                    : "linear-gradient(135deg, rgba(255,60,0,0.9), rgba(200,20,0,0.9))",
+                border: isFull ? "1px solid rgba(255,255,255,0.1)" : "none",
+                color: isFull ? "rgba(255,255,255,0.35)" : "#fff",
+              }}
+            >
+              {isJoining ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : isFull ? null : (
+                <Swords className="w-4 h-4" />
+              )}
+              {isJoining ? "Joining…" : isFull ? "Match Full" : "JOIN"}
+            </button>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ─── Play Tab ─────────────────────────────────────────────── */
+function PlayTab({
+  legendId,
+  balance,
+  actor,
+  isFetchingActor,
+  joiningTournamentId,
+  onJoin,
+  joinedMatchIds,
+}: {
+  legendId: string | null;
+  balance: bigint;
+  actor: backendInterface | null;
+  isFetchingActor: boolean;
+  joiningTournamentId: string | null;
+  onJoin: (t: Tournament) => void;
+  joinedMatchIds: Set<string>;
+}) {
+  const { data: activeTournaments = [], isLoading } = useQuery<Tournament[]>({
+    queryKey: ["activeTournaments"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getActiveTournaments();
+    },
+    enabled: !!actor && !isFetchingActor,
+    refetchInterval: 30_000, // refresh every 30s
+  });
+
+  return (
+    <section className="animate-tab-in" aria-label="Active matches">
+      {/* Welcome banner */}
+      <div
+        className="mx-4 mt-6 mb-6 rounded-2xl p-5 overflow-hidden relative"
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(255,34,0,0.08), rgba(0,102,255,0.08))",
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "2px",
+            background: "linear-gradient(90deg, #ff2200, #ffd700 50%, #0066ff)",
+          }}
+        />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p
+              className="text-xs font-body uppercase tracking-[0.3em] mb-0.5"
+              style={{ color: "rgba(255,255,255,0.4)" }}
+            >
+              Commander Online
+            </p>
+            <h2 className="font-display font-black text-xl text-foreground">
+              Welcome, <span style={{ color: "#ff4422" }}>{legendId}</span>
+            </h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <WalletDisplay balance={balance} />
+          </div>
+        </div>
+      </div>
+
+      {/* Heading */}
+      <div className="px-4 mb-4">
+        <h3 className="font-display font-bold text-base uppercase tracking-wider text-foreground">
+          Active Matches
+        </h3>
+        <p className="text-xs font-body text-muted-foreground mt-0.5">
+          Join a tournament — entry fees are deducted from your wallet
+        </p>
+      </div>
+
+      {/* Loading */}
+      {isLoading && (
+        <div
+          data-ocid="play.loading_state"
+          className="flex items-center justify-center py-16 gap-3 text-muted-foreground px-4"
+        >
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span className="font-body text-sm">Loading matches…</span>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && activeTournaments.length === 0 && (
+        <div
+          data-ocid="play.empty_state"
+          className="mx-4 rounded-xl py-16 text-center"
+          style={{
+            background: "rgba(255,255,255,0.02)",
+            border: "1px dashed rgba(255,255,255,0.08)",
+          }}
+        >
+          <div className="flex justify-center mb-3">
+            <Swords
+              className="w-12 h-12"
+              style={{ color: "rgba(255,60,0,0.2)" }}
+            />
+          </div>
+          <p className="font-display font-bold text-sm text-muted-foreground">
+            No active matches right now.
+          </p>
+          <p className="text-xs font-body text-muted-foreground mt-1">
+            Check back soon!
+          </p>
+        </div>
+      )}
+
+      {/* Tournament grid */}
+      {!isLoading && activeTournaments.length > 0 && (
+        <div className="px-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {activeTournaments.map((t, i) => (
+            <TournamentCard
+              key={t.id}
+              tournament={t}
+              index={i + 1}
+              isJoined={joinedMatchIds.has(t.id)}
+              isJoining={joiningTournamentId === t.id}
+              onJoin={() => onJoin(t)}
+              legendId={legendId}
+              actor={actor}
+              balance={balance}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Spacer */}
+      <div className="h-6" />
+    </section>
+  );
+}
+
 /* ─── Main Dashboard ───────────────────────────────────────── */
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -659,7 +1432,9 @@ export function DashboardPage() {
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<TabId>("play");
-  const [joiningMode, setJoiningMode] = useState<string | null>(null);
+  const [joiningTournamentId, setJoiningTournamentId] = useState<string | null>(
+    null,
+  );
   const [showCoinShower, setShowCoinShower] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(() => {
     if (!legendId) return false;
@@ -681,32 +1456,34 @@ export function DashboardPage() {
     navigate({ to: "/" });
   }, [logout, navigate]);
 
-  const handleJoin = useCallback(
-    async (mode: GameMode, fee: number) => {
+  const handleJoinTournament = useCallback(
+    async (tournament: Tournament) => {
       if (!actor || !profile) return;
       const balance = Number(profile.walletBalance);
-      if (balance < fee) {
-        toast.error("Insufficient Legend Coins!", {
-          description: `You need ${fee} LC but have ${balance} LC`,
+      const entryFee = Number(tournament.entryFee);
+      if (balance < entryFee) {
+        toast.error("Insufficient coins", {
+          description: `You need ₡${entryFee} LC but have ₡${balance} LC`,
         });
         return;
       }
-      setJoiningMode(mode);
+      setJoiningTournamentId(tournament.id);
       try {
-        await actor.joinTournament(mode, BigInt(fee));
+        await actor.joinTournamentById(tournament.id);
         await refetchProfile();
+        queryClient.invalidateQueries({ queryKey: ["activeTournaments"] });
         setShowCoinShower(true);
-        toast.success("Joining tournament…", {
-          description: "Battle stations — you're in!",
+        toast.success("You're in the arena!", {
+          description: `Joined ${tournament.title}`,
         });
       } catch (err) {
         console.error(err);
-        toast.error("Failed to join tournament. Please try again.");
+        toast.error("Failed to join match. Please try again.");
       } finally {
-        setJoiningMode(null);
+        setJoiningTournamentId(null);
       }
     },
-    [actor, profile, refetchProfile],
+    [actor, profile, refetchProfile, queryClient],
   );
 
   const balance = profile?.walletBalance ?? BigInt(0);
@@ -714,6 +1491,9 @@ export function DashboardPage() {
   const transactions = profile?.transactions ?? [];
   const totalDeposited = Number(profile?.totalDeposited ?? BigInt(0));
   const selectedProfilePic = Number(profile?.selectedProfilePic ?? BigInt(0));
+
+  /* set of tournament IDs the user has already joined */
+  const joinedMatchIds = new Set<string>(allMatches.map((m) => m.matchId));
 
   /* avatar helpers */
   const highestUnlocked = AVATAR_TIERS.filter(
@@ -728,6 +1508,13 @@ export function DashboardPage() {
     : 100;
 
   const [selectingPic, setSelectingPic] = useState<number | null>(null);
+  const [profileImgError, setProfileImgError] = useState(false);
+
+  // Reset error state whenever user selects a different avatar
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset when pic changes
+  useEffect(() => {
+    setProfileImgError(false);
+  }, [selectedProfilePic]);
 
   async function handleSelectAvatar(picIndex: number) {
     if (!actor) return;
@@ -908,93 +1695,15 @@ export function DashboardPage() {
 
     /* ── PLAY ── */
     play: (
-      <section className="animate-tab-in" aria-label="Choose game mode">
-        {/* Welcome banner */}
-        <div
-          className="mx-4 mt-6 mb-6 rounded-2xl p-5 overflow-hidden relative"
-          style={{
-            background:
-              "linear-gradient(135deg, rgba(255,34,0,0.08), rgba(0,102,255,0.08))",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              height: "2px",
-              background:
-                "linear-gradient(90deg, #ff2200, #ffd700 50%, #0066ff)",
-            }}
-          />
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <p
-                className="text-xs font-body uppercase tracking-[0.3em] mb-0.5"
-                style={{ color: "rgba(255,255,255,0.4)" }}
-              >
-                Commander Online
-              </p>
-              <h2 className="font-display font-black text-xl text-foreground">
-                Welcome, <span style={{ color: "#ff4422" }}>{legendId}</span>
-              </h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <WalletDisplay balance={balance} />
-            </div>
-          </div>
-        </div>
-
-        {/* Game modes */}
-        <div className="px-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-display font-bold text-base uppercase tracking-wider text-foreground">
-              Choose Your Battle
-            </h3>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <GameModeCard
-              mode="1v1 SOLO"
-              title="Lone Wolf"
-              description="1v1 Solo Combat — Prove your supremacy in direct confrontation."
-              entryFee={50}
-              accentColor="red"
-              icon={<Sword className="w-6 h-6" />}
-              playerCount="2 Players"
-              isLoading={joiningMode === GameMode.loneWolf}
-              onJoin={() => handleJoin(GameMode.loneWolf, 50)}
-              joinButtonOcid="play.lone_wolf_join_button"
-            />
-            <GameModeCard
-              mode="4v4 TEAMS"
-              title="CS Mod"
-              description="4v4 Team Clash — Lead your squad to victory in coordinated combat."
-              entryFee={100}
-              accentColor="blue"
-              icon={<Shield className="w-6 h-6" />}
-              playerCount="8 Players"
-              isLoading={joiningMode === GameMode.csMod}
-              onJoin={() => handleJoin(GameMode.csMod, 100)}
-              joinButtonOcid="play.cs_mod_join_button"
-            />
-            <GameModeCard
-              mode="FULL MAP"
-              title="BR Mod"
-              description="50 Players, One Champion — The ultimate test of survival."
-              entryFee={200}
-              accentColor="purple"
-              icon={<Globe className="w-6 h-6" />}
-              playerCount="50 Players"
-              isLoading={joiningMode === GameMode.brMod}
-              onJoin={() => handleJoin(GameMode.brMod, 200)}
-              joinButtonOcid="play.br_mod_join_button"
-            />
-          </div>
-        </div>
-      </section>
+      <PlayTab
+        legendId={legendId}
+        balance={balance}
+        actor={actor}
+        isFetchingActor={isFetching}
+        joiningTournamentId={joiningTournamentId}
+        onJoin={handleJoinTournament}
+        joinedMatchIds={joinedMatchIds}
+      />
     ),
 
     /* ── DEPOSIT ── */
@@ -1048,32 +1757,64 @@ export function DashboardPage() {
                   : "none",
               }}
             />
-            {selectedProfilePic > 0 ? (
+            {!profileImgError ? (
               <img
-                src={
-                  AVATAR_TIERS.find((t) => t.index === selectedProfilePic)
-                    ?.src ?? ""
-                }
+                src={getProfilePicSrc(selectedProfilePic)}
                 alt="Profile avatar"
                 className="w-full h-full rounded-full object-cover"
                 style={{
                   border: `2px solid ${avatarGlowColor}`,
                   boxShadow: `0 0 12px ${avatarGlowColor}66`,
                 }}
+                onError={() => setProfileImgError(true)}
               />
             ) : (
               <div
-                className="w-full h-full rounded-full flex items-center justify-center font-display font-black text-xl uppercase"
+                className="w-full h-full rounded-full flex items-center justify-center font-display font-black text-2xl"
                 style={{
-                  background:
-                    "radial-gradient(circle at 35% 35%, rgba(255,60,0,0.6), rgba(200,0,0,0.8))",
-                  border: "2px solid rgba(255,100,0,0.5)",
+                  background: "linear-gradient(135deg, #ff4422, #cc1100)",
                   color: "#fff",
+                  border: `2px solid ${avatarGlowColor}`,
+                  boxShadow: `0 0 12px ${avatarGlowColor}66`,
                 }}
               >
-                {(legendId ?? "??").substring(0, 2).toUpperCase()}
+                {(legendId ?? "?")[0].toUpperCase()}
               </div>
             )}
+            {/* Pen edit icon */}
+            <button
+              type="button"
+              data-ocid="profile.avatar_edit_button"
+              onClick={() => {
+                setActiveTab("profile");
+                setTimeout(() => {
+                  const el = document.getElementById("avatar-gallery-section");
+                  if (el) el.scrollIntoView({ behavior: "smooth" });
+                }, 150);
+              }}
+              className="absolute bottom-0 right-0 w-6 h-6 rounded-full flex items-center justify-center transition-opacity hover:opacity-90"
+              style={{
+                background: "linear-gradient(135deg, #ffd700, #ff9900)",
+                border: "2px solid #0a0a0f",
+                zIndex: 5,
+              }}
+              title="Change profile picture"
+            >
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#000"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
           </div>
           <div>
             <div
@@ -1224,6 +1965,7 @@ export function DashboardPage() {
 
         {/* ── Avatar Gallery ── */}
         <div
+          id="avatar-gallery-section"
           data-ocid="profile.avatar_gallery.section"
           className="rounded-xl p-4 mb-6"
           style={{
@@ -1249,6 +1991,127 @@ export function DashboardPage() {
             className="flex gap-3 overflow-x-auto pb-2"
             style={{ scrollbarWidth: "none" }}
           >
+            {/* FREE Joker Avatar (index 0, always unlocked) */}
+            {(() => {
+              const isFreeSelected = selectedProfilePic === 0;
+              const isFreeLoading = selectingPic === 0;
+              return (
+                <button
+                  key="joker-free"
+                  type="button"
+                  data-ocid="profile.avatar_item.0"
+                  disabled={isFreeLoading}
+                  onClick={() => !isFreeSelected && handleSelectAvatar(0)}
+                  className="flex-shrink-0 flex flex-col items-center gap-2 transition-all duration-200"
+                  style={{
+                    outline: "none",
+                    cursor: isFreeSelected ? "default" : "pointer",
+                    transform: isFreeSelected ? "scale(1.05)" : "scale(1)",
+                  }}
+                >
+                  <div className="relative" style={{ width: 80, height: 80 }}>
+                    <div
+                      style={{
+                        position: "absolute",
+                        inset: isFreeSelected ? -3 : -2,
+                        borderRadius: "50%",
+                        border: isFreeSelected
+                          ? "3px solid #ffd700"
+                          : "2px solid rgba(255,60,0,0.5)",
+                        boxShadow: isFreeSelected
+                          ? "0 0 16px #ffd70088, 0 0 32px #ffd70044"
+                          : "0 0 12px rgba(255,60,0,0.3)",
+                        animation: isFreeSelected
+                          ? "profileGlowPulse 2s ease-in-out infinite"
+                          : "none",
+                        zIndex: 2,
+                      }}
+                    />
+                    <img
+                      src={DEFAULT_PROFILE_PIC}
+                      alt="Joker - Default avatar"
+                      className="w-full h-full rounded-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        if (
+                          target.src !==
+                          window.location.origin + DEFAULT_PROFILE_PIC
+                        ) {
+                          target.src = DEFAULT_PROFILE_PIC;
+                        }
+                      }}
+                    />
+                    {isFreeLoading && (
+                      <div
+                        className="absolute inset-0 rounded-full flex items-center justify-center"
+                        style={{ background: "rgba(0,0,0,0.6)" }}
+                      >
+                        <svg
+                          className="w-5 h-5 animate-spin"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          aria-label="Loading"
+                          role="img"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="#ffd700"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="#ffd700"
+                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                          />
+                        </svg>
+                      </div>
+                    )}
+                    {isFreeSelected && (
+                      <div
+                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-2 py-px rounded-full"
+                        style={{ background: "#ffd700", zIndex: 3 }}
+                      >
+                        <span
+                          className="font-display font-black uppercase"
+                          style={{
+                            fontSize: "8px",
+                            color: "#000",
+                            letterSpacing: "0.1em",
+                          }}
+                        >
+                          ACTIVE
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <span
+                    className="font-display font-black uppercase"
+                    style={{
+                      fontSize: "10px",
+                      letterSpacing: "0.12em",
+                      color: isFreeSelected ? "#ffd700" : "#ff4422",
+                    }}
+                  >
+                    JOKER
+                  </span>
+                  <span
+                    className="font-body text-center"
+                    style={{
+                      fontSize: "10px",
+                      color: "rgba(34,204,102,0.7)",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    ✓ FREE
+                  </span>
+                </button>
+              );
+            })()}
+
             {AVATAR_TIERS.map((tier) => {
               const isUnlocked = totalDeposited >= tier.required;
               const isSelected = selectedProfilePic === tier.index;
@@ -1309,6 +2172,10 @@ export function DashboardPage() {
                         filter: isUnlocked
                           ? "none"
                           : "grayscale(80%) brightness(0.4)",
+                      }}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = "none";
                       }}
                     />
 
@@ -1610,6 +2477,36 @@ export function DashboardPage() {
           </a>
 
           <div className="hidden sm:flex items-center gap-2">
+            {/* Profile avatar in header */}
+            {!profileImgError ? (
+              <img
+                src={getProfilePicSrc(selectedProfilePic)}
+                alt="Profile"
+                className="rounded-full object-cover flex-shrink-0"
+                style={{
+                  width: 28,
+                  height: 28,
+                  border: `1.5px solid ${avatarGlowColor}`,
+                  boxShadow: `0 0 8px ${avatarGlowColor}55`,
+                }}
+                onError={() => setProfileImgError(true)}
+              />
+            ) : (
+              <div
+                className="rounded-full flex-shrink-0 flex items-center justify-center font-display font-black"
+                style={{
+                  width: 28,
+                  height: 28,
+                  background: "linear-gradient(135deg, #ff4422, #cc1100)",
+                  border: `1.5px solid ${avatarGlowColor}`,
+                  boxShadow: `0 0 8px ${avatarGlowColor}55`,
+                  color: "#fff",
+                  fontSize: "11px",
+                }}
+              >
+                {(legendId ?? "?")[0].toUpperCase()}
+              </div>
+            )}
             <div
               className="w-2 h-2 rounded-full"
               style={{ background: "#22cc66", boxShadow: "0 0 6px #22cc66" }}
