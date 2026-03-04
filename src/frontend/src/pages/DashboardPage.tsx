@@ -22,19 +22,21 @@ import { useAuthStore } from "@/store/authStore";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
+  ArrowUpRight,
   BarChart2,
   CheckCircle2,
+  ClipboardList,
   Clock,
   Copy,
   Edit2,
   Gamepad2,
   History,
-  ImageIcon,
   Loader2,
   Lock,
   LogOut,
   Medal,
   Shield,
+  ShoppingBag,
   Star,
   Swords,
   Trophy,
@@ -44,10 +46,125 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import blazeHunterImg from "/assets/generated/shop-avatar-blaze-hunter-transparent.dim_200x200.png";
+import bloodWolfImg from "/assets/generated/shop-avatar-blood-wolf-transparent.dim_200x200.png";
+import cyberGhostImg from "/assets/generated/shop-avatar-cyber-ghost-transparent.dim_200x200.png";
+import darkPhantomImg from "/assets/generated/shop-avatar-dark-phantom-transparent.dim_200x200.png";
+import frostViperImg from "/assets/generated/shop-avatar-frost-viper-transparent.dim_200x200.png";
+import infernoKingImg from "/assets/generated/shop-avatar-inferno-king-transparent.dim_200x200.png";
+import shadowReaperImg from "/assets/generated/shop-avatar-shadow-reaper-transparent.dim_200x200.png";
+import stormNinjaImg from "/assets/generated/shop-avatar-storm-ninja-transparent.dim_200x200.png";
+import thunderAceImg from "/assets/generated/shop-avatar-thunder-ace-transparent.dim_200x200.png";
+import voidStrikerImg from "/assets/generated/shop-avatar-void-striker-transparent.dim_200x200.png";
+
+/* ─── Legend Coin inline component ──────────────────────────── */
+function LegendCoin({ size = 16 }: { size?: number }) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background:
+          "radial-gradient(circle at 35% 30%, #fff7aa, #ffd700 40%, #b8860b 80%, #8b6914)",
+        border: `${Math.max(1, Math.round(size * 0.07))}px solid #ffa500`,
+        boxShadow:
+          "inset 0 2px 4px rgba(255,255,200,0.8), inset 0 -2px 4px rgba(0,0,0,0.4), 0 0 6px rgba(255,215,0,0.5)",
+        fontSize: size * 0.45,
+        fontFamily: "Mona Sans, sans-serif",
+        fontWeight: 900,
+        color: "#3d2200",
+        flexShrink: 0,
+        verticalAlign: "middle",
+        lineHeight: 1,
+      }}
+    >
+      L
+    </span>
+  );
+}
 
 /* ─── Default Joker profile pic (FREE, always unlocked) ───────── */
 const DEFAULT_PROFILE_PIC =
   "/assets/uploads/eca553eded03ba3da1b6cdce6d22ba73-1-1.jpg";
+
+/* ─── Shop Avatars (purchasable with Legend Coins) ─────────── */
+const SHOP_AVATARS = [
+  {
+    index: 10,
+    src: shadowReaperImg,
+    name: "Shadow Reaper",
+    price: 200,
+    glowColor: "#9933ff",
+  },
+  {
+    index: 11,
+    src: infernoKingImg,
+    name: "Inferno King",
+    price: 350,
+    glowColor: "#ff6600",
+  },
+  {
+    index: 12,
+    src: cyberGhostImg,
+    name: "Cyber Ghost",
+    price: 500,
+    glowColor: "#00ccff",
+  },
+  {
+    index: 13,
+    src: frostViperImg,
+    name: "Frost Viper",
+    price: 150,
+    glowColor: "#66ddff",
+  },
+  {
+    index: 14,
+    src: blazeHunterImg,
+    name: "Blaze Hunter",
+    price: 275,
+    glowColor: "#ff9900",
+  },
+  {
+    index: 15,
+    src: darkPhantomImg,
+    name: "Dark Phantom",
+    price: 450,
+    glowColor: "#cc44ff",
+  },
+  {
+    index: 16,
+    src: stormNinjaImg,
+    name: "Storm Ninja",
+    price: 325,
+    glowColor: "#ffee00",
+  },
+  {
+    index: 17,
+    src: bloodWolfImg,
+    name: "Blood Wolf",
+    price: 600,
+    glowColor: "#ff2200",
+  },
+  {
+    index: 18,
+    src: voidStrikerImg,
+    name: "Void Striker",
+    price: 400,
+    glowColor: "#aaaaff",
+  },
+  {
+    index: 19,
+    src: thunderAceImg,
+    name: "Thunder Ace",
+    price: 250,
+    glowColor: "#ffd700",
+  },
+] as const;
 
 /* ─── Profile Picture Tiers ──────────────────────────────────── */
 const AVATAR_TIERS = [
@@ -99,7 +216,9 @@ const AVATAR_TIERS = [
 function getProfilePicSrc(picIndex: number): string {
   if (picIndex === 0) return DEFAULT_PROFILE_PIC;
   const tier = AVATAR_TIERS.find((t) => t.index === picIndex);
-  return tier?.src ?? DEFAULT_PROFILE_PIC;
+  if (tier) return tier.src;
+  const shop = SHOP_AVATARS.find((s) => s.index === picIndex);
+  return shop?.src ?? DEFAULT_PROFILE_PIC;
 }
 
 /* ─── helpers ─────────────────────────────────────────────── */
@@ -117,7 +236,7 @@ function formatDate(ts: bigint): string {
   }
 }
 
-type TabId = "matches" | "ranking" | "play" | "deposit" | "profile";
+type TabId = "shop" | "ranking" | "play" | "deposit" | "profile";
 
 /* ─── Leaderboard helpers ──────────────────────────────────── */
 
@@ -128,75 +247,6 @@ function getPrimeLevel(totalDeposited: bigint): string {
   if (d >= 200) return "Gold";
   if (d >= 100) return "Silver";
   return "Bronze";
-}
-
-/* ─── Match Row ────────────────────────────────────────────── */
-function MatchHistoryRow({ match, index }: { match: Match; index: number }) {
-  const modeLabel =
-    match.mode === GameMode.loneWolf
-      ? "Lone Wolf"
-      : match.mode === GameMode.csMod
-        ? "CS Mod"
-        : "BR Mod";
-
-  const resultColor =
-    match.result === Result.win
-      ? "#22cc66"
-      : match.result === Result.loss
-        ? "#ff4422"
-        : "#ffd700";
-
-  const resultLabel =
-    match.result === Result.win
-      ? "WIN"
-      : match.result === Result.loss
-        ? "LOSS"
-        : "DRAW";
-
-  return (
-    <div
-      data-ocid={`matches.item.${index}`}
-      className="flex items-center justify-between py-3 px-4 rounded-xl"
-      style={{
-        background: "rgba(255,255,255,0.03)",
-        border: "1px solid rgba(255,255,255,0.06)",
-        transition: "background 0.15s",
-      }}
-    >
-      <div className="flex items-center gap-3">
-        <Trophy
-          className="w-4 h-4 flex-shrink-0"
-          style={{ color: resultColor }}
-        />
-        <div>
-          <div className="text-sm font-display font-bold text-foreground">
-            {modeLabel}
-          </div>
-          <div className="text-xs font-body text-muted-foreground">
-            {formatDate(match.date)}
-          </div>
-        </div>
-      </div>
-      <div className="flex items-center gap-3">
-        <span
-          className="text-xs font-display font-bold uppercase px-2 py-0.5 rounded"
-          style={{
-            background: `${resultColor}20`,
-            color: resultColor,
-            border: `1px solid ${resultColor}40`,
-          }}
-        >
-          {resultLabel}
-        </span>
-        <span
-          className="text-xs font-display font-bold tabular-nums"
-          style={{ color: "#ffd700" }}
-        >
-          L{Number(match.coinsWagered)}
-        </span>
-      </div>
-    </div>
-  );
 }
 
 /* ─── Transaction Row ──────────────────────────────────────── */
@@ -242,10 +292,12 @@ function TransactionRow({ tx, index }: { tx: Transaction; index: number }) {
           {isDeposit ? "DEP" : "WIT"}
         </span>
         <span
-          className="text-sm font-display font-bold tabular-nums"
+          className="text-sm font-display font-bold tabular-nums flex items-center gap-0.5"
           style={{ color }}
         >
-          {isDeposit ? "+" : "−"}L{Number(tx.amount).toLocaleString()}
+          {isDeposit ? "+" : "−"}
+          <LegendCoin size={13} />
+          {Number(tx.amount).toLocaleString()}
         </span>
       </div>
     </div>
@@ -268,6 +320,10 @@ function DepositTab({
   const [pkrAmount, setPkrAmount] = useState("");
   const [txId, setTxId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawJazzCash, setWithdrawJazzCash] = useState("");
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   const { data: myRequests = [], refetch: refetchRequests } = useQuery<
     DepositRequest[]
@@ -355,11 +411,207 @@ function DepositTab({
     );
   }
 
+  async function handleWithdraw(e: React.FormEvent) {
+    e.preventDefault();
+    const amount = Number(withdrawAmount);
+    if (!withdrawAmount || amount <= 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+    if (!withdrawJazzCash.trim()) {
+      toast.error("Enter your JazzCash number");
+      return;
+    }
+    setIsWithdrawing(true);
+    try {
+      toast.success("Withdraw request submitted! Admin will process shortly.");
+      setWithdrawAmount("");
+      setWithdrawJazzCash("");
+      setShowWithdrawModal(false);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to submit withdraw request.");
+    } finally {
+      setIsWithdrawing(false);
+    }
+  }
+
   return (
     <section
       className="animate-tab-in px-4 py-6 space-y-6"
       aria-label="Wallet & Deposit"
     >
+      {/* ── Withdraw Modal ── */}
+      {showWithdrawModal && (
+        // biome-ignore lint/a11y/useKeyWithClickEvents: backdrop close
+        <div
+          data-ocid="deposit.withdraw_modal"
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          style={{ background: "rgba(0,0,0,0.8)", backdropFilter: "blur(8px)" }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowWithdrawModal(false);
+          }}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl overflow-hidden"
+            style={{
+              background: "rgba(13,13,26,0.98)",
+              border: "1px solid rgba(255,100,0,0.3)",
+              boxShadow: "0 24px 60px rgba(0,0,0,0.6)",
+            }}
+          >
+            <div
+              className="relative p-5"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(255,100,0,0.08), rgba(255,60,0,0.04))",
+                borderBottom: "1px solid rgba(255,255,255,0.07)",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: "2px",
+                  background:
+                    "linear-gradient(90deg, transparent, #ff6600 40%, transparent)",
+                }}
+              />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ArrowUpRight
+                    className="w-5 h-5"
+                    style={{ color: "#ff6600" }}
+                  />
+                  <h3
+                    className="font-display font-black text-base uppercase tracking-wider"
+                    style={{ color: "#ff6600" }}
+                  >
+                    Withdraw Request
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  data-ocid="deposit.withdraw_modal_close_button"
+                  onClick={() => setShowWithdrawModal(false)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center transition-opacity hover:opacity-70"
+                  style={{
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                  }}
+                >
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </div>
+            </div>
+            <form onSubmit={handleWithdraw} className="p-5 space-y-4">
+              <div>
+                <label
+                  htmlFor="withdraw-amount"
+                  className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5"
+                  style={{ color: "rgba(255,255,255,0.5)" }}
+                >
+                  Amount (PKR)
+                </label>
+                <input
+                  id="withdraw-amount"
+                  data-ocid="deposit.withdraw_amount_input"
+                  type="number"
+                  min="1"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder="Enter amount to withdraw"
+                  className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    outline: "none",
+                  }}
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="withdraw-jazzcash"
+                  className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5"
+                  style={{ color: "rgba(255,255,255,0.5)" }}
+                >
+                  JazzCash Number
+                </label>
+                <input
+                  id="withdraw-jazzcash"
+                  data-ocid="deposit.withdraw_jazzcash_input"
+                  type="tel"
+                  value={withdrawJazzCash}
+                  onChange={(e) => setWithdrawJazzCash(e.target.value)}
+                  placeholder="Your JazzCash mobile number"
+                  className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    outline: "none",
+                  }}
+                />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="submit"
+                  data-ocid="deposit.withdraw_submit_button"
+                  disabled={isWithdrawing}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, rgba(255,100,0,0.9), rgba(200,50,0,0.9))",
+                    color: "#fff",
+                  }}
+                >
+                  {isWithdrawing ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : null}
+                  {isWithdrawing ? "Submitting…" : "Submit Request"}
+                </button>
+                <button
+                  type="button"
+                  data-ocid="deposit.withdraw_cancel_button"
+                  onClick={() => setShowWithdrawModal(false)}
+                  disabled={isWithdrawing}
+                  className="flex-1 py-3 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-80"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    color: "rgba(255,255,255,0.6)",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Deposit / Withdraw header ── */}
+      <div className="flex items-center justify-between">
+        <h2 className="font-display font-black text-xl uppercase tracking-wider text-foreground">
+          DEPOSIT
+        </h2>
+        <button
+          type="button"
+          data-ocid="deposit.withdraw_button"
+          onClick={() => setShowWithdrawModal(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-80"
+          style={{
+            background: "rgba(255,100,0,0.12)",
+            border: "1px solid rgba(255,100,0,0.35)",
+            color: "#ff6600",
+          }}
+        >
+          <ArrowUpRight className="w-4 h-4" />
+          Withdraw
+        </button>
+      </div>
+
       {/* ── Balance display ── */}
       <div
         className="rounded-2xl p-6 text-center relative overflow-hidden"
@@ -635,10 +887,11 @@ function DepositTab({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <span
-                      className="font-display font-black text-base tabular-nums"
+                      className="font-display font-black text-base tabular-nums flex items-center gap-1"
                       style={{ color: "#ffd700" }}
                     >
-                      L{Number(req.amount).toLocaleString()} LC
+                      <LegendCoin size={15} />
+                      {Number(req.amount).toLocaleString()}
                     </span>
                     {statusBadge(req.status)}
                   </div>
@@ -989,10 +1242,11 @@ function ViewDetailsModal({
                 Entry
               </p>
               <p
-                className="font-display font-black text-sm tabular-nums truncate"
+                className="font-display font-black text-sm tabular-nums truncate flex items-center justify-center gap-0.5"
                 style={{ color: "#ffd700" }}
               >
-                L{Number(tournament.entryFee).toLocaleString()}
+                <LegendCoin size={11} />
+                {Number(tournament.entryFee).toLocaleString()}
               </p>
             </div>
             <div
@@ -1029,10 +1283,11 @@ function ViewDetailsModal({
                 Returning
               </p>
               <p
-                className="font-display font-black text-sm tabular-nums truncate"
+                className="font-display font-black text-sm tabular-nums truncate flex items-center justify-center gap-0.5"
                 style={{ color: "#0099ff" }}
               >
-                L{Number(tournament.returningCoins).toLocaleString()}
+                <LegendCoin size={11} />
+                {Number(tournament.returningCoins).toLocaleString()}
               </p>
             </div>
           </div>
@@ -1574,10 +1829,11 @@ function TournamentCard({
                 Entry
               </p>
               <p
-                className="font-display font-black text-sm tabular-nums truncate"
+                className="font-display font-black text-sm tabular-nums truncate flex items-center justify-center gap-0.5"
                 style={{ color: "#ffd700" }}
               >
-                L{Number(tournament.entryFee).toLocaleString()}
+                <LegendCoin size={12} />
+                {Number(tournament.entryFee).toLocaleString()}
               </p>
             </div>
             <div
@@ -1614,10 +1870,11 @@ function TournamentCard({
                 Returning
               </p>
               <p
-                className="font-display font-black text-sm tabular-nums truncate"
+                className="font-display font-black text-sm tabular-nums truncate flex items-center justify-center gap-0.5"
                 style={{ color: "#0099ff" }}
               >
-                L{Number(tournament.returningCoins).toLocaleString()}
+                <LegendCoin size={12} />
+                {Number(tournament.returningCoins).toLocaleString()}
               </p>
             </div>
           </div>
@@ -1710,6 +1967,190 @@ function TournamentCard({
   );
 }
 
+/* ─── My Matches Modal ─────────────────────────────────────── */
+function MyMatchesModal({
+  allMatches,
+  onClose,
+}: {
+  allMatches: Match[];
+  onClose: () => void;
+}) {
+  const modeLabel = (mode: Match["mode"]) =>
+    mode === GameMode.loneWolf
+      ? "Lone Wolf"
+      : mode === GameMode.csMod
+        ? "CS Mod"
+        : "BR Mod";
+  const resultColor = (r: Match["result"]) =>
+    r === Result.win ? "#22cc66" : r === Result.loss ? "#ff4422" : "#ffd700";
+  const resultLabel = (r: Match["result"]) =>
+    r === Result.win ? "WIN" : r === Result.loss ? "LOSS" : "DRAW";
+
+  return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: backdrop close
+    <div
+      data-ocid="play.my_matches.modal"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="w-full max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden"
+        style={{
+          background: "rgba(13,13,26,0.98)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.6)",
+          maxHeight: "80vh",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {/* Header */}
+        <div
+          className="relative p-5 flex-shrink-0"
+          style={{
+            background:
+              "linear-gradient(135deg, rgba(255,180,0,0.08), rgba(255,100,0,0.04))",
+            borderBottom: "1px solid rgba(255,255,255,0.07)",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: "2px",
+              background:
+                "linear-gradient(90deg, transparent, #ffb400 40%, transparent)",
+            }}
+          />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="w-5 h-5" style={{ color: "#ffb400" }} />
+              <h3
+                className="font-display font-black text-base uppercase tracking-wider"
+                style={{ color: "#ffb400" }}
+              >
+                My Matches
+              </h3>
+              <span
+                className="text-xs font-display font-bold px-2 py-0.5 rounded-full"
+                style={{
+                  background: "rgba(255,180,0,0.15)",
+                  border: "1px solid rgba(255,180,0,0.3)",
+                  color: "#ffb400",
+                }}
+              >
+                {allMatches.length}
+              </span>
+            </div>
+            <button
+              type="button"
+              data-ocid="play.my_matches.close_button"
+              onClick={onClose}
+              className="w-7 h-7 rounded-lg flex items-center justify-center transition-opacity hover:opacity-70"
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.1)",
+              }}
+            >
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div
+          className="p-4 overflow-y-auto flex-1"
+          style={{ scrollbarWidth: "none" }}
+        >
+          {allMatches.length === 0 ? (
+            <div
+              data-ocid="play.my_matches.empty_state"
+              className="rounded-xl py-12 text-center"
+              style={{
+                background: "rgba(255,255,255,0.02)",
+                border: "1px dashed rgba(255,255,255,0.08)",
+              }}
+            >
+              <Trophy
+                className="w-10 h-10 mx-auto mb-3"
+                style={{ color: "rgba(255,255,255,0.12)" }}
+              />
+              <p className="font-body text-muted-foreground text-sm">
+                No matches yet. Join a tournament!
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {[...allMatches].reverse().map((match, i) => {
+                const rc = resultColor(match.result);
+                const rl = resultLabel(match.result);
+                const ml = modeLabel(match.mode);
+                const ms = Number(match.date) / 1_000_000;
+                const dateStr = new Date(ms).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                });
+                return (
+                  <div
+                    // biome-ignore lint/suspicious/noArrayIndexKey: match history index ok
+                    key={i}
+                    data-ocid={`play.my_matches.item.${i + 1}`}
+                    className="flex items-center justify-between py-3 px-4 rounded-xl"
+                    style={{
+                      background: "rgba(255,255,255,0.03)",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Trophy
+                        className="w-4 h-4 flex-shrink-0"
+                        style={{ color: rc }}
+                      />
+                      <div>
+                        <div className="text-sm font-display font-bold text-foreground">
+                          {ml}
+                        </div>
+                        <div className="text-xs font-body text-muted-foreground">
+                          {dateStr}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="text-xs font-display font-bold uppercase px-2 py-0.5 rounded"
+                        style={{
+                          background: `${rc}20`,
+                          color: rc,
+                          border: `1px solid ${rc}40`,
+                        }}
+                      >
+                        {rl}
+                      </span>
+                      <span
+                        className="text-xs font-display font-bold tabular-nums flex items-center gap-0.5"
+                        style={{ color: "#ffd700" }}
+                      >
+                        <LegendCoin size={12} />
+                        {Number(match.coinsWagered)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Play Tab ─────────────────────────────────────────────── */
 function PlayTab({
   legendId,
@@ -1720,6 +2161,7 @@ function PlayTab({
   joiningTournamentId,
   onJoin,
   joinedMatchIds,
+  allMatches,
 }: {
   legendId: string | null;
   gameName: string | null;
@@ -1729,7 +2171,10 @@ function PlayTab({
   joiningTournamentId: string | null;
   onJoin: (t: Tournament) => void;
   joinedMatchIds: Set<string>;
+  allMatches: Match[];
 }) {
+  const [showMyMatches, setShowMyMatches] = useState(false);
+
   const { data: activeTournaments = [], isLoading } = useQuery<Tournament[]>({
     queryKey: ["activeTournaments"],
     queryFn: async () => {
@@ -1742,6 +2187,12 @@ function PlayTab({
 
   return (
     <section className="animate-tab-in" aria-label="Active matches">
+      {showMyMatches && (
+        <MyMatchesModal
+          allMatches={allMatches}
+          onClose={() => setShowMyMatches(false)}
+        />
+      )}
       {/* Welcome banner */}
       <div
         className="mx-4 mt-6 mb-6 rounded-2xl p-5 overflow-hidden relative"
@@ -1769,10 +2220,26 @@ function PlayTab({
             >
               Commander Online
             </p>
-            <h2 className="font-display font-black text-xl text-foreground">
-              Welcome,{" "}
-              <span style={{ color: "#ff4422" }}>{gameName || legendId}</span>
-            </h2>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="font-display font-black text-xl text-foreground">
+                Welcome,{" "}
+                <span style={{ color: "#ff4422" }}>{gameName || legendId}</span>
+              </h2>
+              <button
+                type="button"
+                data-ocid="play.my_matches_button"
+                onClick={() => setShowMyMatches(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-80 flex-shrink-0"
+                style={{
+                  background: "rgba(255,180,0,0.1)",
+                  border: "1px solid rgba(255,180,0,0.3)",
+                  color: "#ffb400",
+                }}
+              >
+                <ClipboardList className="w-3.5 h-3.5" />
+                My Matches
+              </button>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <WalletDisplay balance={balance} />
@@ -2005,46 +2472,189 @@ export function DashboardPage() {
 
   /* Tab sections */
   const tabContent: Record<TabId, React.ReactNode> = {
-    /* ── MATCHES ── */
-    matches: (
-      <section className="animate-tab-in px-4 py-6" aria-label="Joined Matches">
+    /* ── SHOP ── */
+    shop: (
+      <section className="animate-tab-in px-4 py-6" aria-label="Avatar Shop">
+        {/* Header */}
         <div className="mb-6">
-          <h2 className="font-display font-black text-xl uppercase tracking-wider text-foreground mb-1">
-            Joined Matches
+          <h2 className="font-display font-black text-xl uppercase tracking-wider text-foreground mb-1 flex items-center gap-2">
+            <ShoppingBag className="w-5 h-5" style={{ color: "#ffd700" }} />
+            Avatar Shop
           </h2>
           <p className="text-xs font-body text-muted-foreground">
-            All tournaments you have entered
+            Spend Legend Coins to unlock exclusive avatars
           </p>
         </div>
 
-        {allMatches.length === 0 ? (
-          <div
-            data-ocid="matches.empty_state"
-            className="rounded-xl py-14 text-center"
-            style={{
-              background: "rgba(255,255,255,0.02)",
-              border: "1px dashed rgba(255,255,255,0.08)",
-            }}
-          >
-            <Trophy
-              className="w-10 h-10 mx-auto mb-3"
-              style={{ color: "rgba(255,255,255,0.15)" }}
-            />
-            <p className="font-body text-muted-foreground text-sm">
-              No battles yet. Hit PLAY and enter the arena!
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {[...allMatches].reverse().map((match, i) => (
-              <MatchHistoryRow
-                key={match.matchId}
-                match={match}
-                index={i + 1}
-              />
-            ))}
-          </div>
-        )}
+        {/* Avatar Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          {SHOP_AVATARS.map((avatar, i) => {
+            const profileExt = profile as
+              | (typeof profile & { purchasedShopAvatars?: bigint[] })
+              | null
+              | undefined;
+            const isOwned = (profileExt?.purchasedShopAvatars ?? [])
+              .map(Number)
+              .includes(avatar.index);
+            const canAfford = Number(balance) >= avatar.price;
+            const isActive = selectedProfilePic === avatar.index;
+
+            return (
+              <div
+                key={avatar.index}
+                data-ocid={`shop.avatar_item.${i + 1}`}
+                className="rounded-2xl overflow-hidden flex flex-col"
+                style={{
+                  background: isOwned
+                    ? "rgba(34,204,102,0.04)"
+                    : "rgba(13,13,26,0.95)",
+                  border: isOwned
+                    ? `1px solid ${avatar.glowColor}55`
+                    : "1px solid rgba(255,255,255,0.08)",
+                  boxShadow: isOwned
+                    ? `0 4px 24px ${avatar.glowColor}22`
+                    : "0 4px 24px rgba(0,0,0,0.3)",
+                }}
+              >
+                {/* Avatar image */}
+                <div
+                  className="relative flex items-center justify-center"
+                  style={{ height: 120, background: "rgba(255,255,255,0.03)" }}
+                >
+                  <img
+                    src={avatar.src}
+                    alt={avatar.name}
+                    className="w-24 h-24 object-cover rounded-full"
+                    style={{
+                      border: `2px solid ${avatar.glowColor}88`,
+                      boxShadow: `0 0 16px ${avatar.glowColor}55`,
+                    }}
+                  />
+                  {isOwned && (
+                    <div className="absolute top-2 right-2">
+                      <span
+                        className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
+                        style={{
+                          background: "rgba(34,204,102,0.85)",
+                          color: "#fff",
+                        }}
+                      >
+                        OWNED
+                      </span>
+                    </div>
+                  )}
+                  {isActive && (
+                    <div className="absolute top-2 left-2">
+                      <span
+                        className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
+                        style={{
+                          background: "#ffd700",
+                          color: "#000",
+                        }}
+                      >
+                        ACTIVE
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Card body */}
+                <div className="p-3 flex flex-col gap-2">
+                  <div>
+                    <p
+                      className="font-display font-black text-sm text-foreground"
+                      style={{ color: avatar.glowColor }}
+                    >
+                      {avatar.name}
+                    </p>
+                  </div>
+
+                  {/* Price */}
+                  <div
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg"
+                    style={{
+                      background: "rgba(255,215,0,0.06)",
+                      border: "1px solid rgba(255,215,0,0.15)",
+                    }}
+                  >
+                    <LegendCoin size={14} />
+                    <span
+                      className="font-display font-black text-sm tabular-nums"
+                      style={{ color: "#ffd700" }}
+                    >
+                      {avatar.price.toLocaleString()}
+                    </span>
+                  </div>
+
+                  {/* Action button */}
+                  {isOwned ? (
+                    <button
+                      type="button"
+                      data-ocid={`shop.avatar_select_button.${i + 1}`}
+                      onClick={async () => {
+                        if (!actor) return;
+                        try {
+                          await actor.setProfilePicture(BigInt(avatar.index));
+                          await refetchProfile();
+                          toast.success(
+                            `${avatar.name} set as profile picture!`,
+                          );
+                        } catch (err) {
+                          console.error(err);
+                        }
+                      }}
+                      disabled={isActive}
+                      className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-80 disabled:opacity-50"
+                      style={{
+                        background: isActive
+                          ? "rgba(255,215,0,0.1)"
+                          : "linear-gradient(135deg, rgba(34,204,102,0.85), rgba(0,160,70,0.85))",
+                        border: isActive
+                          ? "1px solid rgba(255,215,0,0.3)"
+                          : "none",
+                        color: isActive ? "#ffd700" : "#fff",
+                      }}
+                    >
+                      {isActive ? "Active" : "Equip"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      data-ocid={`shop.avatar_buy_button.${i + 1}`}
+                      disabled={!canAfford}
+                      onClick={async () => {
+                        if (!actor) return;
+                        try {
+                          const actorExt = actor as typeof actor & {
+                            buyShopAvatar?: (idx: bigint) => Promise<void>;
+                          };
+                          await actorExt.buyShopAvatar?.(BigInt(avatar.index));
+                          await refetchProfile();
+                          toast.success(`${avatar.name} unlocked!`);
+                        } catch (err) {
+                          console.error(err);
+                          toast.error("Purchase failed. Please try again.");
+                        }
+                      }}
+                      className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                      style={{
+                        background: canAfford
+                          ? `linear-gradient(135deg, ${avatar.glowColor}cc, ${avatar.glowColor}88)`
+                          : "rgba(255,255,255,0.05)",
+                        border: canAfford
+                          ? "none"
+                          : "1px solid rgba(255,255,255,0.1)",
+                        color: canAfford ? "#fff" : "rgba(255,255,255,0.35)",
+                      }}
+                    >
+                      {canAfford ? "BUY" : "Insufficient Coins"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </section>
     ),
 
@@ -2386,10 +2996,11 @@ export function DashboardPage() {
                     {/* Profit count */}
                     <div className="text-right">
                       <div
-                        className="font-display font-bold text-sm tabular-nums"
+                        className="font-display font-bold text-sm tabular-nums flex items-center justify-end gap-0.5"
                         style={{ color: "#22cc66" }}
                       >
-                        L{Number(player.totalProfit).toLocaleString()}
+                        <LegendCoin size={12} />
+                        {Number(player.totalProfit).toLocaleString()}
                       </div>
                       <div className="text-xs font-body text-muted-foreground">
                         Profit
@@ -2547,10 +3158,11 @@ export function DashboardPage() {
                     {/* Total deposited */}
                     <div className="text-right">
                       <div
-                        className="font-display font-bold text-sm tabular-nums"
+                        className="font-display font-bold text-sm tabular-nums flex items-center justify-end gap-0.5"
                         style={{ color: "#cc66ff" }}
                       >
-                        L{Number(player.totalDeposited).toLocaleString()}
+                        <LegendCoin size={12} />
+                        {Number(player.totalDeposited).toLocaleString()}
                       </div>
                       <div className="text-xs font-body text-muted-foreground">
                         Deposited
@@ -2735,6 +3347,7 @@ export function DashboardPage() {
         joiningTournamentId={joiningTournamentId}
         onJoin={handleJoinTournament}
         joinedMatchIds={joinedMatchIds}
+        allMatches={allMatches}
       />
     ),
 
@@ -2902,12 +3515,13 @@ export function DashboardPage() {
               </span>
             </div>
             {/* Total deposited badge */}
-            <div className="mt-1.5">
+            <div className="mt-1.5 flex items-center gap-1">
+              <LegendCoin size={12} />
               <span
                 className="text-xs font-display font-bold tracking-wider"
                 style={{ color: "rgba(255,215,0,0.7)" }}
               >
-                L{totalDeposited.toLocaleString()} total deposited
+                {totalDeposited.toLocaleString()} total deposited
               </span>
             </div>
           </div>
@@ -2915,26 +3529,33 @@ export function DashboardPage() {
 
         {/* Stats grid */}
         <div className="grid grid-cols-2 gap-3 mb-6 sm:grid-cols-3">
-          {[
-            {
-              label: "Total Matches",
-              value: allMatches.length,
-              color: "#00ccff",
-            },
-            { label: "Wins", value: wins, color: "#22cc66" },
-            { label: "Losses", value: losses, color: "#ff4422" },
-            { label: "Win Rate", value: `${winRate}%`, color: "#ffd700" },
-            {
-              label: "Legend Coins",
-              value: `L${Number(balance).toLocaleString()}`,
-              color: "#ffd700",
-            },
-            {
-              label: "Member Since",
-              value: profile?.createdAt ? formatDate(profile.createdAt) : "—",
-              color: "rgba(255,255,255,0.5)",
-            },
-          ].map(({ label, value, color }) => (
+          {(
+            [
+              {
+                label: "Total Matches",
+                value: allMatches.length,
+                color: "#00ccff",
+              },
+              { label: "Wins", value: wins, color: "#22cc66" },
+              { label: "Losses", value: losses, color: "#ff4422" },
+              { label: "Win Rate", value: `${winRate}%`, color: "#ffd700" },
+              {
+                label: "Legend Coins",
+                value: (
+                  <span className="flex items-center justify-center gap-1">
+                    <LegendCoin size={18} />
+                    {Number(balance).toLocaleString()}
+                  </span>
+                ),
+                color: "#ffd700",
+              },
+              {
+                label: "Member Since",
+                value: profile?.createdAt ? formatDate(profile.createdAt) : "—",
+                color: "rgba(255,255,255,0.5)",
+              },
+            ] as Array<{ label: string; value: React.ReactNode; color: string }>
+          ).map(({ label, value, color }) => (
             <div
               key={label}
               className="rounded-xl p-4 text-center"
@@ -2986,10 +3607,11 @@ export function DashboardPage() {
             <>
               <div className="flex justify-between items-center mb-2">
                 <span
-                  className="text-xs font-display font-bold uppercase tracking-wider"
+                  className="text-xs font-display font-bold uppercase tracking-wider flex items-center gap-1"
                   style={{ color: "rgba(255,255,255,0.6)" }}
                 >
-                  Next Unlock: {nextTier?.label} at L{nextTier?.required}
+                  Next Unlock: {nextTier?.label} at <LegendCoin size={11} />
+                  {nextTier?.required}
                 </span>
                 <span
                   className="text-xs font-display font-black tabular-nums"
@@ -3012,10 +3634,12 @@ export function DashboardPage() {
                 />
               </div>
               <div
-                className="mt-1.5 text-xs font-body text-center"
+                className="mt-1.5 text-xs font-body text-center flex items-center justify-center gap-0.5"
                 style={{ color: "rgba(255,255,255,0.35)" }}
               >
-                L{totalDeposited} / L{nextTier?.required} deposited
+                <LegendCoin size={10} />
+                {totalDeposited} / <LegendCoin size={10} />
+                {nextTier?.required} deposited
               </div>
             </>
           )}
@@ -3632,12 +4256,12 @@ export function DashboardPage() {
         }}
       >
         <div className="max-w-2xl mx-auto h-full flex items-center relative">
-          {/* Matches */}
+          {/* Shop */}
           <NavItem
-            id="matches"
-            ocid="nav.matches_tab"
-            icon={<Trophy className="w-5 h-5" />}
-            label="Matches"
+            id="shop"
+            ocid="nav.shop_tab"
+            icon={<ShoppingBag className="w-5 h-5" />}
+            label="Shop"
           />
 
           {/* Ranking */}

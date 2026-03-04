@@ -1,45 +1,78 @@
 # Legend X Arena
 
 ## Current State
-- Full Free Fire esports tournament app with 5-tab navigation (Matches, Ranking, Play, Deposit, Profile)
-- Ranking tab: 3 sections -- Global Winners (by wins), Prime Legends (by total deposit), Oldest Legends (by join date)
-- Global Winners shows: wins count on right, total matches below
-- Admin panel: Match Management with room ID/password setter
-- Match cards show Entry fee and Prize Pool only
-- No admin ability to declare post-match results or assign coins to players
-- LeaderboardEntry has: legendId, wins, totalDeposited, createdAt, totalMatches
-- UserProfile has: walletBalance, totalDeposited, matchHistory (result = #win/#loss/#draw)
+
+- DashboardPage.tsx has 5 bottom nav tabs: Matches, Ranking, Play (center), Deposit, Profile
+- "Matches" tab (far left) shows joined match history (all matches user has entered)
+- Play tab has a welcome banner that shows "Welcome, {gameName}" with WalletDisplay
+- Throughout the app, coin amounts are shown as "L{number}" (e.g. L50, L100)
+- DepositTab shows a section titled "Deposit via JazzCash" with the jazzcash number
+- No "Shop" tab or avatar shop exists in the nav
+- No "My Matches" button inside the Play tab
+- No "Withdraw" button near the Deposit section header
+- TabId type currently has: "matches" | "ranking" | "play" | "deposit" | "profile"
 
 ## Requested Changes (Diff)
 
 ### Add
-- Backend: `totalProfit` field on UserProfile (tracks net coins won from matches, i.e. prize received minus entry paid)
-- Backend: `declareMatchResult(tournamentId, winnerId, loserId, winnerPoints, loserPoints)` -- admin-only function that sets match result for winner/loser and credits/debits coins, records profit
-- Backend: LeaderboardEntry gets `totalProfit` field
-- Frontend Ranking: Global Winners tab now sorts by `totalProfit` (Top Profit) instead of wins. Right side shows profit amount (e.g. ₡1200 Profit)
-- Frontend Admin: Each match row gets a "Trophy" declare-result button. Opens an inline panel with: winner Legend ID input, loser Legend ID input, winner coins to give, loser coins to give (can be 0 or return amount), and a Declare button
-- Frontend Match cards: Bottom section shows 3 pills instead of 2 -- "Entry", "Profit" (prize pool), "Returning" (coins returned to losers if any)
+
+1. **SHOP tab** replacing "Matches" in the bottom nav bar:
+   - Nav label: "SHOP", with a shopping bag / store icon
+   - Tab ID: "shop" (replace "matches" in TabId)
+   - Shop content: avatar cards for sale, each with a price and a buy button
+   - 10 avatars in the shop, each with a unique gaming character name and sale price:
+     - "Shadow Reaper" - 200 Legend Coins
+     - "Inferno King" - 350 Legend Coins
+     - "Cyber Ghost" - 500 Legend Coins
+     - "Frost Viper" - 150 Legend Coins
+     - "Blaze Hunter" - 275 Legend Coins
+     - "Dark Phantom" - 450 Legend Coins
+     - "Storm Ninja" - 325 Legend Coins
+     - "Blood Wolf" - 600 Legend Coins
+     - "Void Striker" - 400 Legend Coins
+     - "Thunder Ace" - 250 Legend Coins
+   - Each avatar card shows: avatar image (use generated images), name, price in Legend Coins (shown as coin icon + number, NOT "L{number}")
+   - Shop avatar purchase deducts from wallet balance (call actor.spendCoins or similar if available; otherwise show a "Buy" button with a toast for now)
+   - Purchased avatars become selectable in profile avatar gallery
+
+2. **"My Matches" button** in Play tab:
+   - In the welcome banner row, to the RIGHT of "Welcome, {name}", add a small "My Matches" button
+   - Clicking it navigates/switches to the "shop" tab is WRONG -- it should switch to a new "mymatches" section OR show a dropdown/modal of the user's joined matches
+   - Actually per request: place "My Matches" as a button in the play tab header area (right of "Welcome 0001") that when clicked switches activeTab to "matches" -- but since "matches" is being renamed to "shop"... 
+   - Clarification: "Matches" tab is being renamed to "SHOP". The user wants "My Matches" as a button in the PLAY tab welcome area (right side) so users can see which tournaments they joined. Clicking it should show a modal/drawer or switch to a dedicated my-matches view.
+   - Implement as: add a "My Matches" button in the Play tab welcome banner (right side). It opens a modal listing the user's joined active tournaments (from joinedMatchIds + activeTournaments data).
+
+3. **Legend Coin icon** replacing "L" prefix everywhere:
+   - Wherever "L{number}" is shown as a coin amount (prize, entry fee, wallet balance, leaderboard values, deposit requests, transaction history, match cards, ViewDetailsModal, etc.), replace "L" with the animated coin SVG component (the existing L-coin design from DepositTab balance display)
+   - Create a reusable `<LegendCoin size={number} />` inline component that renders the gold coin with "L" inside
+   - Show it inline before the number: `<LegendCoin size={16} /> {amount}`
+   - This affects: TournamentCard (Entry/Profit/Returning pills -- note Profit shows prizePool string so keep as-is), MatchHistoryRow coins wagered, TransactionRow amounts, Deposit request list amounts, Leaderboard values (Global profit, Prime deposited), Ranking section description texts, profile stats "Legend Coins" value
+
+4. **Deposit tab header**: 
+   - Add "DEPOSIT" as a heading above the "Deposit via JazzCash" section
+   - Add a "WITHDRAW" button to the right of the DEPOSIT heading (same row)
+   - The WITHDRAW button opens a modal where user enters amount + JazzCash number + submits a withdraw request
+   - Withdraw requests go to admin the same way deposit requests do (use actor.submitWithdrawRequest if available, otherwise toast "Request submitted")
 
 ### Modify
-- Global Winners leaderboard section: description changes to "Ranked by total profit earned", right-side value shows profit not raw wins
-- LeaderboardEntry type in backend.d.ts: add totalProfit field
-- UserProfile in backend: add totalProfit field
+
+- **TabId** type: rename "matches" to "shop", add "matches" as a separate concept accessible via My Matches modal in Play tab. Actually: TabId = "shop" | "ranking" | "play" | "deposit" | "profile". The old "matches" tab content becomes the SHOP tab content is WRONG -- the old "Matches" tab shows joined match history, but now the FAR LEFT tab should be "SHOP" with avatar shop content. The joined match history is accessible via "My Matches" button inside Play tab.
+- **Nav bar**: Far-left button changes from Matches (Trophy icon) to Shop (ShoppingBag or Store icon), label "SHOP"
+- **Default activeTab**: was "play", keep as "play"
+- **All "L{number}" coin displays**: replace "L" prefix with inline LegendCoin icon component
 
 ### Remove
-- Nothing removed
+
+- The "Matches" tab from the bottom nav bar (replaced by "Shop")
+- "L" text prefix before coin amounts throughout (replaced by LegendCoin icon)
 
 ## Implementation Plan
-1. Add `totalProfit: Nat` to UserProfile in Motoko, default 0
-2. Add `totalProfit` to LeaderboardEntry type
-3. Add `declareMatchResult(tournamentId, winnerLegendId, loserLegendId, winnerCoins, loserCoins)` admin func:
-   - Finds winner and loser by legendId
-   - Credits winnerCoins to winner wallet, adds to totalProfit
-   - Credits loserCoins to loser wallet (returning coins), records as return
-   - Records transactions for both
-   - Updates match result in matchHistory for both players (win/loss)
-4. Update `getLeaderboard` to return totalProfit
-5. Update backend.d.ts accordingly
-6. Frontend: Global Winners -- sort by totalProfit, show ₡profit on right
-7. Frontend: Admin match rows -- add declare result inline panel with winner/loser ID + coins fields
-8. Frontend: Tournament/match cards -- add 3rd "Returning" pill showing returning coins (stored in prizePool or a new returningCoins field parsed from prizePool)
-   - Since adding a new field requires backend change, store returning coins as part of the match card UI: admin sets it when declaring result; for display use a separate `returningCoins` field on Tournament
+
+1. Generate 10 shop avatar images (one per avatar name above) using generate_image tool
+2. Create inline `LegendCoin` component (small gold coin with "L" inside, glow animation)
+3. Rename TabId "matches" to "shop"; update nav bar far-left item to ShoppingBag icon + "SHOP" label
+4. Build ShopTab component with 10 avatar cards (image, name, price with LegendCoin icon, Buy button)
+5. Add "My Matches" button to PlayTab welcome banner (right side); clicking opens a modal listing joined tournaments
+6. Replace all "L{number}" patterns with `<LegendCoin /> {number}` throughout DashboardPage
+7. Add DEPOSIT heading + WITHDRAW button row at the top of DepositTab content; wire WITHDRAW modal
+8. Fix deposit request amount display to use LegendCoin icon (remove "L" + "LC" suffix)
