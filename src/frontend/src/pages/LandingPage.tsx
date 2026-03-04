@@ -9,7 +9,6 @@ import {
   Sword,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 
 /* ─── Feature Card ──────────────────────────────────────────── */
 function FeatureCard({
@@ -87,15 +86,9 @@ function PWAInstallButton() {
     if (deferredPrompt.current) {
       await deferredPrompt.current.prompt();
       deferredPrompt.current = null;
-    } else {
-      // Fallback: try to trigger native install on supported browsers
-      toast.info(
-        "Open this link in Chrome on your Android phone to install the app.",
-        {
-          duration: 5000,
-        },
-      );
     }
+    // If no prompt available, do nothing -- the browser will show its own UI
+    // or the user is already on a device that can't install PWAs this way
   };
 
   const colorB = "#ffd700";

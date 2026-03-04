@@ -15,6 +15,10 @@ import {
 import { CoinShower } from "@/components/CoinShower";
 import { FireAnimation } from "@/components/FireAnimation";
 import { FirstLoginModal } from "@/components/FirstLoginModal";
+import {
+  ANIMATED_FRAMES,
+  AnimatedFrameOverlay,
+} from "@/components/FrameAnimations";
 import { RifleAnimation } from "@/components/RifleAnimation";
 import { WalletDisplay } from "@/components/WalletDisplay";
 import { useActor } from "@/hooks/useActor";
@@ -47,21 +51,6 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import frameAngelWhiteImg from "/assets/generated/frame-angel-white-transparent.dim_200x200.png";
-import frameCyberGreenImg from "/assets/generated/frame-cyber-green-transparent.dim_200x200.png";
-import frameDiamondCrystalImg from "/assets/generated/frame-diamond-crystal-transparent.dim_200x200.png";
-import frameDragonRedImg from "/assets/generated/frame-dragon-red-transparent.dim_200x200.png";
-import frameElectricBlueImg from "/assets/generated/frame-electric-blue-transparent.dim_200x200.png";
-import frameFireImg from "/assets/generated/frame-fire-transparent.dim_200x200.png";
-import frameGalaxyImg from "/assets/generated/frame-galaxy-transparent.dim_200x200.png";
-import frameGoldCrownImg from "/assets/generated/frame-gold-crown-transparent.dim_200x200.png";
-import frameIceFrostImg from "/assets/generated/frame-ice-frost-transparent.dim_200x200.png";
-import frameMilitaryCamoImg from "/assets/generated/frame-military-camo-transparent.dim_200x200.png";
-import frameRainbowHoloImg from "/assets/generated/frame-rainbow-holo-transparent.dim_200x200.png";
-import frameSamuraiImg from "/assets/generated/frame-samurai-transparent.dim_200x200.png";
-import frameSkullRedImg from "/assets/generated/frame-skull-red-transparent.dim_200x200.png";
-import frameToxicGreenImg from "/assets/generated/frame-toxic-green-transparent.dim_200x200.png";
-import frameVoidBlackImg from "/assets/generated/frame-void-black-transparent.dim_200x200.png";
 import blazeHunterImg from "/assets/generated/shop-avatar-blaze-hunter-transparent.dim_200x200.png";
 import bloodWolfImg from "/assets/generated/shop-avatar-blood-wolf-transparent.dim_200x200.png";
 import cyberGhostImg from "/assets/generated/shop-avatar-cyber-ghost-transparent.dim_200x200.png";
@@ -228,148 +217,32 @@ const AVATAR_TIERS = [
   },
 ] as const;
 
-/* ─── Shop Frames (purchasable with Legend Coins) ───────────── */
-const SHOP_FRAMES = [
-  {
-    index: 20,
-    src: frameMilitaryCamoImg,
-    name: "Military Camo",
-    price: 100,
-    glowColor: "#4a7c59",
-  },
-  {
-    index: 21,
-    src: frameSkullRedImg,
-    name: "Skull Reaper",
-    price: 150,
-    glowColor: "#ff2200",
-  },
-  {
-    index: 22,
-    src: frameCyberGreenImg,
-    name: "Cyber Matrix",
-    price: 200,
-    glowColor: "#00ff44",
-  },
-  {
-    index: 23,
-    src: frameIceFrostImg,
-    name: "Ice Frost",
-    price: 200,
-    glowColor: "#66ccff",
-  },
-  {
-    index: 24,
-    src: frameFireImg,
-    name: "Fire Storm",
-    price: 250,
-    glowColor: "#ff6600",
-  },
-  {
-    index: 25,
-    src: frameSamuraiImg,
-    name: "Samurai Honor",
-    price: 300,
-    glowColor: "#cc0000",
-  },
-  {
-    index: 26,
-    src: frameElectricBlueImg,
-    name: "Electric Bolt",
-    price: 300,
-    glowColor: "#0099ff",
-  },
-  {
-    index: 27,
-    src: frameToxicGreenImg,
-    name: "Toxic Hazard",
-    price: 350,
-    glowColor: "#44ff00",
-  },
-  {
-    index: 28,
-    src: frameDragonRedImg,
-    name: "Dragon Scale",
-    price: 400,
-    glowColor: "#ff3300",
-  },
-  {
-    index: 29,
-    src: frameGoldCrownImg,
-    name: "Gold Crown",
-    price: 450,
-    glowColor: "#ffd700",
-  },
-  {
-    index: 30,
-    src: frameDiamondCrystalImg,
-    name: "Diamond Crystal",
-    price: 500,
-    glowColor: "#cc88ff",
-  },
-  {
-    index: 31,
-    src: frameGalaxyImg,
-    name: "Galaxy Nebula",
-    price: 600,
-    glowColor: "#9944ff",
-  },
-  {
-    index: 32,
-    src: frameAngelWhiteImg,
-    name: "Angel Wings",
-    price: 700,
-    glowColor: "#ffffff",
-  },
-  {
-    index: 33,
-    src: frameVoidBlackImg,
-    name: "Void Abyss",
-    price: 800,
-    glowColor: "#4400ff",
-  },
-  {
-    index: 34,
-    src: frameRainbowHoloImg,
-    name: "Rainbow Holo",
-    price: 1000,
-    glowColor: "#ff00ff",
-  },
-] as const;
+/* ─── Shop Frames (5 animated frames using ANIMATED_FRAMES) ─── */
+const SHOP_FRAMES = ANIMATED_FRAMES as unknown as readonly {
+  index: number;
+  name: string;
+  price: number;
+  color: string;
+  Component: React.ComponentType<{
+    size?: number;
+    isPreview?: boolean;
+    isActive?: boolean;
+  }>;
+  description: string;
+}[];
 
-/* ─── Get frame src by index ─────────────────────────────────── */
-function getFrameSrc(frameIndex: number): string | null {
-  if (frameIndex === 0) return null;
-  const frame = SHOP_FRAMES.find((f) => f.index === frameIndex);
-  return frame?.src ?? null;
-}
-
-/* ─── Frame overlay component ────────────────────────────────── */
+/* ─── Frame overlay component (animated SVG version) ─────────── */
 function FrameOverlay({
   frameIndex,
   size = 80,
   isActive = false,
 }: { frameIndex: number; size?: number; isActive?: boolean }) {
-  const src = getFrameSrc(frameIndex);
-  if (!src) return null;
-  // Frame extends well beyond the profile circle to show decorative border
-  // inset is negative = frame goes outside the container; extra = total extra size beyond circle
-  const extra = Math.round(size * 0.28); // ~28% extra on each side looks right for decorative frames
+  if (frameIndex === 0) return null;
   return (
-    <img
-      src={src}
-      alt="frame"
-      aria-hidden="true"
-      className={isActive ? "animate-frame-shimmer" : ""}
-      style={{
-        position: "absolute",
-        inset: -extra,
-        width: size + extra * 2,
-        height: size + extra * 2,
-        pointerEvents: "none",
-        zIndex: 3,
-        objectFit: "contain",
-      }}
+    <AnimatedFrameOverlay
+      frameIndex={frameIndex}
+      size={size}
+      isActive={isActive}
     />
   );
 }
@@ -2625,7 +2498,7 @@ export function DashboardPage() {
     if (!actor) return;
     setSelectingFrame(frameIndex);
     try {
-      await (actor as any).setProfileFrame(BigInt(frameIndex));
+      await actor.setProfileFrame(BigInt(frameIndex));
       await refetchProfile();
       queryClient.invalidateQueries({ queryKey: ["userProfile", legendId] });
       toast.success(frameIndex === 0 ? "Frame removed!" : "Frame equipped!");
@@ -2819,9 +2692,7 @@ export function DashboardPage() {
                         if (!actor) return;
                         setSelectingPic(avatar.index);
                         try {
-                          await (actor as any).buyShopAvatar(
-                            BigInt(avatar.index),
-                          );
+                          await actor.buyShopAvatar(BigInt(avatar.index));
                           await refetchProfile();
                           queryClient.invalidateQueries({
                             queryKey: ["userProfile", legendId],
@@ -2876,39 +2747,34 @@ export function DashboardPage() {
               const isActive = selectedFrame === frame.index;
               const canAfford = Number(balance) >= frame.price;
               const isLoading = selectingFrame === frame.index;
+              const FrameComp = frame.Component;
 
               return (
                 <div
                   key={frame.index}
                   data-ocid={`shop.frame_item.${i + 1}`}
-                  className="rounded-2xl overflow-hidden flex flex-col"
+                  className="rounded-2xl overflow-visible flex flex-col"
                   style={{
                     background: isOwned
                       ? "rgba(204,136,255,0.04)"
                       : "rgba(13,13,26,0.95)",
                     border: isOwned
-                      ? `1px solid ${frame.glowColor}55`
+                      ? `1px solid ${frame.color}55`
                       : "1px solid rgba(255,255,255,0.08)",
                     boxShadow: isOwned
-                      ? `0 4px 24px ${frame.glowColor}22`
+                      ? `0 4px 24px ${frame.color}22`
                       : "0 4px 24px rgba(0,0,0,0.3)",
-                    // CSS variable for glow animation
-                    ["--frame-glow-shadow" as string]: isOwned
-                      ? `0 0 20px ${frame.glowColor}99, 0 0 40px ${frame.glowColor}44`
-                      : undefined,
-                    animation: isOwned
-                      ? "frameGlow 3s ease-in-out infinite"
-                      : "none",
                   }}
                 >
-                  {/* Frame preview -- show DEFAULT_PROFILE_PIC inside frame */}
+                  {/* Frame preview -- animated SVG frame around profile pic */}
                   <div
                     className="relative flex items-center justify-center"
                     style={{
-                      height: 130,
-                      background: "rgba(255,255,255,0.03)",
+                      height: 140,
+                      background: "transparent",
                     }}
                   >
+                    {/* Transparent background area -- no clipping so animation overflows */}
                     <div className="relative" style={{ width: 80, height: 80 }}>
                       {/* Profile image inside frame */}
                       <img
@@ -2920,22 +2786,11 @@ export function DashboardPage() {
                           filter: isOwned ? "none" : "brightness(0.65)",
                         }}
                       />
-                      {/* Frame overlay around the profile pic */}
-                      <img
-                        src={frame.src}
-                        alt={frame.name}
-                        className={isOwned ? "animate-frame-shimmer" : ""}
-                        style={{
-                          position: "absolute",
-                          inset: -22,
-                          width: 80 + 44,
-                          height: 80 + 44,
-                          objectFit: "contain",
-                          filter: isOwned
-                            ? "none"
-                            : "grayscale(60%) brightness(0.6)",
-                          pointerEvents: "none",
-                        }}
+                      {/* Animated frame SVG overlay -- no overflow:hidden on parent */}
+                      <FrameComp
+                        size={80}
+                        isPreview={!isOwned}
+                        isActive={isActive}
                       />
                     </div>
                     {isOwned && (
@@ -2967,9 +2822,15 @@ export function DashboardPage() {
                   <div className="p-3 flex flex-col gap-2">
                     <p
                       className="font-display font-black text-sm"
-                      style={{ color: frame.glowColor }}
+                      style={{ color: frame.color }}
                     >
                       {frame.name}
+                    </p>
+                    <p
+                      className="text-xs font-body"
+                      style={{ color: "rgba(255,255,255,0.35)" }}
+                    >
+                      {frame.description}
                     </p>
                     <div
                       className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg"
@@ -3021,9 +2882,7 @@ export function DashboardPage() {
                           if (!actor) return;
                           setSelectingFrame(frame.index);
                           try {
-                            await (actor as any).buyShopFrame(
-                              BigInt(frame.index),
-                            );
+                            await actor.buyShopFrame(BigInt(frame.index));
                             await refetchProfile();
                             queryClient.invalidateQueries({
                               queryKey: ["userProfile", legendId],
@@ -3041,7 +2900,7 @@ export function DashboardPage() {
                         className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1"
                         style={{
                           background: canAfford
-                            ? `linear-gradient(135deg, ${frame.glowColor}cc, ${frame.glowColor}88)`
+                            ? `linear-gradient(135deg, ${frame.color}cc, ${frame.color}88)`
                             : "rgba(255,255,255,0.05)",
                           border: canAfford
                             ? "none"
@@ -3326,7 +3185,9 @@ export function DashboardPage() {
                         }}
                       >
                         <img
-                          src={getProfilePicSrc(0)}
+                          src={getProfilePicSrc(
+                            Number(player.selectedProfilePic),
+                          )}
                           alt={player.gameName || "Player"}
                           className="w-full h-full object-cover"
                           onError={(e) => {
@@ -3478,7 +3339,9 @@ export function DashboardPage() {
                         }}
                       >
                         <img
-                          src={getProfilePicSrc(0)}
+                          src={getProfilePicSrc(
+                            Number(player.selectedProfilePic),
+                          )}
                           alt={player.gameName || "Player"}
                           className="w-full h-full object-cover"
                           onError={(e) => {
@@ -3629,7 +3492,9 @@ export function DashboardPage() {
                         }}
                       >
                         <img
-                          src={getProfilePicSrc(0)}
+                          src={getProfilePicSrc(
+                            Number(player.selectedProfilePic),
+                          )}
                           alt={player.gameName || "Player"}
                           className="w-full h-full object-cover"
                           onError={(e) => {
@@ -5044,6 +4909,7 @@ export function DashboardPage() {
                       .includes(frame.index);
                     const isActive = selectedFrame === frame.index;
                     const isLoading = selectingFrame === frame.index;
+                    const FrameComp = frame.Component;
                     return (
                       <div
                         key={frame.index}
@@ -5058,11 +4924,11 @@ export function DashboardPage() {
                           border: isActive
                             ? "1px solid rgba(204,136,255,0.4)"
                             : isOwned
-                              ? `1px solid ${frame.glowColor}33`
+                              ? `1px solid ${frame.color}33`
                               : "1px solid rgba(255,255,255,0.07)",
                         }}
                       >
-                        {/* Frame preview with profile pic inside */}
+                        {/* Animated frame preview with profile pic inside */}
                         <div
                           className="relative flex items-center justify-center"
                           style={{ width: 64, height: 64 }}
@@ -5077,21 +4943,11 @@ export function DashboardPage() {
                                 : "brightness(0.5) grayscale(40%)",
                             }}
                           />
-                          <img
-                            src={frame.src}
-                            alt={frame.name}
-                            className={isActive ? "animate-frame-shimmer" : ""}
-                            style={{
-                              position: "absolute",
-                              inset: -18,
-                              width: 64 + 36,
-                              height: 64 + 36,
-                              objectFit: "contain",
-                              filter: isOwned
-                                ? "none"
-                                : "grayscale(60%) brightness(0.5)",
-                              pointerEvents: "none",
-                            }}
+                          {/* Animated SVG frame -- no overflow clipping */}
+                          <FrameComp
+                            size={64}
+                            isPreview={!isOwned}
+                            isActive={isActive}
                           />
                           {isActive && (
                             <div
@@ -5115,7 +4971,7 @@ export function DashboardPage() {
                             color: isActive
                               ? "#cc88ff"
                               : isOwned
-                                ? frame.glowColor
+                                ? frame.color
                                 : "rgba(255,255,255,0.35)",
                           }}
                         >

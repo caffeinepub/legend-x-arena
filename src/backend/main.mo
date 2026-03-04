@@ -5,11 +5,11 @@ import Text "mo:core/Text";
 import Map "mo:core/Map";
 import Time "mo:core/Time";
 import Order "mo:core/Order";
-import Runtime "mo:core/Runtime";
 import Principal "mo:core/Principal";
-import Migration "migration";
+import Runtime "mo:core/Runtime";
 
-(with migration = Migration.run)
+
+
 actor {
   type Role = { #admin; #user };
   type GameMode = { #loneWolf; #csMod; #brMod };
@@ -125,15 +125,6 @@ actor {
       case (null) { Runtime.trap("User not found") };
       case (?profile) { profile };
     };
-  };
-
-  // Helper function to update a user by applying a given function.
-  func updateUser(
-    principal : Principal,
-    updateFunc : UserProfile -> UserProfile,
-  ) {
-    let profile = getUserByPrincipalOrTrap(principal);
-    users.add(principal, updateFunc(profile));
   };
 
   // Auto-generate legendId as a 4-digit zero-padded string
@@ -522,6 +513,7 @@ actor {
     totalMatches : Nat;
     totalProfit : Nat;
     gameName : Text;
+    selectedProfilePic : Nat;
   };
 
   public query ({ caller }) func getLeaderboard() : async [LeaderboardEntry] {
@@ -540,6 +532,7 @@ actor {
           totalMatches = user.matchHistory.size();
           totalProfit = user.totalProfit;
           gameName = user.gameName;
+          selectedProfilePic = user.selectedProfilePic;
         };
       }
     );
@@ -682,5 +675,137 @@ actor {
       };
     };
   };
-};
 
+  // Expanded Shop Features
+
+  func isValidRange(value : Nat, start : Nat, end : Nat) : Bool {
+    value >= start and value <= end
+  };
+
+  public shared ({ caller }) func buyShopAvatar(avatarIndex : Nat) : async () {
+    if (not isValidRange(avatarIndex, 10, 19)) {
+      Runtime.trap("Invalid avatar index");
+    };
+
+    let price = switch (avatarIndex) {
+      case (10) { 200 };
+      case (11) { 350 };
+      case (12) { 500 };
+      case (13) { 150 };
+      case (14) { 275 };
+      case (15) { 450 };
+      case (16) { 325 };
+      case (17) { 600 };
+      case (18) { 400 };
+      case (19) { 250 };
+      case (_) { Runtime.trap("Invalid avatar index") };
+    };
+
+    let userProfile = getUserByPrincipalOrTrap(caller);
+
+    // Check if already purchased
+    if (userProfile.purchasedShopAvatars.any(func(v) { v == avatarIndex })) {
+      Runtime.trap("Avatar already purchased");
+    };
+
+    if (userProfile.walletBalance < price) {
+      Runtime.trap("Insufficient balance");
+    };
+
+    let avatarArray = userProfile.purchasedShopAvatars.concat([avatarIndex]);
+
+    let newTransaction : Transaction = {
+      txType = #withdraw;
+      amount = price;
+      date = Time.now();
+      description = "Avatar Purchase";
+    };
+
+    let updatedProfile : UserProfile = {
+      userProfile with
+      walletBalance = userProfile.walletBalance - price;
+      transactions = userProfile.transactions.concat([newTransaction]);
+      purchasedShopAvatars = avatarArray;
+      selectedProfilePic = avatarIndex;
+    };
+
+    users.add(caller, updatedProfile);
+  };
+
+  public shared ({ caller }) func buyShopFrame(frameIndex : Nat) : async () {
+    if (not isValidRange(frameIndex, 20, 34)) {
+      Runtime.trap("Invalid frame index");
+    };
+
+    let price = switch (frameIndex) {
+      case (20) { 100 };
+      case (21) { 150 };
+      case (22) { 200 };
+      case (23) { 200 };
+      case (24) { 250 };
+      case (25) { 300 };
+      case (26) { 300 };
+      case (27) { 350 };
+      case (28) { 400 };
+      case (29) { 450 };
+      case (30) { 500 };
+      case (31) { 600 };
+      case (32) { 700 };
+      case (33) { 800 };
+      case (34) { 1000 };
+      case (_) { Runtime.trap("Invalid frame index") };
+    };
+
+    let userProfile = getUserByPrincipalOrTrap(caller);
+
+    // Check if already purchased
+    if (userProfile.purchasedFrames.any(func(v) { v == frameIndex })) {
+      Runtime.trap("Frame already purchased");
+    };
+
+    if (userProfile.walletBalance < price) {
+      Runtime.trap("Insufficient balance");
+    };
+
+    let frameArray = userProfile.purchasedFrames.concat([frameIndex]);
+
+    let newTransaction : Transaction = {
+      txType = #withdraw;
+      amount = price;
+      date = Time.now();
+      description = "Frame Purchase";
+    };
+
+    let updatedProfile = {
+      userProfile with
+      walletBalance = userProfile.walletBalance - price;
+      transactions = userProfile.transactions.concat([newTransaction]);
+      purchasedFrames = frameArray;
+      selectedFrame = frameIndex;
+    };
+
+    users.add(caller, updatedProfile);
+  };
+
+  public shared ({ caller }) func setProfileFrame(frameIndex : Nat) : async () {
+    let userProfile = getUserByPrincipalOrTrap(caller);
+
+    if (frameIndex == 0) {
+      // Always allow removing frame by setting index 0
+      let updatedProfile = {
+        userProfile with selectedFrame = 0;
+      };
+      users.add(caller, updatedProfile);
+    } else if (
+      userProfile.purchasedFrames.any(func(v) { v == frameIndex })
+    ) {
+      // Check if frame is in purchased frames
+      let updatedProfile = {
+        userProfile with selectedFrame = frameIndex;
+      };
+      users.add(caller, updatedProfile);
+    } else {
+      Runtime.trap("Frame not purchased");
+    };
+  };
+};

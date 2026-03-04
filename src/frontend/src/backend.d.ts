@@ -20,6 +20,7 @@ export interface LeaderboardEntry {
     wins: bigint;
     totalProfit: bigint;
     gameName: string;
+    selectedProfilePic: bigint;
     totalDeposited: bigint;
 }
 export interface DepositRequest {
@@ -100,6 +101,8 @@ export interface backendInterface {
     addCoins(legendId: string, amount: bigint): Promise<void>;
     approveDepositRequest(requestId: string): Promise<void>;
     authenticate(legendId: string, passwordHash: string): Promise<boolean>;
+    buyShopAvatar(avatarIndex: bigint): Promise<void>;
+    buyShopFrame(frameIndex: bigint): Promise<void>;
     createTournament(title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, returningCoins: bigint): Promise<string>;
     declareMatchResult(tournamentId: string, winnerLegendId: string, loserLegendId: string, winnerCoins: bigint, loserCoins: bigint): Promise<void>;
     deleteTournament(id: string): Promise<void>;
@@ -116,6 +119,7 @@ export interface backendInterface {
     joinTournamentById(tournamentId: string): Promise<void>;
     register(passwordHash: string, jazzCash: string, uid: string, ignName: string): Promise<string>;
     rejectDepositRequest(requestId: string): Promise<void>;
+    setProfileFrame(frameIndex: bigint): Promise<void>;
     setProfilePicture(picIndex: bigint): Promise<void>;
     setTournamentRoom(tournamentId: string, roomId: string, roomPassword: string): Promise<void>;
     submitDepositRequest(amount: bigint, transactionId: string): Promise<void>;

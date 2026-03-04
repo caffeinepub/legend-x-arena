@@ -32,6 +32,7 @@ export const LeaderboardEntry = IDL.Record({
   'wins' : IDL.Nat,
   'totalProfit' : IDL.Nat,
   'gameName' : IDL.Text,
+  'selectedProfilePic' : IDL.Nat,
   'totalDeposited' : IDL.Nat,
 });
 export const DepositStatus = IDL.Variant({
@@ -99,6 +100,8 @@ export const idlService = IDL.Service({
   'addCoins' : IDL.Func([IDL.Text, IDL.Nat], [], []),
   'approveDepositRequest' : IDL.Func([IDL.Text], [], []),
   'authenticate' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
+  'buyShopAvatar' : IDL.Func([IDL.Nat], [], []),
+  'buyShopFrame' : IDL.Func([IDL.Nat], [], []),
   'createTournament' : IDL.Func(
       [
         IDL.Text,
@@ -137,6 +140,7 @@ export const idlService = IDL.Service({
       [],
     ),
   'rejectDepositRequest' : IDL.Func([IDL.Text], [], []),
+  'setProfileFrame' : IDL.Func([IDL.Nat], [], []),
   'setProfilePicture' : IDL.Func([IDL.Nat], [], []),
   'setTournamentRoom' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'submitDepositRequest' : IDL.Func([IDL.Nat, IDL.Text], [], []),
@@ -187,6 +191,7 @@ export const idlFactory = ({ IDL }) => {
     'wins' : IDL.Nat,
     'totalProfit' : IDL.Nat,
     'gameName' : IDL.Text,
+    'selectedProfilePic' : IDL.Nat,
     'totalDeposited' : IDL.Nat,
   });
   const DepositStatus = IDL.Variant({
@@ -254,6 +259,8 @@ export const idlFactory = ({ IDL }) => {
     'addCoins' : IDL.Func([IDL.Text, IDL.Nat], [], []),
     'approveDepositRequest' : IDL.Func([IDL.Text], [], []),
     'authenticate' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
+    'buyShopAvatar' : IDL.Func([IDL.Nat], [], []),
+    'buyShopFrame' : IDL.Func([IDL.Nat], [], []),
     'createTournament' : IDL.Func(
         [
           IDL.Text,
@@ -292,6 +299,7 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'rejectDepositRequest' : IDL.Func([IDL.Text], [], []),
+    'setProfileFrame' : IDL.Func([IDL.Nat], [], []),
     'setProfilePicture' : IDL.Func([IDL.Nat], [], []),
     'setTournamentRoom' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'submitDepositRequest' : IDL.Func([IDL.Nat, IDL.Text], [], []),

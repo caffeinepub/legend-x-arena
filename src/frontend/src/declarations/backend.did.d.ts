@@ -31,6 +31,7 @@ export interface LeaderboardEntry {
   'wins' : bigint,
   'totalProfit' : bigint,
   'gameName' : string,
+  'selectedProfilePic' : bigint,
   'totalDeposited' : bigint,
 }
 export interface Match {
@@ -93,6 +94,8 @@ export interface _SERVICE {
   'addCoins' : ActorMethod<[string, bigint], undefined>,
   'approveDepositRequest' : ActorMethod<[string], undefined>,
   'authenticate' : ActorMethod<[string, string], boolean>,
+  'buyShopAvatar' : ActorMethod<[bigint], undefined>,
+  'buyShopFrame' : ActorMethod<[bigint], undefined>,
   'createTournament' : ActorMethod<
     [string, string, string, bigint, string, bigint, string, bigint],
     string
@@ -115,6 +118,7 @@ export interface _SERVICE {
   'joinTournamentById' : ActorMethod<[string], undefined>,
   'register' : ActorMethod<[string, string, string, string], string>,
   'rejectDepositRequest' : ActorMethod<[string], undefined>,
+  'setProfileFrame' : ActorMethod<[bigint], undefined>,
   'setProfilePicture' : ActorMethod<[bigint], undefined>,
   'setTournamentRoom' : ActorMethod<[string, string, string], undefined>,
   'submitDepositRequest' : ActorMethod<[bigint, string], undefined>,
