@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from "react";
 interface FirstLoginModalProps {
   legendId: string;
   onClose: () => void;
+  actor?: {
+    addCoins: (legendId: string, amount: bigint) => Promise<void>;
+  } | null;
 }
 
 /* ─── Constants ──────────────────────────────────────── */
@@ -316,7 +319,11 @@ function RouletteWheel({ rotation }: { rotation: number }) {
 }
 
 /* ─── Main Modal ─────────────────────────────────────── */
-export function FirstLoginModal({ legendId, onClose }: FirstLoginModalProps) {
+export function FirstLoginModal({
+  legendId,
+  onClose,
+  actor,
+}: FirstLoginModalProps) {
   const [step, setStep] = useState<"congrats" | "roulette">("congrats");
   const [wheelRotation, setWheelRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -359,7 +366,17 @@ export function FirstLoginModal({ legendId, onClose }: FirstLoginModalProps) {
     }, 4200);
   }
 
-  function handleCollect() {
+  async function handleCollect() {
+    if (actor && legendId && wonAmount) {
+      const coins = Number.parseInt(wonAmount.split(" ")[0], 10);
+      if (!Number.isNaN(coins) && coins > 0) {
+        try {
+          await actor.addCoins(legendId, BigInt(coins));
+        } catch {
+          // silently ignore if actor unavailable or permission denied
+        }
+      }
+    }
     onClose();
   }
 
@@ -494,7 +511,25 @@ export function FirstLoginModal({ legendId, onClose }: FirstLoginModalProps) {
                 zIndex: 10,
               }}
             >
-              🏆 Legend X Arena
+              🏆{" "}
+              <span
+                className="animate-legend-flame"
+                style={{ color: "#ff2200" }}
+              >
+                LEGEND
+              </span>{" "}
+              <span
+                className="animate-x-beat"
+                style={{ color: "#ffd700", fontSize: "1.15em" }}
+              >
+                X
+              </span>{" "}
+              <span
+                className="animate-arena-electric"
+                style={{ color: "#0066ff" }}
+              >
+                ARENA
+              </span>
             </div>
 
             {/* Main CONGRATULATIONS heading */}

@@ -51,7 +51,7 @@ export function AuthPage() {
         return;
       }
       const roleStr = profile.role === Role.admin ? "admin" : "user";
-      login(profile.legendId, roleStr);
+      login(profile.legendId, roleStr, profile.gameName);
       toast.success("Welcome back, Commander!");
       navigate({ to: "/dashboard" });
     } catch (err) {
@@ -91,9 +91,9 @@ export function AuthPage() {
       }
       const profile = await actor.getUserByLegendId(assignedLegendId);
       const roleStr = profile.role === Role.admin ? "admin" : "user";
-      login(profile.legendId, roleStr);
+      login(profile.legendId, roleStr, profile.gameName);
       toast.success(
-        `Arena account created! Your Legend ID is: ${assignedLegendId} — 100 Legend Coins awarded!`,
+        `Arena account created! Your Legend ID is: ${assignedLegendId}`,
       );
       navigate({ to: "/dashboard" });
     } catch (err) {
@@ -127,10 +127,26 @@ export function AuthPage() {
       <div className="relative z-10 w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="font-display font-black text-3xl tracking-widest">
-            <span style={{ color: "#ff2200" }}>LEGEND</span>
-            <span style={{ color: "#ffd700" }}> X </span>
-            <span style={{ color: "#0066ff" }}>ARENA</span>
+          <h1 className="font-display font-black text-3xl flex items-center justify-center gap-0">
+            <span className="animate-legend-flame" style={{ color: "#ff2200" }}>
+              LEGEND
+            </span>
+            <span
+              className="animate-x-beat"
+              style={{
+                color: "#ffd700",
+                fontSize: "1.3em",
+                margin: "0 0.12em",
+              }}
+            >
+              X
+            </span>
+            <span
+              className="animate-arena-electric"
+              style={{ color: "#0066ff" }}
+            >
+              ARENA
+            </span>
           </h1>
           <p
             className="text-xs font-body uppercase tracking-[0.3em] mt-2"
@@ -472,19 +488,6 @@ export function AuthPage() {
                           {registerForm.formState.errors.jazzCashNumber.message}
                         </p>
                       )}
-                    </div>
-
-                    {/* Welcome bonus note */}
-                    <div
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-body"
-                      style={{
-                        background: "rgba(255,215,0,0.08)",
-                        border: "1px solid rgba(255,215,0,0.2)",
-                        color: "#ffd700",
-                      }}
-                    >
-                      <span>🎁</span>
-                      New commanders receive 100 Legend Coins on sign-up!
                     </div>
 
                     <button

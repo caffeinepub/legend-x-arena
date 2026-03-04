@@ -64,13 +64,43 @@ function UserCard({
   profile,
   onToggleBan,
   isToggling,
+  onCoinsAdded,
 }: {
   profile: UserProfile;
   onToggleBan: () => void;
   isToggling: boolean;
+  onCoinsAdded?: () => void;
 }) {
+  const { actor } = useActor();
   const recentMatches = profile.matchHistory.slice(-10).reverse();
   const recentTxs = profile.transactions.slice(-10).reverse();
+
+  const [addCoinsAmount, setAddCoinsAmount] = useState("");
+  const [isAddingCoins, setIsAddingCoins] = useState(false);
+
+  async function handleAddCoins(e: React.FormEvent) {
+    e.preventDefault();
+    const amount = Math.floor(Number(addCoinsAmount));
+    if (!amount || amount <= 0) {
+      toast.error("Enter a valid coin amount");
+      return;
+    }
+    if (!actor) return;
+    setIsAddingCoins(true);
+    try {
+      await actor.addCoins(profile.legendId, BigInt(amount));
+      toast.success(
+        `₡${amount.toLocaleString()} coins added to ${profile.legendId}!`,
+      );
+      setAddCoinsAmount("");
+      onCoinsAdded?.();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to add coins. Please try again.");
+    } finally {
+      setIsAddingCoins(false);
+    }
+  }
 
   return (
     <div
@@ -92,10 +122,24 @@ function UserCard({
       >
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center gap-3 mb-1 flex-wrap">
+              {/* Game Name (primary, large) */}
               <h3 className="font-display font-black text-2xl text-foreground">
-                {profile.legendId}
+                {profile.gameName || profile.legendId}
               </h3>
+              {/* Legend ID (secondary, smaller) */}
+              {profile.gameName && (
+                <span
+                  className="font-mono text-sm px-2 py-0.5 rounded-lg"
+                  style={{
+                    background: "rgba(255,215,0,0.08)",
+                    border: "1px solid rgba(255,215,0,0.2)",
+                    color: "rgba(255,215,0,0.7)",
+                  }}
+                >
+                  ID: {profile.legendId}
+                </span>
+              )}
               <span
                 className="text-xs font-display font-bold px-2 py-0.5 rounded uppercase tracking-wider"
                 style={{
@@ -327,7 +371,10 @@ function UserCard({
       </div>
 
       {/* Transaction history */}
-      <div className="p-6">
+      <div
+        className="p-6 border-b"
+        style={{ borderColor: "rgba(255,255,255,0.06)" }}
+      >
         <h4 className="font-display font-bold text-sm uppercase tracking-wider text-muted-foreground mb-4">
           Transaction History (Last 10)
         </h4>
@@ -400,6 +447,76 @@ function UserCard({
             </Table>
           </div>
         )}
+      </div>
+
+      {/* ── Add Coins ── */}
+      <div className="p-6">
+        <h4
+          className="font-display font-bold text-sm uppercase tracking-wider mb-4"
+          style={{ color: "#ffd700" }}
+        >
+          Add Coins Manually
+        </h4>
+        <form onSubmit={handleAddCoins} className="flex gap-3 items-end">
+          <div className="flex-1">
+            <label
+              htmlFor="admin-add-coins-amount"
+              className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5"
+              style={{ color: "rgba(255,255,255,0.4)" }}
+            >
+              Amount (LC)
+            </label>
+            <input
+              id="admin-add-coins-amount"
+              data-ocid="admin.user.coins_input"
+              type="number"
+              min="1"
+              value={addCoinsAmount}
+              onChange={(e) => setAddCoinsAmount(e.target.value)}
+              placeholder="e.g. 100"
+              className="w-full px-4 py-2.5 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200"
+              style={{
+                background: "rgba(255,215,0,0.06)",
+                border: "1px solid rgba(255,215,0,0.2)",
+                outline: "none",
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = "rgba(255,215,0,0.5)";
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = "rgba(255,215,0,0.2)";
+              }}
+            />
+          </div>
+          <button
+            type="submit"
+            data-ocid="admin.user.add_coins_button"
+            disabled={isAddingCoins}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50 flex-shrink-0"
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(255,215,0,0.9), rgba(255,150,0,0.9))",
+              color: "#000",
+            }}
+          >
+            {isAddingCoins ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Coins className="w-4 h-4" />
+            )}
+            {isAddingCoins ? "Adding…" : "Add Coins"}
+          </button>
+        </form>
+        <p
+          className="text-xs font-body mt-2"
+          style={{ color: "rgba(255,255,255,0.3)" }}
+        >
+          Coins will be added directly to{" "}
+          <span style={{ color: "rgba(255,215,0,0.6)" }}>
+            {profile.gameName || profile.legendId}
+          </span>
+          's wallet.
+        </p>
       </div>
     </div>
   );
@@ -2246,6 +2363,12 @@ export function AdminPage() {
                   toggleBanMutation.mutate(searchResult.legendId)
                 }
                 isToggling={toggleBanMutation.isPending}
+                onCoinsAdded={() => {
+                  queryClient.invalidateQueries({
+                    queryKey: ["adminSearch", searchTerm],
+                  });
+                  refetchSearch();
+                }}
               />
             </div>
           )}

@@ -301,10 +301,19 @@ export function LandingPage() {
 
       {/* ── TOP NAV ── */}
       <nav className="relative z-20 flex items-center justify-between px-6 py-4">
-        <div className="font-display font-black text-lg tracking-widest text-foreground">
-          <span style={{ color: "#ff2200" }}>LEGEND</span>
-          <span style={{ color: "#ffd700" }}> X </span>
-          <span style={{ color: "#0066ff" }}>ARENA</span>
+        <div className="font-display font-black text-lg text-foreground flex items-center gap-0">
+          <span className="animate-legend-flame" style={{ color: "#ff2200" }}>
+            LEGEND
+          </span>
+          <span
+            className="animate-x-beat"
+            style={{ color: "#ffd700", fontSize: "1.25em", margin: "0 0.15em" }}
+          >
+            X
+          </span>
+          <span className="animate-arena-electric" style={{ color: "#0066ff" }}>
+            ARENA
+          </span>
         </div>
         <Link to="/auth">
           <button
@@ -350,24 +359,36 @@ export function LandingPage() {
 
         {/* Main title */}
         <h1
-          className="font-display font-black leading-none mb-4 text-center animate-text-glow"
+          className="font-display font-black leading-none mb-4 text-center"
           style={{
             fontSize: "clamp(3.5rem, 10vw, 7rem)",
             letterSpacing: "-0.02em",
           }}
         >
-          <span style={{ display: "block", color: "#ff2200" }}>LEGEND</span>
           <span
+            className="animate-legend-flame"
+            style={{ display: "block", color: "#ff2200" }}
+          >
+            LEGEND
+          </span>
+          <span
+            className="animate-x-beat"
             style={{
               display: "block",
-              fontSize: "0.45em",
-              letterSpacing: "0.3em",
+              fontSize: "0.55em",
+              letterSpacing: "0.25em",
               color: "#ffd700",
+              lineHeight: 1.1,
             }}
           >
             ✕
           </span>
-          <span style={{ display: "block", color: "#0066ff" }}>ARENA</span>
+          <span
+            className="animate-arena-electric"
+            style={{ display: "block", color: "#0066ff" }}
+          >
+            ARENA
+          </span>
         </h1>
 
         {/* Tagline */}

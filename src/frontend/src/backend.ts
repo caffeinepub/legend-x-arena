@@ -101,6 +101,7 @@ export interface LeaderboardEntry {
     createdAt: bigint;
     wins: bigint;
     totalProfit: bigint;
+    gameName: string;
     totalDeposited: bigint;
 }
 export interface DepositRequest {
@@ -175,6 +176,7 @@ export enum TransactionType {
     deposit = "deposit"
 }
 export interface backendInterface {
+    addCoins(legendId: string, amount: bigint): Promise<void>;
     approveDepositRequest(requestId: string): Promise<void>;
     authenticate(legendId: string, passwordHash: string): Promise<boolean>;
     createTournament(title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, returningCoins: bigint): Promise<string>;
@@ -203,6 +205,20 @@ export interface backendInterface {
 import type { DepositRequest as _DepositRequest, DepositStatus as _DepositStatus, GameMode as _GameMode, Match as _Match, Result as _Result, Role as _Role, Transaction as _Transaction, TransactionType as _TransactionType, UserProfile as _UserProfile } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
+    async addCoins(arg0: string, arg1: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addCoins(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addCoins(arg0, arg1);
+            return result;
+        }
+    }
     async approveDepositRequest(arg0: string): Promise<void> {
         if (this.processError) {
             try {

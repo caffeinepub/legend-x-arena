@@ -394,6 +394,106 @@
   50%       { opacity: 1; transform: scale(1.04); }
 }
 
+/* ─── Legend X Arena Brand Animations ───────────────────── */
+
+/* LEGEND word -- red fire shimmer + flicker */
+@keyframes legendFlame {
+  0%, 100% {
+    text-shadow:
+      0 0 10px #ff2200,
+      0 0 20px #ff4400,
+      0 0 40px #ff2200,
+      0 0 80px #cc1100;
+    letter-spacing: 0.12em;
+  }
+  25% {
+    text-shadow:
+      0 0 6px #ff5500,
+      0 0 14px #ff2200,
+      0 0 28px #ff6600,
+      0 0 50px #ff3300;
+    letter-spacing: 0.14em;
+  }
+  50% {
+    text-shadow:
+      0 0 16px #ffd700,
+      0 0 30px #ff4400,
+      0 0 55px #ff2200,
+      0 0 100px #cc1100;
+    letter-spacing: 0.10em;
+  }
+  75% {
+    text-shadow:
+      0 0 8px #ff3300,
+      0 0 18px #ff6600,
+      0 0 35px #ff2200,
+      0 0 60px #990000;
+    letter-spacing: 0.13em;
+  }
+}
+
+/* ARENA word -- electric blue shimmer */
+@keyframes arenaElectric {
+  0%, 100% {
+    text-shadow:
+      0 0 10px #0066ff,
+      0 0 20px #0099ff,
+      0 0 40px #0066ff,
+      0 0 80px #003399;
+    letter-spacing: 0.12em;
+  }
+  30% {
+    text-shadow:
+      0 0 6px #00aaff,
+      0 0 15px #0077ff,
+      0 0 30px #0055cc,
+      0 0 55px #0033aa;
+    letter-spacing: 0.10em;
+  }
+  60% {
+    text-shadow:
+      0 0 18px #00ccff,
+      0 0 35px #0099ff,
+      0 0 60px #0066ff,
+      0 0 110px #003399;
+    letter-spacing: 0.14em;
+  }
+}
+
+/* X -- gold pulse beat */
+@keyframes xBeat {
+  0%, 100% {
+    text-shadow:
+      0 0 8px #ffd700,
+      0 0 20px #ffaa00,
+      0 0 40px #ff8800;
+    transform: scale(1);
+  }
+  50% {
+    text-shadow:
+      0 0 16px #fff8aa,
+      0 0 35px #ffd700,
+      0 0 70px #ffaa00,
+      0 0 120px #ff8800;
+    transform: scale(1.12);
+  }
+}
+
+.animate-legend-flame {
+  animation: legendFlame 2.5s ease-in-out infinite;
+  display: inline-block;
+}
+
+.animate-arena-electric {
+  animation: arenaElectric 3s ease-in-out infinite;
+  display: inline-block;
+}
+
+.animate-x-beat {
+  animation: xBeat 1.8s ease-in-out infinite;
+  display: inline-block;
+}
+
 /* Reduce motion */
 @media (prefers-reduced-motion: reduce) {
   .animate-fire-rise,
@@ -414,7 +514,10 @@
   .animate-sonar-1,
   .animate-sonar-2,
   .animate-sonar-3,
-  .animate-play-pulse {
+  .animate-play-pulse,
+  .animate-legend-flame,
+  .animate-arena-electric,
+  .animate-x-beat {
     animation: none !important;
   }
   * {

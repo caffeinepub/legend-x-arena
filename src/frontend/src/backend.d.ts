@@ -19,6 +19,7 @@ export interface LeaderboardEntry {
     createdAt: bigint;
     wins: bigint;
     totalProfit: bigint;
+    gameName: string;
     totalDeposited: bigint;
 }
 export interface DepositRequest {
@@ -93,6 +94,7 @@ export enum TransactionType {
     deposit = "deposit"
 }
 export interface backendInterface {
+    addCoins(legendId: string, amount: bigint): Promise<void>;
     approveDepositRequest(requestId: string): Promise<void>;
     authenticate(legendId: string, passwordHash: string): Promise<boolean>;
     createTournament(title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, returningCoins: bigint): Promise<string>;

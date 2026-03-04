@@ -31,6 +31,7 @@ export const LeaderboardEntry = IDL.Record({
   'createdAt' : IDL.Int,
   'wins' : IDL.Nat,
   'totalProfit' : IDL.Nat,
+  'gameName' : IDL.Text,
   'totalDeposited' : IDL.Nat,
 });
 export const DepositStatus = IDL.Variant({
@@ -92,6 +93,7 @@ export const UserProfile = IDL.Record({
 });
 
 export const idlService = IDL.Service({
+  'addCoins' : IDL.Func([IDL.Text, IDL.Nat], [], []),
   'approveDepositRequest' : IDL.Func([IDL.Text], [], []),
   'authenticate' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
   'createTournament' : IDL.Func(
@@ -181,6 +183,7 @@ export const idlFactory = ({ IDL }) => {
     'createdAt' : IDL.Int,
     'wins' : IDL.Nat,
     'totalProfit' : IDL.Nat,
+    'gameName' : IDL.Text,
     'totalDeposited' : IDL.Nat,
   });
   const DepositStatus = IDL.Variant({
@@ -242,6 +245,7 @@ export const idlFactory = ({ IDL }) => {
   });
   
   return IDL.Service({
+    'addCoins' : IDL.Func([IDL.Text, IDL.Nat], [], []),
     'approveDepositRequest' : IDL.Func([IDL.Text], [], []),
     'authenticate' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
     'createTournament' : IDL.Func(

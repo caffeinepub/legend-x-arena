@@ -1308,6 +1308,34 @@ function PlayerInfoCard({
 
         {/* Info rows */}
         <div className="space-y-2">
+          {/* Read-only Legend ID row */}
+          <div
+            className="flex items-center justify-between py-2 px-3 rounded-lg"
+            style={{
+              background: "rgba(255,215,0,0.04)",
+              border: "1px solid rgba(255,215,0,0.12)",
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <Lock
+                className="w-3.5 h-3.5 flex-shrink-0"
+                style={{ color: "rgba(255,215,0,0.6)" }}
+              />
+              <span
+                className="text-xs font-display font-bold uppercase tracking-wider"
+                style={{ color: "rgba(255,215,0,0.55)" }}
+              >
+                Legend ID
+              </span>
+            </div>
+            <span
+              className="text-sm font-mono font-medium tabular-nums"
+              style={{ color: "rgba(255,215,0,0.8)" }}
+            >
+              {profile?.legendId || "—"}
+            </span>
+          </div>
+
           {[
             { label: "Game Name", value: profile?.gameName || "—", icon: "🎮" },
             { label: "Game UID", value: profile?.gameUID || "—", icon: "🆔" },
@@ -1656,6 +1684,7 @@ function TournamentCard({
 /* ─── Play Tab ─────────────────────────────────────────────── */
 function PlayTab({
   legendId,
+  gameName,
   balance,
   actor,
   isFetchingActor,
@@ -1664,6 +1693,7 @@ function PlayTab({
   joinedMatchIds,
 }: {
   legendId: string | null;
+  gameName: string | null;
   balance: bigint;
   actor: backendInterface | null;
   isFetchingActor: boolean;
@@ -1711,7 +1741,8 @@ function PlayTab({
               Commander Online
             </p>
             <h2 className="font-display font-black text-xl text-foreground">
-              Welcome, <span style={{ color: "#ff4422" }}>{legendId}</span>
+              Welcome,{" "}
+              <span style={{ color: "#ff4422" }}>{gameName || legendId}</span>
             </h2>
           </div>
           <div className="flex items-center gap-2">
@@ -1996,8 +2027,26 @@ export function DashboardPage() {
           <h2 className="font-display font-black text-xl uppercase tracking-wider text-foreground mb-1">
             Leaderboard
           </h2>
-          <p className="text-xs font-body text-muted-foreground">
-            The elite warriors of Legend X Arena
+          <p className="text-xs font-body text-muted-foreground flex items-center gap-0.5 flex-wrap">
+            The elite warriors of{" "}
+            <span
+              className="animate-legend-flame font-bold"
+              style={{ color: "#ff2200", fontSize: "0.75rem" }}
+            >
+              LEGEND
+            </span>
+            <span
+              className="animate-x-beat font-black"
+              style={{ color: "#ffd700", fontSize: "0.85rem", margin: "0 1px" }}
+            >
+              X
+            </span>
+            <span
+              className="animate-arena-electric font-bold"
+              style={{ color: "#0066ff", fontSize: "0.75rem" }}
+            >
+              ARENA
+            </span>
           </p>
         </div>
 
@@ -2233,7 +2282,7 @@ export function DashboardPage() {
                       >
                         <img
                           src={getProfilePicSrc(0)}
-                          alt={player.legendId}
+                          alt={player.gameName || "Player"}
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             const el = e.currentTarget;
@@ -2248,7 +2297,8 @@ export function DashboardPage() {
                                 "fallback-letter font-display font-black text-sm";
                               fb.style.color = "#ff4422";
                               fb.textContent =
-                                player.legendId[0]?.toUpperCase() ?? "?";
+                                (player.gameName ||
+                                  player.legendId)[0]?.toUpperCase() ?? "?";
                               parent.appendChild(fb);
                             }
                           }}
@@ -2283,7 +2333,7 @@ export function DashboardPage() {
                       )}
                     </div>
 
-                    {/* Player ID */}
+                    {/* Player Name */}
                     <div className="flex-1 min-w-0">
                       <div
                         className="font-display font-bold text-sm truncate"
@@ -2291,7 +2341,7 @@ export function DashboardPage() {
                           color: isMe ? "#ffd700" : "rgba(255,255,255,0.9)",
                         }}
                       >
-                        {player.legendId}
+                        {player.gameName || "Player"}
                         {isMe && (
                           <span className="ml-2 text-xs font-body text-muted-foreground">
                             (you)
@@ -2383,7 +2433,7 @@ export function DashboardPage() {
                       >
                         <img
                           src={getProfilePicSrc(0)}
-                          alt={player.legendId}
+                          alt={player.gameName || "Player"}
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             const el = e.currentTarget;
@@ -2398,7 +2448,8 @@ export function DashboardPage() {
                                 "fallback-letter font-display font-black text-sm";
                               fb.style.color = "#ff4422";
                               fb.textContent =
-                                player.legendId[0]?.toUpperCase() ?? "?";
+                                (player.gameName ||
+                                  player.legendId)[0]?.toUpperCase() ?? "?";
                               parent.appendChild(fb);
                             }
                           }}
@@ -2433,7 +2484,7 @@ export function DashboardPage() {
                       )}
                     </div>
 
-                    {/* Player ID */}
+                    {/* Player Name */}
                     <div className="flex-1 min-w-0">
                       <div
                         className="font-display font-bold text-sm truncate"
@@ -2441,7 +2492,7 @@ export function DashboardPage() {
                           color: isMe ? "#cc66ff" : "rgba(255,255,255,0.9)",
                         }}
                       >
-                        {player.legendId}
+                        {player.gameName || "Player"}
                         {isMe && (
                           <span className="ml-2 text-xs font-body text-muted-foreground">
                             (you)
@@ -2532,7 +2583,7 @@ export function DashboardPage() {
                       >
                         <img
                           src={getProfilePicSrc(0)}
-                          alt={player.legendId}
+                          alt={player.gameName || "Player"}
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             const el = e.currentTarget;
@@ -2547,7 +2598,8 @@ export function DashboardPage() {
                                 "fallback-letter font-display font-black text-sm";
                               fb.style.color = "#ff4422";
                               fb.textContent =
-                                player.legendId[0]?.toUpperCase() ?? "?";
+                                (player.gameName ||
+                                  player.legendId)[0]?.toUpperCase() ?? "?";
                               parent.appendChild(fb);
                             }
                           }}
@@ -2582,7 +2634,7 @@ export function DashboardPage() {
                       )}
                     </div>
 
-                    {/* Player ID + join date */}
+                    {/* Player Name + join date */}
                     <div className="flex-1 min-w-0">
                       <div
                         className="font-display font-bold text-sm truncate"
@@ -2590,7 +2642,7 @@ export function DashboardPage() {
                           color: isMe ? "#00ccff" : "rgba(255,255,255,0.9)",
                         }}
                       >
-                        {player.legendId}
+                        {player.gameName || "Player"}
                         {isMe && (
                           <span className="ml-2 text-xs font-body text-muted-foreground">
                             (you)
@@ -2647,6 +2699,7 @@ export function DashboardPage() {
     play: (
       <PlayTab
         legendId={legendId}
+        gameName={profile?.gameName ?? null}
         balance={balance}
         actor={actor}
         isFetchingActor={isFetching}
@@ -2771,7 +2824,26 @@ export function DashboardPage() {
               className="font-display font-black text-lg tracking-wide"
               style={{ color: "#fff" }}
             >
-              {legendId}
+              {profile?.gameName || legendId}
+            </div>
+            {/* Legend ID — visible only to the player themselves (this is always their own profile) */}
+            <div
+              className="text-xs font-body mt-0.5 flex items-center gap-1"
+              style={{ color: "rgba(255,255,255,0.35)" }}
+            >
+              <Lock
+                className="w-3 h-3 flex-shrink-0"
+                style={{ color: "rgba(255,215,0,0.45)" }}
+              />
+              <span>
+                Legend ID:{" "}
+                <span
+                  className="font-mono"
+                  style={{ color: "rgba(255,215,0,0.65)" }}
+                >
+                  {legendId}
+                </span>
+              </span>
             </div>
             <div className="flex items-center gap-2 mt-1">
               <span
@@ -3389,6 +3461,7 @@ export function DashboardPage() {
       {showWelcomeModal && legendId && (
         <FirstLoginModal
           legendId={legendId}
+          actor={actor}
           onClose={() => {
             localStorage.setItem(`lxa_welcome_shown_${legendId}`, "1");
             setShowWelcomeModal(false);
@@ -3427,10 +3500,30 @@ export function DashboardPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <a
             href="/"
-            className="font-display font-black text-lg tracking-widest"
+            className="font-display font-black text-base flex items-center gap-0"
           >
-            <span style={{ color: "#ff2200" }}>LX</span>
-            <span style={{ color: "#ffd700" }}>A</span>
+            <span
+              className="animate-legend-flame"
+              style={{ color: "#ff2200", fontSize: "0.9rem" }}
+            >
+              L
+            </span>
+            <span
+              className="animate-x-beat"
+              style={{
+                color: "#ffd700",
+                fontSize: "1.1rem",
+                margin: "0 0.05em",
+              }}
+            >
+              X
+            </span>
+            <span
+              className="animate-arena-electric"
+              style={{ color: "#0066ff", fontSize: "0.9rem" }}
+            >
+              A
+            </span>
           </a>
 
           <div className="hidden sm:flex items-center gap-2">
@@ -3472,7 +3565,7 @@ export function DashboardPage() {
               className="font-display font-bold text-sm tracking-wider"
               style={{ color: "rgba(255,255,255,0.8)" }}
             >
-              {legendId}
+              {profile?.gameName || legendId}
             </span>
             {role === "admin" && (
               <span

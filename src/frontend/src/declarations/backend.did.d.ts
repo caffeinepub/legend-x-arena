@@ -30,6 +30,7 @@ export interface LeaderboardEntry {
   'createdAt' : bigint,
   'wins' : bigint,
   'totalProfit' : bigint,
+  'gameName' : string,
   'totalDeposited' : bigint,
 }
 export interface Match {
@@ -86,6 +87,7 @@ export interface UserProfile {
   'matchHistory' : Array<Match>,
 }
 export interface _SERVICE {
+  'addCoins' : ActorMethod<[string, bigint], undefined>,
   'approveDepositRequest' : ActorMethod<[string], undefined>,
   'authenticate' : ActorMethod<[string, string], boolean>,
   'createTournament' : ActorMethod<

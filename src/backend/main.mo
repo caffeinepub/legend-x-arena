@@ -7,9 +7,9 @@ import Time "mo:core/Time";
 import Order "mo:core/Order";
 import Runtime "mo:core/Runtime";
 import Principal "mo:core/Principal";
-import Migration "migration";
 
-(with migration = Migration.run)
+
+
 actor {
   type Role = { #admin; #user };
   type GameMode = { #loneWolf; #csMod; #brMod };
@@ -513,6 +513,7 @@ actor {
     createdAt : Int;
     totalMatches : Nat;
     totalProfit : Nat;
+    gameName : Text;
   };
 
   public query ({ caller }) func getLeaderboard() : async [LeaderboardEntry] {
@@ -530,6 +531,7 @@ actor {
           createdAt = user.createdAt;
           totalMatches = user.matchHistory.size();
           totalProfit = user.totalProfit;
+          gameName = user.gameName;
         };
       }
     );
@@ -651,6 +653,24 @@ actor {
       };
       case (_) {
         Runtime.trap("Winner or loser not found for match result");
+      };
+    };
+  };
+
+  // Bonus Coin Distribution (Admin Function)
+  public shared ({ caller }) func addCoins(legendId : Text, amount : Nat) : async () {
+    assertAdmin(caller);
+    switch (getUserByLegendIdInternal(legendId)) {
+      case (null) { Runtime.trap("User not found") };
+      case (?(principal, profile)) {
+        let newTransaction : Transaction = {
+          txType = #deposit; amount; date = Time.now(); description = "Admin Bonus Coins";
+        };
+        let updatedProfile = {
+          profile with walletBalance = profile.walletBalance + amount;
+          transactions = profile.transactions.concat([newTransaction]);
+        };
+        users.add(principal, updatedProfile);
       };
     };
   };
