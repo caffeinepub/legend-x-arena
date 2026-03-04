@@ -164,9 +164,9 @@ function PWAInstallButton() {
       await deferredPrompt.current.prompt();
       deferredPrompt.current = null;
     } else {
-      toast.info("Open in Chrome and tap 'Add to Home Screen' to install", {
+      toast.info("Open in Chrome on Android, then tap 'Download App'", {
         description:
-          "Or tap the browser menu → Install App / Add to Home Screen.",
+          "Open this page in Chrome on Android, then tap 'Download App' button to install directly to your home screen.",
       });
     }
   };
@@ -214,13 +214,13 @@ function PWAInstallButton() {
       {/* Text */}
       <div className="text-left relative z-10">
         <div className="text-xs font-body text-muted-foreground uppercase tracking-wider">
-          Add to Home Screen
+          Install the App
         </div>
         <div
           className="font-display font-black text-base tracking-wide"
           style={{ color }}
         >
-          Install App
+          Download App
         </div>
       </div>
 
@@ -394,7 +394,7 @@ export function LandingPage() {
           <DownloadButton
             ocid="landing.download_appstore_button"
             label="App Store"
-            sub="Download on the"
+            sub="Available on"
             icon={<Apple className="w-6 h-6" />}
             color="#ffffff"
           />
