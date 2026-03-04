@@ -120,17 +120,6 @@ function formatDate(ts: bigint): string {
 type TabId = "matches" | "ranking" | "play" | "deposit" | "profile";
 
 /* ─── Leaderboard helpers ──────────────────────────────────── */
-function formatJoinDate(ts: bigint): string {
-  try {
-    const ms = Number(ts) / 1_000_000;
-    return new Date(ms).toLocaleDateString("en-US", {
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return "—";
-  }
-}
 
 function getPrimeLevel(totalDeposited: bigint): string {
   const d = Number(totalDeposited);
@@ -2448,21 +2437,36 @@ export function DashboardPage() {
                           style={{ color: "rgba(0,204,255,0.5)" }}
                         />
                         <span className="text-xs font-body text-muted-foreground">
-                          Since {formatJoinDate(player.createdAt)}
+                          Old Member
                         </span>
                       </div>
                     </div>
 
-                    {/* Match count */}
-                    <div className="text-right">
+                    {/* Account age */}
+                    <div className="text-right flex-shrink-0">
                       <div
                         className="font-display font-bold text-sm tabular-nums"
                         style={{ color: "#00ccff" }}
                       >
-                        {Number(player.totalMatches).toLocaleString()}
+                        {(() => {
+                          const ms =
+                            Date.now() - Number(player.createdAt) / 1_000_000;
+                          const days = Math.floor(ms / 86_400_000);
+                          if (days >= 365)
+                            return `${Math.floor(days / 365)}y ${Math.floor((days % 365) / 30)}m`;
+                          if (days >= 30)
+                            return `${Math.floor(days / 30)}m ${days % 30}d`;
+                          return `${days}d`;
+                        })()}
                       </div>
                       <div className="text-xs font-body text-muted-foreground">
-                        Matches
+                        {new Date(
+                          Number(player.createdAt) / 1_000_000,
+                        ).toLocaleDateString("en-US", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
                       </div>
                     </div>
                   </div>
