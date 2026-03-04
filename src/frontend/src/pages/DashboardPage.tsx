@@ -47,7 +47,7 @@ import { toast } from "sonner";
 
 /* ─── Default Joker profile pic (FREE, always unlocked) ───────── */
 const DEFAULT_PROFILE_PIC =
-  "/assets/uploads/WhatsApp-Image-2026-03-03-at-6.18.49-PM-1.jpeg";
+  "/assets/uploads/eca553eded03ba3da1b6cdce6d22ba73-1-1.jpg";
 
 /* ─── Profile Picture Tiers ──────────────────────────────────── */
 const AVATAR_TIERS = [
