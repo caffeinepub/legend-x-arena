@@ -7,7 +7,9 @@ import Time "mo:core/Time";
 import Order "mo:core/Order";
 import Runtime "mo:core/Runtime";
 import Principal "mo:core/Principal";
+import Migration "migration";
 
+(with migration = Migration.run)
 actor {
   type Role = { #admin; #user };
   type GameMode = { #loneWolf; #csMod; #brMod };
@@ -28,6 +30,7 @@ actor {
     jazzCashNumber : Text;
     gameName : Text;
     gameUID : Text;
+    totalProfit : Nat;
   };
 
   type Match = {
@@ -71,6 +74,7 @@ actor {
     roomId : Text;
     roomPassword : Text;
     joinedPlayers : [Text];
+    returningCoins : Nat;
   };
 
   var isFirstAdminSet = false;
@@ -166,6 +170,7 @@ actor {
       jazzCashNumber = jazzCash;
       gameName = ignName;
       gameUID = uid;
+      totalProfit = 0;
     };
 
     users.add(caller, newUser);
@@ -324,6 +329,7 @@ actor {
     prizePool : Text,
     maxPlayers : Nat,
     imageUrl : Text,
+    returningCoins : Nat,
   ) : async Text {
     assertAdmin(caller);
 
@@ -345,6 +351,7 @@ actor {
       roomId = "";
       roomPassword = "";
       joinedPlayers = [];
+      returningCoins;
     };
 
     tournaments.add(tournamentId, newTournament);
@@ -361,6 +368,7 @@ actor {
     maxPlayers : Nat,
     imageUrl : Text,
     isActive : Bool,
+    returningCoins : Nat,
   ) : async () {
     assertAdmin(caller);
 
@@ -384,6 +392,7 @@ actor {
       roomId = tournament.roomId; // Preserve roomId
       roomPassword = tournament.roomPassword; // Preserve roomPassword
       joinedPlayers = tournament.joinedPlayers; // Preserve joinedPlayers
+      returningCoins;
     };
 
     tournaments.add(id, updatedTournament);
@@ -503,6 +512,7 @@ actor {
     totalDeposited : Nat;
     createdAt : Int;
     totalMatches : Nat;
+    totalProfit : Nat;
   };
 
   public query ({ caller }) func getLeaderboard() : async [LeaderboardEntry] {
@@ -519,8 +529,129 @@ actor {
           totalDeposited = user.totalDeposited;
           createdAt = user.createdAt;
           totalMatches = user.matchHistory.size();
+          totalProfit = user.totalProfit;
         };
       }
     );
+  };
+
+  // New admin function for declaring match results
+  public shared ({ caller }) func declareMatchResult(
+    tournamentId : Text,
+    winnerLegendId : Text,
+    loserLegendId : Text,
+    winnerCoins : Nat,
+    loserCoins : Nat,
+  ) : async () {
+    assertAdmin(caller);
+
+    // Retrieve winner and loser profiles iterating over all users
+    let winnerEntry = users.entries().find(
+      func((_, p)) { p.legendId == winnerLegendId }
+    );
+
+    let loserEntry = users.entries().find(
+      func((_, p)) { p.legendId == loserLegendId }
+    );
+
+    switch (winnerEntry, loserEntry) {
+      case (?(winnerPrincipal, winnerProfile), ?(loserPrincipal, loserProfile)) {
+        // Update winner
+        let winnerTx = {
+          txType = #deposit;
+          amount = winnerCoins;
+          date = Time.now();
+          description = "Match Win Prize";
+        };
+
+        let winnerMatchIndex = winnerProfile.matchHistory.findIndex(
+          func(m) { m.matchId == tournamentId }
+        );
+
+        let winnerMatchHistory = switch (winnerMatchIndex) {
+          case (?idx) {
+            // Update existing match result
+            let updatedMatch = {
+              winnerProfile.matchHistory[idx] with result = #win
+            };
+            Array.tabulate(winnerProfile.matchHistory.size(), func(i) { if (i == idx) { updatedMatch } else {
+              winnerProfile.matchHistory[i];
+            } });
+          };
+          case (null) {
+            // Add new match entry if not found
+            winnerProfile.matchHistory.concat([{
+              matchId = tournamentId;
+              mode = #loneWolf;
+              result = #win;
+              coinsWagered = 0;
+              date = Time.now();
+            }]);
+          };
+        };
+
+        users.add(
+          winnerPrincipal,
+          {
+            winnerProfile with
+            walletBalance = winnerProfile.walletBalance + winnerCoins;
+            transactions = winnerProfile.transactions.concat([winnerTx]);
+            matchHistory = winnerMatchHistory;
+            totalProfit = winnerProfile.totalProfit + winnerCoins;
+          },
+        );
+
+        // Update loser
+        if (loserCoins > 0) {
+          let loserTx = {
+            txType = #deposit;
+            amount = loserCoins;
+            date = Time.now();
+            description = "Match Return Coins";
+          };
+
+          let loserMatchIndex = loserProfile.matchHistory.findIndex(
+            func(m) { m.matchId == tournamentId }
+          );
+
+          let loserMatchHistory = switch (loserMatchIndex) {
+            case (?idx) {
+              // Update existing match result
+              let updatedMatch = {
+                loserProfile.matchHistory[idx] with result = #loss
+              };
+              Array.tabulate(loserProfile.matchHistory.size(), func(i) { if (i == idx) {
+                updatedMatch;
+              } else {
+                loserProfile.matchHistory[i];
+              } });
+            };
+            case (null) {
+              // Add new match entry if not found
+              loserProfile.matchHistory.concat([{
+                matchId = tournamentId;
+                mode = #loneWolf;
+                result = #loss;
+                coinsWagered = 0;
+                date = Time.now();
+              }]);
+            };
+          };
+
+          users.add(
+            loserPrincipal,
+            {
+              loserProfile with
+              walletBalance = loserProfile.walletBalance + loserCoins;
+              transactions = loserProfile.transactions.concat([loserTx]);
+              matchHistory = loserMatchHistory;
+            },
+          );
+        };
+      };
+      case (_) {
+        Runtime.trap("Winner or loser not found for match result");
+      };
+    };
   };
 };

@@ -18,6 +18,7 @@ export interface LeaderboardEntry {
     totalMatches: bigint;
     createdAt: bigint;
     wins: bigint;
+    totalProfit: bigint;
     totalDeposited: bigint;
 }
 export interface DepositRequest {
@@ -36,6 +37,7 @@ export interface Tournament {
     isActive: boolean;
     roomPassword: string;
     imageUrl: string;
+    returningCoins: bigint;
     currentPlayers: bigint;
     category: string;
     entryFee: bigint;
@@ -56,6 +58,7 @@ export interface UserProfile {
     createdAt: bigint;
     role: Role;
     jazzCashNumber: string;
+    totalProfit: bigint;
     gameUID: string;
     isBanned: boolean;
     passwordHash: string;
@@ -92,7 +95,8 @@ export enum TransactionType {
 export interface backendInterface {
     approveDepositRequest(requestId: string): Promise<void>;
     authenticate(legendId: string, passwordHash: string): Promise<boolean>;
-    createTournament(title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string): Promise<string>;
+    createTournament(title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, returningCoins: bigint): Promise<string>;
+    declareMatchResult(tournamentId: string, winnerLegendId: string, loserLegendId: string, winnerCoins: bigint, loserCoins: bigint): Promise<void>;
     deleteTournament(id: string): Promise<void>;
     getActiveTournaments(): Promise<Array<Tournament>>;
     getLeaderboard(): Promise<Array<LeaderboardEntry>>;
@@ -112,5 +116,5 @@ export interface backendInterface {
     submitDepositRequest(amount: bigint, transactionId: string): Promise<void>;
     toggleBan(legendId: string): Promise<void>;
     updatePlayerInfo(gameName: string, gameUID: string, jazzCashNumber: string): Promise<void>;
-    updateTournament(id: string, title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, isActive: boolean): Promise<void>;
+    updateTournament(id: string, title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, isActive: boolean, returningCoins: bigint): Promise<void>;
 }

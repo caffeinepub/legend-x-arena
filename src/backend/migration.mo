@@ -1,84 +1,144 @@
 import Map "mo:core/Map";
 import Nat "mo:core/Nat";
-import Principal "mo:core/Principal";
+import Text "mo:core/Text";
 
 module {
-  type OldUserProfile = {
-    legendId : Text;
-    passwordHash : Text;
-    role : { #admin; #user };
-    walletBalance : Nat;
-    isBanned : Bool;
-    createdAt : Int;
-    matchHistory : [{ matchId : Text; mode : { #loneWolf; #csMod; #brMod }; result : { #win; #loss; #draw }; coinsWagered : Nat; date : Int }];
-    transactions : [{
-      txType : { #deposit; #withdraw };
-      amount : Nat;
-      date : Int;
-      description : Text;
-    }];
+  type Role = { #admin; #user };
+  type GameMode = { #loneWolf; #csMod; #brMod };
+  type Result = { #win; #loss; #draw };
+  type TransactionType = { #deposit; #withdraw };
+  type DepositStatus = { #pending; #approved; #rejected };
+
+  type Match = {
+    matchId : Text;
+    mode : GameMode;
+    result : Result;
+    coinsWagered : Nat;
+    date : Int;
   };
 
-  type OldDepositRequest = {
-    id : Text;
-    legendId : Text;
+  type Transaction = {
+    txType : TransactionType;
     amount : Nat;
-    transactionId : Text;
-    status : { #pending; #approved; #rejected };
-    submittedAt : Int;
+    date : Int;
+    description : Text;
   };
 
-  type OldActor = {
-    users : Map.Map<Principal, OldUserProfile>;
-    depositRequests : Map.Map<Text, OldDepositRequest>;
-    depositIdCounter : Nat;
-    isFirstAdminSet : Bool;
-  };
-
-  type NewUserProfile = {
+  type UserProfileOld = {
     legendId : Text;
     passwordHash : Text;
-    role : { #admin; #user };
+    role : Role;
     walletBalance : Nat;
     isBanned : Bool;
     createdAt : Int;
-    matchHistory : [{ matchId : Text; mode : { #loneWolf; #csMod; #brMod }; result : { #win; #loss; #draw }; coinsWagered : Nat; date : Int }];
-    transactions : [{
-      txType : { #deposit; #withdraw };
-      amount : Nat;
-      date : Int;
-      description : Text;
-    }];
+    matchHistory : [Match];
+    transactions : [Transaction];
     totalDeposited : Nat;
     selectedProfilePic : Nat;
+    jazzCashNumber : Text;
+    gameName : Text;
+    gameUID : Text;
   };
 
-  type NewDepositRequest = {
+  type TournamentOld = {
+    id : Text;
+    title : Text;
+    category : Text;
+    mode : Text;
+    entryFee : Nat;
+    prizePool : Text;
+    maxPlayers : Nat;
+    currentPlayers : Nat;
+    imageUrl : Text;
+    isActive : Bool;
+    createdAt : Int;
+    roomId : Text;
+    roomPassword : Text;
+    joinedPlayers : [Text];
+  };
+
+  type DepositRequest = {
     id : Text;
     legendId : Text;
     amount : Nat;
     transactionId : Text;
-    status : { #pending; #approved; #rejected };
+    status : DepositStatus;
     submittedAt : Int;
   };
 
-  type NewActor = {
-    users : Map.Map<Principal, NewUserProfile>;
-    depositRequests : Map.Map<Text, NewDepositRequest>;
-    depositIdCounter : Nat;
+  type ActorOld = {
     isFirstAdminSet : Bool;
+    users : Map.Map<Principal, UserProfileOld>;
+    depositRequests : Map.Map<Text, DepositRequest>;
+    tournaments : Map.Map<Text, TournamentOld>;
+    depositIdCounter : Nat;
+    tournamentIdCounter : Nat;
+    userIdCounter : Nat;
   };
 
-  public func run(old : OldActor) : NewActor {
-    let newUsers = old.users.map<Principal, OldUserProfile, NewUserProfile>(
-      func(_principal, oldUser) {
-        {
-          oldUser with
-          totalDeposited = 0;
-          selectedProfilePic = 0;
-        };
+  // New Types (don't need to redefine everything, just new fields)
+  type UserProfile = {
+    legendId : Text;
+    passwordHash : Text;
+    role : Role;
+    walletBalance : Nat;
+    isBanned : Bool;
+    createdAt : Int;
+    matchHistory : [Match];
+    transactions : [Transaction];
+    totalDeposited : Nat;
+    selectedProfilePic : Nat;
+    jazzCashNumber : Text;
+    gameName : Text;
+    gameUID : Text;
+    totalProfit : Nat;
+  };
+
+  type Tournament = {
+    id : Text;
+    title : Text;
+    category : Text;
+    mode : Text;
+    entryFee : Nat;
+    prizePool : Text;
+    maxPlayers : Nat;
+    currentPlayers : Nat;
+    imageUrl : Text;
+    isActive : Bool;
+    createdAt : Int;
+    roomId : Text;
+    roomPassword : Text;
+    joinedPlayers : [Text];
+    returningCoins : Nat;
+  };
+
+  type Actor = {
+    isFirstAdminSet : Bool;
+    users : Map.Map<Principal, UserProfile>;
+    depositRequests : Map.Map<Text, DepositRequest>;
+    tournaments : Map.Map<Text, Tournament>;
+    depositIdCounter : Nat;
+    tournamentIdCounter : Nat;
+    userIdCounter : Nat;
+  };
+
+  public func run(old : ActorOld) : Actor {
+    let newUsers = old.users.map<Principal, UserProfileOld, UserProfile>(
+      func(_p, oldProfile) {
+        { oldProfile with totalProfit = 0 };
       }
     );
-    { old with users = newUsers };
+
+    let newTournaments = old.tournaments.map<Text, TournamentOld, Tournament>(
+      func(_id, oldTournament) {
+        { oldTournament with returningCoins = 0 };
+      }
+    );
+
+    {
+      old with
+      users = newUsers;
+      tournaments = newTournaments;
+    };
   };
 };

@@ -944,10 +944,10 @@ function ViewDetailsModal({
             </div>
           )}
 
-          {/* Entry / Prize recap */}
-          <div className="flex items-center gap-3 pt-1">
+          {/* Entry / Profit / Returning recap */}
+          <div className="grid grid-cols-3 gap-2 pt-1">
             <div
-              className="flex-1 rounded-lg px-3 py-2 text-center"
+              className="rounded-lg px-2 py-2 text-center"
               style={{
                 background: "rgba(255,215,0,0.05)",
                 border: "1px solid rgba(255,215,0,0.12)",
@@ -960,14 +960,14 @@ function ViewDetailsModal({
                 Entry
               </p>
               <p
-                className="font-display font-black text-sm tabular-nums"
+                className="font-display font-black text-sm tabular-nums truncate"
                 style={{ color: "#ffd700" }}
               >
                 ₡{Number(tournament.entryFee).toLocaleString()}
               </p>
             </div>
             <div
-              className="flex-1 rounded-lg px-3 py-2 text-center"
+              className="rounded-lg px-2 py-2 text-center"
               style={{
                 background: "rgba(34,204,102,0.05)",
                 border: "1px solid rgba(34,204,102,0.12)",
@@ -977,13 +977,33 @@ function ViewDetailsModal({
                 className="text-xs font-body mb-0.5"
                 style={{ color: "rgba(34,204,102,0.5)" }}
               >
-                Prize
+                Profit
               </p>
               <p
-                className="font-display font-black text-sm"
+                className="font-display font-black text-sm truncate"
                 style={{ color: "#22cc66" }}
               >
                 {tournament.prizePool}
+              </p>
+            </div>
+            <div
+              className="rounded-lg px-2 py-2 text-center"
+              style={{
+                background: "rgba(0,153,255,0.05)",
+                border: "1px solid rgba(0,153,255,0.12)",
+              }}
+            >
+              <p
+                className="text-xs font-body mb-0.5"
+                style={{ color: "rgba(0,153,255,0.5)" }}
+              >
+                Returning
+              </p>
+              <p
+                className="font-display font-black text-sm tabular-nums truncate"
+                style={{ color: "#0099ff" }}
+              >
+                ₡{Number(tournament.returningCoins).toLocaleString()}
               </p>
             </div>
           </div>
@@ -1481,10 +1501,10 @@ function TournamentCard({
             </p>
           </div>
 
-          {/* Entry fee + Prize pool row */}
-          <div className="flex items-center gap-3">
+          {/* Entry fee + Profit + Returning row */}
+          <div className="grid grid-cols-3 gap-2">
             <div
-              className="flex-1 rounded-lg px-3 py-2 text-center"
+              className="rounded-lg px-2 py-2 text-center"
               style={{
                 background: "rgba(255,215,0,0.06)",
                 border: "1px solid rgba(255,215,0,0.15)",
@@ -1497,14 +1517,14 @@ function TournamentCard({
                 Entry
               </p>
               <p
-                className="font-display font-black text-sm tabular-nums"
+                className="font-display font-black text-sm tabular-nums truncate"
                 style={{ color: "#ffd700" }}
               >
                 ₡{Number(tournament.entryFee).toLocaleString()}
               </p>
             </div>
             <div
-              className="flex-1 rounded-lg px-3 py-2 text-center"
+              className="rounded-lg px-2 py-2 text-center"
               style={{
                 background: "rgba(34,204,102,0.06)",
                 border: "1px solid rgba(34,204,102,0.15)",
@@ -1514,13 +1534,33 @@ function TournamentCard({
                 className="text-xs font-body mb-0.5"
                 style={{ color: "rgba(34,204,102,0.5)" }}
               >
-                Prize
+                Profit
               </p>
               <p
-                className="font-display font-black text-sm"
+                className="font-display font-black text-sm truncate"
                 style={{ color: "#22cc66" }}
               >
                 {tournament.prizePool}
+              </p>
+            </div>
+            <div
+              className="rounded-lg px-2 py-2 text-center"
+              style={{
+                background: "rgba(0,153,255,0.06)",
+                border: "1px solid rgba(0,153,255,0.15)",
+              }}
+            >
+              <p
+                className="text-xs font-body mb-0.5"
+                style={{ color: "rgba(0,153,255,0.5)" }}
+              >
+                Returning
+              </p>
+              <p
+                className="font-display font-black text-sm tabular-nums truncate"
+                style={{ color: "#0099ff" }}
+              >
+                ₡{Number(tournament.returningCoins).toLocaleString()}
               </p>
             </div>
           </div>
@@ -1836,7 +1876,7 @@ export function DashboardPage() {
 
   /* ── Live leaderboard derived lists ── */
   const globalLeaderboard = [...leaderboardRaw].sort(
-    (a, b) => Number(b.wins) - Number(a.wins),
+    (a, b) => Number(b.totalProfit) - Number(a.totalProfit),
   );
 
   const primeLeaderboard = [...leaderboardRaw].sort(
@@ -2103,7 +2143,7 @@ export function DashboardPage() {
               </p>
               <p className="text-xs font-body text-muted-foreground mt-0.5">
                 {rankingSection === "global"
-                  ? "Ranked by total tournament wins"
+                  ? "Ranked by total profit earned"
                   : rankingSection === "prime"
                     ? "Ranked by Legend Coins earned"
                     : "Ranked by account seniority"}
@@ -2259,21 +2299,21 @@ export function DashboardPage() {
                         )}
                       </div>
                       <div className="text-xs font-body text-muted-foreground">
-                        {Number(player.wins)} wins ·{" "}
-                        {Number(player.totalMatches)} matches
+                        {Number(player.wins)} wins · ₡
+                        {Number(player.totalProfit).toLocaleString()} profit
                       </div>
                     </div>
 
-                    {/* Wins count */}
+                    {/* Profit count */}
                     <div className="text-right">
                       <div
                         className="font-display font-bold text-sm tabular-nums"
-                        style={{ color: "#ffd700" }}
+                        style={{ color: "#22cc66" }}
                       >
-                        {Number(player.wins)}
+                        ₡{Number(player.totalProfit).toLocaleString()}
                       </div>
                       <div className="text-xs font-body text-muted-foreground">
-                        Wins
+                        Profit
                       </div>
                     </div>
                   </div>

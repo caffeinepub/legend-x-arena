@@ -415,6 +415,7 @@ const EMPTY_FORM = {
   maxPlayers: "",
   imageUrl: "",
   isActive: true,
+  returningCoins: "0",
 };
 
 function MatchManagementSection() {
@@ -433,6 +434,14 @@ function MatchManagementSection() {
   const [roomIdInput, setRoomIdInput] = useState("");
   const [roomPasswordInput, setRoomPasswordInput] = useState("");
   const [isSavingRoom, setIsSavingRoom] = useState(false);
+
+  /* ── Declare Result state ── */
+  const [declareFormId, setDeclareFormId] = useState<string | null>(null);
+  const [winnerIdInput, setWinnerIdInput] = useState("");
+  const [loserIdInput, setLoserIdInput] = useState("");
+  const [winnerCoinsInput, setWinnerCoinsInput] = useState("");
+  const [loserCoinsInput, setLoserCoinsInput] = useState("");
+  const [isDeclaring, setIsDeclaring] = useState(false);
 
   const {
     data: tournaments = [],
@@ -457,6 +466,53 @@ function MatchManagementSection() {
     setRoomFormId(null);
     setRoomIdInput("");
     setRoomPasswordInput("");
+  }
+
+  function openDeclareForm(t: Tournament) {
+    setDeclareFormId(t.id);
+    setWinnerIdInput("");
+    setLoserIdInput("");
+    setWinnerCoinsInput("");
+    setLoserCoinsInput("");
+    // close room form if open
+    setRoomFormId(null);
+  }
+
+  function cancelDeclareForm() {
+    setDeclareFormId(null);
+    setWinnerIdInput("");
+    setLoserIdInput("");
+    setWinnerCoinsInput("");
+    setLoserCoinsInput("");
+  }
+
+  async function handleDeclareResult(tournamentId: string) {
+    if (!actor) return;
+    const winnerCoins = Math.max(0, Math.floor(Number(winnerCoinsInput)));
+    const loserCoins = Math.max(0, Math.floor(Number(loserCoinsInput)));
+    if (!winnerIdInput.trim() || !loserIdInput.trim()) {
+      toast.error("Please enter both Winner and Loser Legend IDs");
+      return;
+    }
+    setIsDeclaring(true);
+    try {
+      await actor.declareMatchResult(
+        tournamentId,
+        winnerIdInput.trim(),
+        loserIdInput.trim(),
+        BigInt(winnerCoins),
+        BigInt(loserCoins),
+      );
+      toast.success("Result declared! Players updated.");
+      queryClient.invalidateQueries({ queryKey: ["allTournaments"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+      cancelDeclareForm();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to declare result.");
+    } finally {
+      setIsDeclaring(false);
+    }
   }
 
   async function handleSaveRoom(tournamentId: string) {
@@ -499,6 +555,7 @@ function MatchManagementSection() {
       maxPlayers: Number(t.maxPlayers).toString(),
       imageUrl: t.imageUrl,
       isActive: t.isActive,
+      returningCoins: Number(t.returningCoins).toString(),
     });
     setShowForm(true);
   }
@@ -520,6 +577,7 @@ function MatchManagementSection() {
     const prizePool = formData.prizePool.trim();
     const maxPlayers = Number(formData.maxPlayers);
     const imageUrl = formData.imageUrl.trim();
+    const returningCoins = Number(formData.returningCoins);
 
     if (!title || !category || !mode || !prizePool || maxPlayers < 1) {
       toast.error("Please fill in all required fields");
@@ -539,6 +597,7 @@ function MatchManagementSection() {
           BigInt(Math.max(1, Math.floor(maxPlayers))),
           imageUrl,
           formData.isActive,
+          BigInt(Math.max(0, Math.floor(returningCoins))),
         );
         toast.success("Match updated successfully!");
       } else {
@@ -550,6 +609,7 @@ function MatchManagementSection() {
           prizePool,
           BigInt(Math.max(1, Math.floor(maxPlayers))),
           imageUrl,
+          BigInt(Math.max(0, Math.floor(returningCoins))),
         );
         toast.success("Match created successfully!");
       }
@@ -597,6 +657,7 @@ function MatchManagementSection() {
         t.maxPlayers,
         t.imageUrl,
         !t.isActive,
+        t.returningCoins,
       );
       toast.success(!t.isActive ? "Match activated" : "Match deactivated");
       queryClient.invalidateQueries({ queryKey: ["allTournaments"] });
@@ -855,6 +916,35 @@ function MatchManagementSection() {
                     setFormData((p) => ({ ...p, prizePool: e.target.value }))
                   }
                   placeholder="₡5000 or PKR 1000"
+                  className="px-4 py-2.5 rounded-xl font-body text-sm placeholder:text-muted-foreground transition-all duration-200"
+                  style={inputStyle}
+                  onFocus={inputFocus}
+                  onBlur={inputBlur}
+                />
+              </div>
+
+              {/* Returning Coins */}
+              <div>
+                <label
+                  htmlFor="match-returning-coins"
+                  className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5"
+                  style={{ color: "rgba(255,255,255,0.5)" }}
+                >
+                  Returning Coins (LC)
+                </label>
+                <input
+                  id="match-returning-coins"
+                  data-ocid="admin.match.returning_coins_input"
+                  type="number"
+                  min="0"
+                  value={formData.returningCoins}
+                  onChange={(e) =>
+                    setFormData((p) => ({
+                      ...p,
+                      returningCoins: e.target.value,
+                    }))
+                  }
+                  placeholder="0"
                   className="px-4 py-2.5 rounded-xl font-body text-sm placeholder:text-muted-foreground transition-all duration-200"
                   style={inputStyle}
                   onFocus={inputFocus}
@@ -1174,6 +1264,26 @@ function MatchManagementSection() {
                         >
                           <Key className="w-3.5 h-3.5" />
                         </button>
+                        {/* Declare Result */}
+                        <button
+                          type="button"
+                          data-ocid={`admin.match.declare_button.${i + 1}`}
+                          onClick={() =>
+                            declareFormId === t.id
+                              ? cancelDeclareForm()
+                              : openDeclareForm(t)
+                          }
+                          disabled={isDeleting || isToggling}
+                          title="Declare Match Result"
+                          className="p-1.5 rounded-lg transition-all duration-200 hover:opacity-80 disabled:opacity-50"
+                          style={{
+                            background: "rgba(180,80,255,0.1)",
+                            border: "1px solid rgba(180,80,255,0.25)",
+                            color: "#b450ff",
+                          }}
+                        >
+                          <Trophy className="w-3.5 h-3.5" />
+                        </button>
                         {/* Edit */}
                         <button
                           type="button"
@@ -1373,6 +1483,218 @@ function MatchManagementSection() {
                               Cancel
                             </button>
                           </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Declare Result inline panel */}
+                    {declareFormId === t.id && (
+                      <div
+                        data-ocid={`admin.match.declare_panel.${i + 1}`}
+                        className="mt-3 rounded-xl p-4 animate-fade-up"
+                        style={{
+                          background: "rgba(180,80,255,0.04)",
+                          border: "1px solid rgba(180,80,255,0.2)",
+                        }}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Trophy
+                              className="w-3.5 h-3.5"
+                              style={{ color: "#b450ff" }}
+                            />
+                            <p
+                              className="text-xs font-display font-bold uppercase tracking-[0.18em]"
+                              style={{ color: "#b450ff" }}
+                            >
+                              Declare Match Result
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            data-ocid={`admin.match.declare_close_button.${i + 1}`}
+                            onClick={cancelDeclareForm}
+                            className="p-1 rounded hover:opacity-70"
+                            style={{ color: "rgba(255,255,255,0.4)" }}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                          {/* Winner Legend ID */}
+                          <div>
+                            <label
+                              htmlFor={`declare-winner-${t.id}`}
+                              className="block text-xs font-display font-bold uppercase tracking-wider mb-1"
+                              style={{ color: "rgba(255,255,255,0.4)" }}
+                            >
+                              Winner Legend ID
+                            </label>
+                            <input
+                              id={`declare-winner-${t.id}`}
+                              data-ocid={`admin.match.winner_input.${i + 1}`}
+                              type="text"
+                              value={winnerIdInput}
+                              onChange={(e) => setWinnerIdInput(e.target.value)}
+                              placeholder="e.g. 0001"
+                              className="w-full px-3 py-2 rounded-lg font-body text-sm text-foreground placeholder:text-muted-foreground"
+                              style={{
+                                background: "rgba(255,255,255,0.06)",
+                                border: "1px solid rgba(180,80,255,0.25)",
+                                outline: "none",
+                              }}
+                              onFocus={(e) => {
+                                e.target.style.borderColor =
+                                  "rgba(180,80,255,0.6)";
+                              }}
+                              onBlur={(e) => {
+                                e.target.style.borderColor =
+                                  "rgba(180,80,255,0.25)";
+                              }}
+                            />
+                          </div>
+
+                          {/* Loser Legend ID */}
+                          <div>
+                            <label
+                              htmlFor={`declare-loser-${t.id}`}
+                              className="block text-xs font-display font-bold uppercase tracking-wider mb-1"
+                              style={{ color: "rgba(255,255,255,0.4)" }}
+                            >
+                              Loser Legend ID
+                            </label>
+                            <input
+                              id={`declare-loser-${t.id}`}
+                              data-ocid={`admin.match.loser_input.${i + 1}`}
+                              type="text"
+                              value={loserIdInput}
+                              onChange={(e) => setLoserIdInput(e.target.value)}
+                              placeholder="e.g. 0002"
+                              className="w-full px-3 py-2 rounded-lg font-body text-sm text-foreground placeholder:text-muted-foreground"
+                              style={{
+                                background: "rgba(255,255,255,0.06)",
+                                border: "1px solid rgba(180,80,255,0.25)",
+                                outline: "none",
+                              }}
+                              onFocus={(e) => {
+                                e.target.style.borderColor =
+                                  "rgba(180,80,255,0.6)";
+                              }}
+                              onBlur={(e) => {
+                                e.target.style.borderColor =
+                                  "rgba(180,80,255,0.25)";
+                              }}
+                            />
+                          </div>
+
+                          {/* Winner Coins */}
+                          <div>
+                            <label
+                              htmlFor={`declare-winner-coins-${t.id}`}
+                              className="block text-xs font-display font-bold uppercase tracking-wider mb-1"
+                              style={{ color: "rgba(255,255,255,0.4)" }}
+                            >
+                              Winner Coins to Give (LC)
+                            </label>
+                            <input
+                              id={`declare-winner-coins-${t.id}`}
+                              data-ocid={`admin.match.winner_coins_input.${i + 1}`}
+                              type="number"
+                              min="0"
+                              value={winnerCoinsInput}
+                              onChange={(e) =>
+                                setWinnerCoinsInput(e.target.value)
+                              }
+                              placeholder="0"
+                              className="w-full px-3 py-2 rounded-lg font-body text-sm text-foreground placeholder:text-muted-foreground"
+                              style={{
+                                background: "rgba(255,255,255,0.06)",
+                                border: "1px solid rgba(180,80,255,0.25)",
+                                outline: "none",
+                              }}
+                              onFocus={(e) => {
+                                e.target.style.borderColor =
+                                  "rgba(180,80,255,0.6)";
+                              }}
+                              onBlur={(e) => {
+                                e.target.style.borderColor =
+                                  "rgba(180,80,255,0.25)";
+                              }}
+                            />
+                          </div>
+
+                          {/* Loser Return Coins */}
+                          <div>
+                            <label
+                              htmlFor={`declare-loser-coins-${t.id}`}
+                              className="block text-xs font-display font-bold uppercase tracking-wider mb-1"
+                              style={{ color: "rgba(255,255,255,0.4)" }}
+                            >
+                              Loser Return Coins (LC)
+                            </label>
+                            <input
+                              id={`declare-loser-coins-${t.id}`}
+                              data-ocid={`admin.match.loser_coins_input.${i + 1}`}
+                              type="number"
+                              min="0"
+                              value={loserCoinsInput}
+                              onChange={(e) =>
+                                setLoserCoinsInput(e.target.value)
+                              }
+                              placeholder="0"
+                              className="w-full px-3 py-2 rounded-lg font-body text-sm text-foreground placeholder:text-muted-foreground"
+                              style={{
+                                background: "rgba(255,255,255,0.06)",
+                                border: "1px solid rgba(180,80,255,0.25)",
+                                outline: "none",
+                              }}
+                              onFocus={(e) => {
+                                e.target.style.borderColor =
+                                  "rgba(180,80,255,0.6)";
+                              }}
+                              onBlur={(e) => {
+                                e.target.style.borderColor =
+                                  "rgba(180,80,255,0.25)";
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            data-ocid={`admin.match.declare_confirm_button.${i + 1}`}
+                            onClick={() => handleDeclareResult(t.id)}
+                            disabled={isDeclaring}
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-lg font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50"
+                            style={{
+                              background:
+                                "linear-gradient(135deg, rgba(180,80,255,0.9), rgba(120,40,200,0.9))",
+                              color: "#fff",
+                            }}
+                          >
+                            {isDeclaring ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Trophy className="w-3.5 h-3.5" />
+                            )}
+                            {isDeclaring ? "Declaring…" : "Declare"}
+                          </button>
+                          <button
+                            type="button"
+                            data-ocid={`admin.match.declare_cancel_button.${i + 1}`}
+                            onClick={cancelDeclareForm}
+                            disabled={isDeclaring}
+                            className="px-3 py-2 rounded-lg font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-80 disabled:opacity-50"
+                            style={{
+                              background: "rgba(255,255,255,0.05)",
+                              border: "1px solid rgba(255,255,255,0.1)",
+                              color: "rgba(255,255,255,0.5)",
+                            }}
+                          >
+                            Cancel
+                          </button>
                         </div>
                       </div>
                     )}

@@ -29,6 +29,7 @@ export interface LeaderboardEntry {
   'totalMatches' : bigint,
   'createdAt' : bigint,
   'wins' : bigint,
+  'totalProfit' : bigint,
   'totalDeposited' : bigint,
 }
 export interface Match {
@@ -51,6 +52,7 @@ export interface Tournament {
   'isActive' : boolean,
   'roomPassword' : string,
   'imageUrl' : string,
+  'returningCoins' : bigint,
   'currentPlayers' : bigint,
   'category' : string,
   'entryFee' : bigint,
@@ -72,6 +74,7 @@ export interface UserProfile {
   'createdAt' : bigint,
   'role' : Role,
   'jazzCashNumber' : string,
+  'totalProfit' : bigint,
   'gameUID' : string,
   'isBanned' : boolean,
   'passwordHash' : string,
@@ -86,8 +89,12 @@ export interface _SERVICE {
   'approveDepositRequest' : ActorMethod<[string], undefined>,
   'authenticate' : ActorMethod<[string, string], boolean>,
   'createTournament' : ActorMethod<
-    [string, string, string, bigint, string, bigint, string],
+    [string, string, string, bigint, string, bigint, string, bigint],
     string
+  >,
+  'declareMatchResult' : ActorMethod<
+    [string, string, string, bigint, bigint],
+    undefined
   >,
   'deleteTournament' : ActorMethod<[string], undefined>,
   'getActiveTournaments' : ActorMethod<[], Array<Tournament>>,
@@ -109,7 +116,18 @@ export interface _SERVICE {
   'toggleBan' : ActorMethod<[string], undefined>,
   'updatePlayerInfo' : ActorMethod<[string, string, string], undefined>,
   'updateTournament' : ActorMethod<
-    [string, string, string, string, bigint, string, bigint, string, boolean],
+    [
+      string,
+      string,
+      string,
+      string,
+      bigint,
+      string,
+      bigint,
+      string,
+      boolean,
+      bigint,
+    ],
     undefined
   >,
 }

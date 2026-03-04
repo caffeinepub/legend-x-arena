@@ -100,6 +100,7 @@ export interface LeaderboardEntry {
     totalMatches: bigint;
     createdAt: bigint;
     wins: bigint;
+    totalProfit: bigint;
     totalDeposited: bigint;
 }
 export interface DepositRequest {
@@ -118,6 +119,7 @@ export interface Tournament {
     isActive: boolean;
     roomPassword: string;
     imageUrl: string;
+    returningCoins: bigint;
     currentPlayers: bigint;
     category: string;
     entryFee: bigint;
@@ -138,6 +140,7 @@ export interface UserProfile {
     createdAt: bigint;
     role: Role;
     jazzCashNumber: string;
+    totalProfit: bigint;
     gameUID: string;
     isBanned: boolean;
     passwordHash: string;
@@ -174,7 +177,8 @@ export enum TransactionType {
 export interface backendInterface {
     approveDepositRequest(requestId: string): Promise<void>;
     authenticate(legendId: string, passwordHash: string): Promise<boolean>;
-    createTournament(title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string): Promise<string>;
+    createTournament(title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, returningCoins: bigint): Promise<string>;
+    declareMatchResult(tournamentId: string, winnerLegendId: string, loserLegendId: string, winnerCoins: bigint, loserCoins: bigint): Promise<void>;
     deleteTournament(id: string): Promise<void>;
     getActiveTournaments(): Promise<Array<Tournament>>;
     getLeaderboard(): Promise<Array<LeaderboardEntry>>;
@@ -194,7 +198,7 @@ export interface backendInterface {
     submitDepositRequest(amount: bigint, transactionId: string): Promise<void>;
     toggleBan(legendId: string): Promise<void>;
     updatePlayerInfo(gameName: string, gameUID: string, jazzCashNumber: string): Promise<void>;
-    updateTournament(id: string, title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, isActive: boolean): Promise<void>;
+    updateTournament(id: string, title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, isActive: boolean, returningCoins: bigint): Promise<void>;
 }
 import type { DepositRequest as _DepositRequest, DepositStatus as _DepositStatus, GameMode as _GameMode, Match as _Match, Result as _Result, Role as _Role, Transaction as _Transaction, TransactionType as _TransactionType, UserProfile as _UserProfile } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -227,17 +231,31 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async createTournament(arg0: string, arg1: string, arg2: string, arg3: bigint, arg4: string, arg5: bigint, arg6: string): Promise<string> {
+    async createTournament(arg0: string, arg1: string, arg2: string, arg3: bigint, arg4: string, arg5: bigint, arg6: string, arg7: bigint): Promise<string> {
         if (this.processError) {
             try {
-                const result = await this.actor.createTournament(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+                const result = await this.actor.createTournament(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.createTournament(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+            const result = await this.actor.createTournament(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+            return result;
+        }
+    }
+    async declareMatchResult(arg0: string, arg1: string, arg2: string, arg3: bigint, arg4: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.declareMatchResult(arg0, arg1, arg2, arg3, arg4);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.declareMatchResult(arg0, arg1, arg2, arg3, arg4);
             return result;
         }
     }
@@ -468,17 +486,17 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async updateTournament(arg0: string, arg1: string, arg2: string, arg3: string, arg4: bigint, arg5: string, arg6: bigint, arg7: string, arg8: boolean): Promise<void> {
+    async updateTournament(arg0: string, arg1: string, arg2: string, arg3: string, arg4: bigint, arg5: string, arg6: bigint, arg7: string, arg8: boolean, arg9: bigint): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.updateTournament(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+                const result = await this.actor.updateTournament(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.updateTournament(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+            const result = await this.actor.updateTournament(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
             return result;
         }
     }
@@ -578,6 +596,7 @@ function from_candid_record_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint
     createdAt: bigint;
     role: _Role;
     jazzCashNumber: string;
+    totalProfit: bigint;
     gameUID: string;
     isBanned: boolean;
     passwordHash: string;
@@ -592,6 +611,7 @@ function from_candid_record_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint
     createdAt: bigint;
     role: Role;
     jazzCashNumber: string;
+    totalProfit: bigint;
     gameUID: string;
     isBanned: boolean;
     passwordHash: string;
@@ -607,6 +627,7 @@ function from_candid_record_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint
         createdAt: value.createdAt,
         role: from_candid_Role_n8(_uploadFile, _downloadFile, value.role),
         jazzCashNumber: value.jazzCashNumber,
+        totalProfit: value.totalProfit,
         gameUID: value.gameUID,
         isBanned: value.isBanned,
         passwordHash: value.passwordHash,
