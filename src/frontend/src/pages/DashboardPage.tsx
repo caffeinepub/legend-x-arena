@@ -31,6 +31,7 @@ import {
   Edit2,
   Gamepad2,
   History,
+  ImageIcon,
   Loader2,
   Lock,
   LogOut,
@@ -46,6 +47,21 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import frameAngelWhiteImg from "/assets/generated/frame-angel-white-transparent.dim_200x200.png";
+import frameCyberGreenImg from "/assets/generated/frame-cyber-green-transparent.dim_200x200.png";
+import frameDiamondCrystalImg from "/assets/generated/frame-diamond-crystal-transparent.dim_200x200.png";
+import frameDragonRedImg from "/assets/generated/frame-dragon-red-transparent.dim_200x200.png";
+import frameElectricBlueImg from "/assets/generated/frame-electric-blue-transparent.dim_200x200.png";
+import frameFireImg from "/assets/generated/frame-fire-transparent.dim_200x200.png";
+import frameGalaxyImg from "/assets/generated/frame-galaxy-transparent.dim_200x200.png";
+import frameGoldCrownImg from "/assets/generated/frame-gold-crown-transparent.dim_200x200.png";
+import frameIceFrostImg from "/assets/generated/frame-ice-frost-transparent.dim_200x200.png";
+import frameMilitaryCamoImg from "/assets/generated/frame-military-camo-transparent.dim_200x200.png";
+import frameRainbowHoloImg from "/assets/generated/frame-rainbow-holo-transparent.dim_200x200.png";
+import frameSamuraiImg from "/assets/generated/frame-samurai-transparent.dim_200x200.png";
+import frameSkullRedImg from "/assets/generated/frame-skull-red-transparent.dim_200x200.png";
+import frameToxicGreenImg from "/assets/generated/frame-toxic-green-transparent.dim_200x200.png";
+import frameVoidBlackImg from "/assets/generated/frame-void-black-transparent.dim_200x200.png";
 import blazeHunterImg from "/assets/generated/shop-avatar-blaze-hunter-transparent.dim_200x200.png";
 import bloodWolfImg from "/assets/generated/shop-avatar-blood-wolf-transparent.dim_200x200.png";
 import cyberGhostImg from "/assets/generated/shop-avatar-cyber-ghost-transparent.dim_200x200.png";
@@ -211,6 +227,147 @@ const AVATAR_TIERS = [
     glowColor: "#ffd700",
   },
 ] as const;
+
+/* ─── Shop Frames (purchasable with Legend Coins) ───────────── */
+const SHOP_FRAMES = [
+  {
+    index: 20,
+    src: frameMilitaryCamoImg,
+    name: "Military Camo",
+    price: 100,
+    glowColor: "#4a7c59",
+  },
+  {
+    index: 21,
+    src: frameSkullRedImg,
+    name: "Skull Reaper",
+    price: 150,
+    glowColor: "#ff2200",
+  },
+  {
+    index: 22,
+    src: frameCyberGreenImg,
+    name: "Cyber Matrix",
+    price: 200,
+    glowColor: "#00ff44",
+  },
+  {
+    index: 23,
+    src: frameIceFrostImg,
+    name: "Ice Frost",
+    price: 200,
+    glowColor: "#66ccff",
+  },
+  {
+    index: 24,
+    src: frameFireImg,
+    name: "Fire Storm",
+    price: 250,
+    glowColor: "#ff6600",
+  },
+  {
+    index: 25,
+    src: frameSamuraiImg,
+    name: "Samurai Honor",
+    price: 300,
+    glowColor: "#cc0000",
+  },
+  {
+    index: 26,
+    src: frameElectricBlueImg,
+    name: "Electric Bolt",
+    price: 300,
+    glowColor: "#0099ff",
+  },
+  {
+    index: 27,
+    src: frameToxicGreenImg,
+    name: "Toxic Hazard",
+    price: 350,
+    glowColor: "#44ff00",
+  },
+  {
+    index: 28,
+    src: frameDragonRedImg,
+    name: "Dragon Scale",
+    price: 400,
+    glowColor: "#ff3300",
+  },
+  {
+    index: 29,
+    src: frameGoldCrownImg,
+    name: "Gold Crown",
+    price: 450,
+    glowColor: "#ffd700",
+  },
+  {
+    index: 30,
+    src: frameDiamondCrystalImg,
+    name: "Diamond Crystal",
+    price: 500,
+    glowColor: "#cc88ff",
+  },
+  {
+    index: 31,
+    src: frameGalaxyImg,
+    name: "Galaxy Nebula",
+    price: 600,
+    glowColor: "#9944ff",
+  },
+  {
+    index: 32,
+    src: frameAngelWhiteImg,
+    name: "Angel Wings",
+    price: 700,
+    glowColor: "#ffffff",
+  },
+  {
+    index: 33,
+    src: frameVoidBlackImg,
+    name: "Void Abyss",
+    price: 800,
+    glowColor: "#4400ff",
+  },
+  {
+    index: 34,
+    src: frameRainbowHoloImg,
+    name: "Rainbow Holo",
+    price: 1000,
+    glowColor: "#ff00ff",
+  },
+] as const;
+
+/* ─── Get frame src by index ─────────────────────────────────── */
+function getFrameSrc(frameIndex: number): string | null {
+  if (frameIndex === 0) return null;
+  const frame = SHOP_FRAMES.find((f) => f.index === frameIndex);
+  return frame?.src ?? null;
+}
+
+/* ─── Frame overlay component ────────────────────────────────── */
+function FrameOverlay({
+  frameIndex,
+  size = 80,
+}: { frameIndex: number; size?: number }) {
+  const src = getFrameSrc(frameIndex);
+  if (!src) return null;
+  return (
+    <img
+      src={src}
+      alt="frame"
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        inset: -4,
+        width: size + 8,
+        height: size + 8,
+        pointerEvents: "none",
+        zIndex: 3,
+        objectFit: "contain",
+      }}
+    />
+  );
+}
 
 /* ─── Get profile pic src by index ──────────────────────────── */
 function getProfilePicSrc(picIndex: number): string {
@@ -2432,13 +2589,46 @@ export function DashboardPage() {
     : 100;
 
   const [selectingPic, setSelectingPic] = useState<number | null>(null);
+  const [selectingFrame, setSelectingFrame] = useState<number | null>(null);
   const [profileImgError, setProfileImgError] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [avatarModalTab, setAvatarModalTab] = useState<"logo" | "frames">(
+    "logo",
+  );
+
+  const selectedFrame = Number(
+    (
+      profile as
+        | (typeof profile & { selectedFrame?: bigint })
+        | null
+        | undefined
+    )?.selectedFrame ?? BigInt(0),
+  );
 
   // Reset error state whenever user selects a different avatar
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset when pic changes
   useEffect(() => {
     setProfileImgError(false);
   }, [selectedProfilePic]);
+
+  async function handleSelectFrame(frameIndex: number) {
+    if (!actor) return;
+    setSelectingFrame(frameIndex);
+    try {
+      const actorExt = actor as typeof actor & {
+        setProfileFrame?: (idx: bigint) => Promise<void>;
+      };
+      await actorExt.setProfileFrame?.(BigInt(frameIndex));
+      await refetchProfile();
+      queryClient.invalidateQueries({ queryKey: ["userProfile", legendId] });
+      toast.success("Frame updated!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update frame.");
+    } finally {
+      setSelectingFrame(null);
+    }
+  }
 
   async function handleSelectAvatar(picIndex: number) {
     if (!actor) return;
@@ -2654,6 +2844,199 @@ export function DashboardPage() {
               </div>
             );
           })}
+        </div>
+
+        {/* ── Frames Section ── */}
+        <div className="mt-8">
+          <h3 className="font-display font-black text-base uppercase tracking-wider mb-1 flex items-center gap-2">
+            <ImageIcon className="w-5 h-5" style={{ color: "#cc88ff" }} />
+            <span style={{ color: "#cc88ff" }}>Profile Frames</span>
+          </h3>
+          <p className="text-xs font-body text-muted-foreground mb-4">
+            Equip frames to style your profile picture
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            {SHOP_FRAMES.map((frame, i) => {
+              const profileExt = profile as
+                | (typeof profile & {
+                    purchasedFrames?: bigint[];
+                    selectedFrame?: bigint;
+                  })
+                | null
+                | undefined;
+              const isOwned = (profileExt?.purchasedFrames ?? [])
+                .map(Number)
+                .includes(frame.index);
+              const isActive = selectedFrame === frame.index;
+              const canAfford = Number(balance) >= frame.price;
+              const isLoading = selectingFrame === frame.index;
+
+              return (
+                <div
+                  key={frame.index}
+                  data-ocid={`shop.frame_item.${i + 1}`}
+                  className="rounded-2xl overflow-hidden flex flex-col"
+                  style={{
+                    background: isOwned
+                      ? "rgba(204,136,255,0.04)"
+                      : "rgba(13,13,26,0.95)",
+                    border: isOwned
+                      ? `1px solid ${frame.glowColor}55`
+                      : "1px solid rgba(255,255,255,0.08)",
+                    boxShadow: isOwned
+                      ? `0 4px 24px ${frame.glowColor}22`
+                      : "0 4px 24px rgba(0,0,0,0.3)",
+                  }}
+                >
+                  {/* Frame preview */}
+                  <div
+                    className="relative flex items-center justify-center"
+                    style={{
+                      height: 120,
+                      background: "rgba(255,255,255,0.03)",
+                    }}
+                  >
+                    <div className="relative" style={{ width: 80, height: 80 }}>
+                      <div
+                        className="w-full h-full rounded-full"
+                        style={{
+                          background: "rgba(255,255,255,0.1)",
+                          border: "2px solid rgba(255,255,255,0.15)",
+                        }}
+                      />
+                      <img
+                        src={frame.src}
+                        alt={frame.name}
+                        style={{
+                          position: "absolute",
+                          inset: -8,
+                          width: 96,
+                          height: 96,
+                          objectFit: "contain",
+                          filter: isOwned
+                            ? "none"
+                            : "grayscale(60%) brightness(0.6)",
+                        }}
+                      />
+                    </div>
+                    {isOwned && (
+                      <div className="absolute top-2 right-2">
+                        <span
+                          className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
+                          style={{
+                            background: "rgba(204,136,255,0.85)",
+                            color: "#fff",
+                          }}
+                        >
+                          OWNED
+                        </span>
+                      </div>
+                    )}
+                    {isActive && (
+                      <div className="absolute top-2 left-2">
+                        <span
+                          className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
+                          style={{ background: "#ffd700", color: "#000" }}
+                        >
+                          ACTIVE
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card body */}
+                  <div className="p-3 flex flex-col gap-2">
+                    <p
+                      className="font-display font-black text-sm"
+                      style={{ color: frame.glowColor }}
+                    >
+                      {frame.name}
+                    </p>
+                    <div
+                      className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg"
+                      style={{
+                        background: "rgba(255,215,0,0.06)",
+                        border: "1px solid rgba(255,215,0,0.15)",
+                      }}
+                    >
+                      <LegendCoin size={14} />
+                      <span
+                        className="font-display font-black text-sm tabular-nums"
+                        style={{ color: "#ffd700" }}
+                      >
+                        {frame.price.toLocaleString()}
+                      </span>
+                    </div>
+
+                    {isOwned ? (
+                      <button
+                        type="button"
+                        data-ocid={`shop.frame_select_button.${i + 1}`}
+                        onClick={async () => {
+                          if (isActive) return;
+                          await handleSelectFrame(frame.index);
+                        }}
+                        disabled={isActive || isLoading}
+                        className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-80 disabled:opacity-50"
+                        style={{
+                          background: isActive
+                            ? "rgba(255,215,0,0.1)"
+                            : "linear-gradient(135deg, rgba(204,136,255,0.85), rgba(150,60,220,0.85))",
+                          border: isActive
+                            ? "1px solid rgba(255,215,0,0.3)"
+                            : "none",
+                          color: isActive ? "#ffd700" : "#fff",
+                        }}
+                      >
+                        {isLoading ? (
+                          <Loader2 className="w-3 h-3 animate-spin inline mr-1" />
+                        ) : null}
+                        {isActive ? "Active" : "Equip"}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        data-ocid={`shop.frame_buy_button.${i + 1}`}
+                        disabled={!canAfford || isLoading}
+                        onClick={async () => {
+                          if (!actor) return;
+                          setSelectingFrame(frame.index);
+                          try {
+                            const actorExt = actor as typeof actor & {
+                              buyShopFrame?: (idx: bigint) => Promise<void>;
+                            };
+                            await actorExt.buyShopFrame?.(BigInt(frame.index));
+                            await refetchProfile();
+                            toast.success(`${frame.name} unlocked!`);
+                          } catch (err) {
+                            console.error(err);
+                            toast.error("Purchase failed. Please try again.");
+                          } finally {
+                            setSelectingFrame(null);
+                          }
+                        }}
+                        className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                        style={{
+                          background: canAfford
+                            ? `linear-gradient(135deg, ${frame.glowColor}cc, ${frame.glowColor}88)`
+                            : "rgba(255,255,255,0.05)",
+                          border: canAfford
+                            ? "none"
+                            : "1px solid rgba(255,255,255,0.1)",
+                          color: canAfford ? "#fff" : "rgba(255,255,255,0.35)",
+                        }}
+                      >
+                        {isLoading ? (
+                          <Loader2 className="w-3 h-3 animate-spin inline mr-1" />
+                        ) : null}
+                        {canAfford ? "BUY" : "Insufficient Coins"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
     ),
@@ -3426,16 +3809,15 @@ export function DashboardPage() {
                 {(legendId ?? "?")[0].toUpperCase()}
               </div>
             )}
+            {/* Frame overlay on profile avatar */}
+            <FrameOverlay frameIndex={selectedFrame} size={72} />
             {/* Pen edit icon */}
             <button
               type="button"
               data-ocid="profile.avatar_edit_button"
               onClick={() => {
-                setActiveTab("profile");
-                setTimeout(() => {
-                  const el = document.getElementById("avatar-gallery-section");
-                  if (el) el.scrollIntoView({ behavior: "smooth" });
-                }, 150);
+                setAvatarModalTab("logo");
+                setShowAvatarModal(true);
               }}
               className="absolute bottom-0 right-0 w-6 h-6 rounded-full flex items-center justify-center transition-opacity hover:opacity-90"
               style={{
@@ -3443,7 +3825,7 @@ export function DashboardPage() {
                 border: "2px solid #0a0a0f",
                 zIndex: 5,
               }}
-              title="Change profile picture"
+              title="Change profile picture or frame"
             >
               <svg
                 width="10"
@@ -4121,6 +4503,677 @@ export function DashboardPage() {
           }}
         />
       )}
+
+      {/* ── AVATAR COLLECTION MODAL ── */}
+      {showAvatarModal && (
+        <div
+          data-ocid="avatar_collection.modal"
+          className="fixed inset-0 z-[200] flex flex-col"
+          style={{
+            background: "rgba(5,5,10,0.97)",
+            backdropFilter: "blur(12px)",
+          }}
+        >
+          {/* Header */}
+          <div
+            className="flex items-center justify-between px-5 py-4 flex-shrink-0"
+            style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            <div className="flex items-center gap-2">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#ffd700"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+              <h2
+                className="font-display font-black text-base uppercase tracking-wider"
+                style={{ color: "#ffd700" }}
+              >
+                My Collection
+              </h2>
+            </div>
+            <button
+              type="button"
+              data-ocid="avatar_collection.close_button"
+              onClick={() => setShowAvatarModal(false)}
+              className="w-8 h-8 rounded-full flex items-center justify-center transition-opacity hover:opacity-70"
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.12)",
+              }}
+            >
+              <X
+                className="w-4 h-4"
+                style={{ color: "rgba(255,255,255,0.7)" }}
+              />
+            </button>
+          </div>
+
+          {/* Tab Switcher */}
+          <div className="px-5 pt-4 pb-2 flex-shrink-0">
+            <div
+              className="flex gap-1 p-1 rounded-xl"
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.07)",
+              }}
+            >
+              <button
+                type="button"
+                data-ocid="avatar_collection.logo_tab"
+                onClick={() => setAvatarModalTab("logo")}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-display font-bold text-xs uppercase tracking-wider transition-all duration-200"
+                style={
+                  avatarModalTab === "logo"
+                    ? {
+                        background:
+                          "linear-gradient(135deg, rgba(255,215,0,0.2), rgba(255,150,0,0.15))",
+                        border: "1px solid rgba(255,215,0,0.35)",
+                        color: "#ffd700",
+                      }
+                    : {
+                        background: "transparent",
+                        border: "1px solid transparent",
+                        color: "rgba(255,255,255,0.4)",
+                      }
+                }
+              >
+                <User className="w-3.5 h-3.5" />
+                Logo
+              </button>
+              <button
+                type="button"
+                data-ocid="avatar_collection.frames_tab"
+                onClick={() => setAvatarModalTab("frames")}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-display font-bold text-xs uppercase tracking-wider transition-all duration-200"
+                style={
+                  avatarModalTab === "frames"
+                    ? {
+                        background:
+                          "linear-gradient(135deg, rgba(204,136,255,0.2), rgba(150,60,220,0.15))",
+                        border: "1px solid rgba(204,136,255,0.4)",
+                        color: "#cc88ff",
+                      }
+                    : {
+                        background: "transparent",
+                        border: "1px solid transparent",
+                        color: "rgba(255,255,255,0.4)",
+                      }
+                }
+              >
+                <ImageIcon className="w-3.5 h-3.5" />
+                Frames
+              </button>
+            </div>
+          </div>
+
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto px-5 pb-8">
+            {/* ── LOGO TAB ── */}
+            {avatarModalTab === "logo" && (
+              <div className="py-4">
+                <p className="text-xs font-body text-muted-foreground mb-4">
+                  Tap any unlocked avatar to equip it
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                  {/* FREE Joker */}
+                  {(() => {
+                    const isFreeSelected = selectedProfilePic === 0;
+                    const isFreeLoading = selectingPic === 0;
+                    return (
+                      <button
+                        key="joker-modal"
+                        type="button"
+                        data-ocid="avatar_collection.logo_item.1"
+                        disabled={isFreeLoading}
+                        onClick={() => !isFreeSelected && handleSelectAvatar(0)}
+                        className="flex flex-col items-center gap-2 p-3 rounded-2xl transition-all duration-200"
+                        style={{
+                          background: isFreeSelected
+                            ? "rgba(255,215,0,0.08)"
+                            : "rgba(255,255,255,0.02)",
+                          border: isFreeSelected
+                            ? "1px solid rgba(255,215,0,0.4)"
+                            : "1px solid rgba(255,255,255,0.07)",
+                          cursor: isFreeSelected ? "default" : "pointer",
+                        }}
+                      >
+                        <div
+                          className="relative"
+                          style={{ width: 64, height: 64 }}
+                        >
+                          <div
+                            style={{
+                              position: "absolute",
+                              inset: isFreeSelected ? -3 : -2,
+                              borderRadius: "50%",
+                              border: isFreeSelected
+                                ? "2px solid #ffd700"
+                                : "2px solid rgba(255,60,0,0.5)",
+                              boxShadow: isFreeSelected
+                                ? "0 0 12px #ffd70066"
+                                : "none",
+                              zIndex: 2,
+                            }}
+                          />
+                          <img
+                            src={DEFAULT_PROFILE_PIC}
+                            alt="Joker"
+                            className="w-full h-full rounded-full object-cover"
+                          />
+                          {isFreeLoading && (
+                            <div
+                              className="absolute inset-0 rounded-full flex items-center justify-center"
+                              style={{ background: "rgba(0,0,0,0.6)" }}
+                            >
+                              <Loader2
+                                className="w-4 h-4 animate-spin"
+                                style={{ color: "#ffd700" }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <span
+                          className="font-display font-black uppercase text-center"
+                          style={{
+                            fontSize: "9px",
+                            letterSpacing: "0.1em",
+                            color: isFreeSelected ? "#ffd700" : "#ff4422",
+                          }}
+                        >
+                          JOKER
+                        </span>
+                        <span
+                          className="font-body text-xs"
+                          style={{ color: "rgba(34,204,102,0.8)" }}
+                        >
+                          ✓ FREE
+                        </span>
+                      </button>
+                    );
+                  })()}
+
+                  {/* Deposit Tier Avatars */}
+                  {AVATAR_TIERS.map((tier, i) => {
+                    const isUnlocked = totalDeposited >= tier.required;
+                    const isSelected = selectedProfilePic === tier.index;
+                    const isLoading = selectingPic === tier.index;
+                    return (
+                      <button
+                        key={tier.index}
+                        type="button"
+                        data-ocid={`avatar_collection.logo_item.${i + 2}`}
+                        disabled={!isUnlocked || isLoading}
+                        onClick={() =>
+                          isUnlocked &&
+                          !isSelected &&
+                          handleSelectAvatar(tier.index)
+                        }
+                        className="flex flex-col items-center gap-2 p-3 rounded-2xl transition-all duration-200"
+                        style={{
+                          background: isSelected
+                            ? "rgba(255,215,0,0.08)"
+                            : "rgba(255,255,255,0.02)",
+                          border: isSelected
+                            ? "1px solid rgba(255,215,0,0.4)"
+                            : "1px solid rgba(255,255,255,0.07)",
+                          cursor:
+                            isUnlocked && !isSelected
+                              ? "pointer"
+                              : isSelected
+                                ? "default"
+                                : "not-allowed",
+                          opacity: isUnlocked ? 1 : 0.6,
+                        }}
+                      >
+                        <div
+                          className="relative"
+                          style={{ width: 64, height: 64 }}
+                        >
+                          <div
+                            style={{
+                              position: "absolute",
+                              inset: isSelected ? -3 : -2,
+                              borderRadius: "50%",
+                              border: isSelected
+                                ? "2px solid #ffd700"
+                                : `2px solid ${tier.glowColor}55`,
+                              boxShadow: isSelected
+                                ? "0 0 12px #ffd70066"
+                                : "none",
+                              zIndex: 2,
+                            }}
+                          />
+                          <img
+                            src={tier.src}
+                            alt={tier.label}
+                            className="w-full h-full rounded-full object-cover"
+                            style={{
+                              filter: isUnlocked
+                                ? "none"
+                                : "grayscale(80%) brightness(0.4)",
+                            }}
+                          />
+                          {!isUnlocked && (
+                            <div
+                              className="absolute inset-0 rounded-full flex items-center justify-center"
+                              style={{ background: "rgba(0,0,0,0.55)" }}
+                            >
+                              <Lock
+                                className="w-4 h-4"
+                                style={{ color: "rgba(255,255,255,0.5)" }}
+                              />
+                            </div>
+                          )}
+                          {isLoading && (
+                            <div
+                              className="absolute inset-0 rounded-full flex items-center justify-center"
+                              style={{ background: "rgba(0,0,0,0.6)" }}
+                            >
+                              <Loader2
+                                className="w-4 h-4 animate-spin"
+                                style={{ color: "#ffd700" }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <span
+                          className="font-display font-black uppercase text-center"
+                          style={{
+                            fontSize: "9px",
+                            letterSpacing: "0.1em",
+                            color: isSelected
+                              ? "#ffd700"
+                              : isUnlocked
+                                ? tier.glowColor
+                                : "rgba(255,255,255,0.3)",
+                          }}
+                        >
+                          {tier.label}
+                        </span>
+                        <span
+                          className="font-body text-xs text-center"
+                          style={{
+                            color: isUnlocked
+                              ? "rgba(34,204,102,0.7)"
+                              : "rgba(255,68,34,0.8)",
+                            lineHeight: 1.2,
+                          }}
+                        >
+                          {isUnlocked ? "✓ Unlocked" : `L${tier.required}`}
+                        </span>
+                      </button>
+                    );
+                  })}
+
+                  {/* Shop Avatars */}
+                  {SHOP_AVATARS.map((avatar, i) => {
+                    const profileExt = profile as
+                      | (typeof profile & { purchasedShopAvatars?: bigint[] })
+                      | null
+                      | undefined;
+                    const isOwned = (profileExt?.purchasedShopAvatars ?? [])
+                      .map(Number)
+                      .includes(avatar.index);
+                    const isSelected = selectedProfilePic === avatar.index;
+                    const isLoading = selectingPic === avatar.index;
+                    const canAfford = Number(balance) >= avatar.price;
+                    return (
+                      <button
+                        key={avatar.index}
+                        type="button"
+                        data-ocid={`avatar_collection.logo_item.${i + 8}`}
+                        disabled={!isOwned || isLoading}
+                        onClick={() =>
+                          isOwned &&
+                          !isSelected &&
+                          handleSelectAvatar(avatar.index)
+                        }
+                        className="flex flex-col items-center gap-2 p-3 rounded-2xl transition-all duration-200"
+                        style={{
+                          background: isSelected
+                            ? "rgba(255,215,0,0.08)"
+                            : isOwned
+                              ? "rgba(34,204,102,0.04)"
+                              : "rgba(255,255,255,0.02)",
+                          border: isSelected
+                            ? "1px solid rgba(255,215,0,0.4)"
+                            : isOwned
+                              ? `1px solid ${avatar.glowColor}33`
+                              : "1px solid rgba(255,255,255,0.07)",
+                          cursor:
+                            isOwned && !isSelected
+                              ? "pointer"
+                              : isSelected
+                                ? "default"
+                                : "not-allowed",
+                          opacity: isOwned ? 1 : 0.7,
+                        }}
+                      >
+                        <div
+                          className="relative"
+                          style={{ width: 64, height: 64 }}
+                        >
+                          <div
+                            style={{
+                              position: "absolute",
+                              inset: isSelected ? -3 : -2,
+                              borderRadius: "50%",
+                              border: isSelected
+                                ? "2px solid #ffd700"
+                                : `2px solid ${avatar.glowColor}55`,
+                              boxShadow: isSelected
+                                ? "0 0 12px #ffd70066"
+                                : "none",
+                              zIndex: 2,
+                            }}
+                          />
+                          <img
+                            src={avatar.src}
+                            alt={avatar.name}
+                            className="w-full h-full rounded-full object-cover"
+                            style={{
+                              filter: isOwned
+                                ? "none"
+                                : "grayscale(60%) brightness(0.5)",
+                            }}
+                          />
+                          {!isOwned && (
+                            <div
+                              className="absolute inset-0 rounded-full flex items-center justify-center"
+                              style={{ background: "rgba(0,0,0,0.55)" }}
+                            >
+                              <Lock
+                                className="w-4 h-4"
+                                style={{ color: "rgba(255,255,255,0.5)" }}
+                              />
+                            </div>
+                          )}
+                          {isLoading && (
+                            <div
+                              className="absolute inset-0 rounded-full flex items-center justify-center"
+                              style={{ background: "rgba(0,0,0,0.6)" }}
+                            >
+                              <Loader2
+                                className="w-4 h-4 animate-spin"
+                                style={{ color: "#ffd700" }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <span
+                          className="font-display font-black uppercase text-center"
+                          style={{
+                            fontSize: "9px",
+                            letterSpacing: "0.08em",
+                            color: isSelected
+                              ? "#ffd700"
+                              : isOwned
+                                ? avatar.glowColor
+                                : "rgba(255,255,255,0.3)",
+                          }}
+                        >
+                          {avatar.name}
+                        </span>
+                        {isOwned ? (
+                          <span
+                            className="font-body text-xs"
+                            style={{ color: "rgba(34,204,102,0.7)" }}
+                          >
+                            ✓ Owned
+                          </span>
+                        ) : (
+                          <span
+                            className="font-body text-xs flex items-center gap-0.5"
+                            style={{
+                              color: canAfford
+                                ? "rgba(255,215,0,0.8)"
+                                : "rgba(255,255,255,0.35)",
+                            }}
+                          >
+                            <LegendCoin size={9} />
+                            {avatar.price}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ── FRAMES TAB ── */}
+            {avatarModalTab === "frames" && (
+              <div className="py-4">
+                <p className="text-xs font-body text-muted-foreground mb-4">
+                  Equip frames to style your profile picture
+                </p>
+                {/* No frame option */}
+                <div className="grid grid-cols-3 gap-3">
+                  <button
+                    type="button"
+                    data-ocid="avatar_collection.frames_none_button"
+                    onClick={() => handleSelectFrame(0)}
+                    className="flex flex-col items-center gap-2 p-3 rounded-2xl transition-all duration-200"
+                    style={{
+                      background:
+                        selectedFrame === 0
+                          ? "rgba(255,215,0,0.08)"
+                          : "rgba(255,255,255,0.02)",
+                      border:
+                        selectedFrame === 0
+                          ? "1px solid rgba(255,215,0,0.4)"
+                          : "1px solid rgba(255,255,255,0.07)",
+                    }}
+                  >
+                    <div
+                      className="w-16 h-16 rounded-full flex items-center justify-center"
+                      style={{
+                        background: "rgba(255,255,255,0.05)",
+                        border: "2px dashed rgba(255,255,255,0.15)",
+                      }}
+                    >
+                      <X
+                        className="w-6 h-6"
+                        style={{ color: "rgba(255,255,255,0.3)" }}
+                      />
+                    </div>
+                    <span
+                      className="font-display font-black uppercase text-center"
+                      style={{
+                        fontSize: "9px",
+                        letterSpacing: "0.1em",
+                        color:
+                          selectedFrame === 0
+                            ? "#ffd700"
+                            : "rgba(255,255,255,0.4)",
+                      }}
+                    >
+                      No Frame
+                    </span>
+                    <span
+                      className="font-body text-xs"
+                      style={{ color: "rgba(34,204,102,0.7)" }}
+                    >
+                      ✓ FREE
+                    </span>
+                  </button>
+
+                  {SHOP_FRAMES.map((frame, i) => {
+                    const profileExt = profile as
+                      | (typeof profile & {
+                          purchasedFrames?: bigint[];
+                          selectedFrame?: bigint;
+                        })
+                      | null
+                      | undefined;
+                    const isOwned = (profileExt?.purchasedFrames ?? [])
+                      .map(Number)
+                      .includes(frame.index);
+                    const isActive = selectedFrame === frame.index;
+                    const isLoading = selectingFrame === frame.index;
+                    const canAfford = Number(balance) >= frame.price;
+                    return (
+                      <div
+                        key={frame.index}
+                        className="flex flex-col items-center gap-2 p-3 rounded-2xl"
+                        style={{
+                          background: isActive
+                            ? "rgba(204,136,255,0.08)"
+                            : isOwned
+                              ? "rgba(34,204,102,0.04)"
+                              : "rgba(255,255,255,0.02)",
+                          border: isActive
+                            ? "1px solid rgba(204,136,255,0.4)"
+                            : isOwned
+                              ? `1px solid ${frame.glowColor}33`
+                              : "1px solid rgba(255,255,255,0.07)",
+                        }}
+                      >
+                        <div
+                          className="relative"
+                          style={{ width: 64, height: 64 }}
+                        >
+                          <div
+                            className="w-full h-full rounded-full"
+                            style={{ background: "rgba(255,255,255,0.08)" }}
+                          />
+                          <img
+                            src={frame.src}
+                            alt={frame.name}
+                            style={{
+                              position: "absolute",
+                              inset: -8,
+                              width: 80,
+                              height: 80,
+                              objectFit: "contain",
+                              filter: isOwned
+                                ? "none"
+                                : "grayscale(60%) brightness(0.5)",
+                            }}
+                          />
+                          {isActive && (
+                            <div
+                              className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-px rounded-full"
+                              style={{ background: "#ffd700", zIndex: 5 }}
+                            >
+                              <span
+                                className="font-display font-black uppercase"
+                                style={{ fontSize: "7px", color: "#000" }}
+                              >
+                                ON
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <span
+                          className="font-display font-black uppercase text-center"
+                          style={{
+                            fontSize: "9px",
+                            letterSpacing: "0.08em",
+                            color: isActive
+                              ? "#cc88ff"
+                              : isOwned
+                                ? frame.glowColor
+                                : "rgba(255,255,255,0.35)",
+                          }}
+                        >
+                          {frame.name}
+                        </span>
+                        {isOwned ? (
+                          <button
+                            type="button"
+                            data-ocid={`avatar_collection.frame_equip_button.${i + 1}`}
+                            onClick={() =>
+                              !isActive && handleSelectFrame(frame.index)
+                            }
+                            disabled={isActive || isLoading}
+                            className="w-full py-1 rounded-lg font-display font-bold uppercase transition-all hover:opacity-80 disabled:opacity-50 flex items-center justify-center gap-1"
+                            style={{
+                              fontSize: "9px",
+                              background: isActive
+                                ? "rgba(255,215,0,0.1)"
+                                : "rgba(204,136,255,0.8)",
+                              border: isActive
+                                ? "1px solid rgba(255,215,0,0.3)"
+                                : "none",
+                              color: isActive ? "#ffd700" : "#fff",
+                            }}
+                          >
+                            {isLoading ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : null}
+                            {isActive ? "Active" : "Equip"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            data-ocid={`avatar_collection.frame_buy_button.${i + 1}`}
+                            disabled={!canAfford || isLoading}
+                            onClick={async () => {
+                              if (!actor) return;
+                              setSelectingFrame(frame.index);
+                              try {
+                                const actorExt = actor as typeof actor & {
+                                  buyShopFrame?: (idx: bigint) => Promise<void>;
+                                };
+                                await actorExt.buyShopFrame?.(
+                                  BigInt(frame.index),
+                                );
+                                await refetchProfile();
+                                toast.success(`${frame.name} unlocked!`);
+                              } catch (err) {
+                                console.error(err);
+                                toast.error("Purchase failed.");
+                              } finally {
+                                setSelectingFrame(null);
+                              }
+                            }}
+                            className="w-full py-1 rounded-lg font-display font-bold uppercase transition-all hover:opacity-80 disabled:opacity-40 flex items-center justify-center gap-1"
+                            style={{
+                              fontSize: "9px",
+                              background: canAfford
+                                ? `${frame.glowColor}cc`
+                                : "rgba(255,255,255,0.06)",
+                              color: canAfford
+                                ? "#fff"
+                                : "rgba(255,255,255,0.3)",
+                              border: canAfford
+                                ? "none"
+                                : "1px solid rgba(255,255,255,0.1)",
+                            }}
+                          >
+                            {isLoading ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : null}
+                            {canAfford ? (
+                              <>
+                                <LegendCoin size={9} />
+                                {frame.price}
+                              </>
+                            ) : (
+                              "Need Coins"
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <FireAnimation side="left" intensity="low" />
       <FireAnimation side="right" intensity="low" />
       <CoinShower
@@ -4181,35 +5234,37 @@ export function DashboardPage() {
 
           <div className="hidden sm:flex items-center gap-2">
             {/* Profile avatar in header */}
-            {!profileImgError ? (
-              <img
-                src={getProfilePicSrc(selectedProfilePic)}
-                alt="Profile"
-                className="rounded-full object-cover flex-shrink-0"
-                style={{
-                  width: 28,
-                  height: 28,
-                  border: `1.5px solid ${avatarGlowColor}`,
-                  boxShadow: `0 0 8px ${avatarGlowColor}55`,
-                }}
-                onError={() => setProfileImgError(true)}
-              />
-            ) : (
-              <div
-                className="rounded-full flex-shrink-0 flex items-center justify-center font-display font-black"
-                style={{
-                  width: 28,
-                  height: 28,
-                  background: "linear-gradient(135deg, #ff4422, #cc1100)",
-                  border: `1.5px solid ${avatarGlowColor}`,
-                  boxShadow: `0 0 8px ${avatarGlowColor}55`,
-                  color: "#fff",
-                  fontSize: "11px",
-                }}
-              >
-                {(legendId ?? "?")[0].toUpperCase()}
-              </div>
-            )}
+            <div
+              className="relative flex-shrink-0"
+              style={{ width: 28, height: 28 }}
+            >
+              {!profileImgError ? (
+                <img
+                  src={getProfilePicSrc(selectedProfilePic)}
+                  alt="Profile"
+                  className="rounded-full object-cover w-full h-full"
+                  style={{
+                    border: `1.5px solid ${avatarGlowColor}`,
+                    boxShadow: `0 0 8px ${avatarGlowColor}55`,
+                  }}
+                  onError={() => setProfileImgError(true)}
+                />
+              ) : (
+                <div
+                  className="rounded-full w-full h-full flex items-center justify-center font-display font-black"
+                  style={{
+                    background: "linear-gradient(135deg, #ff4422, #cc1100)",
+                    border: `1.5px solid ${avatarGlowColor}`,
+                    boxShadow: `0 0 8px ${avatarGlowColor}55`,
+                    color: "#fff",
+                    fontSize: "11px",
+                  }}
+                >
+                  {(legendId ?? "?")[0].toUpperCase()}
+                </div>
+              )}
+              <FrameOverlay frameIndex={selectedFrame} size={28} />
+            </div>
             <div
               className="w-2 h-2 rounded-full"
               style={{ background: "#22cc66", boxShadow: "0 0 6px #22cc66" }}
