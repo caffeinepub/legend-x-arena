@@ -77,8 +77,10 @@ export const Match = IDL.Record({
 });
 export const UserProfile = IDL.Record({
   'legendId' : IDL.Text,
+  'purchasedShopAvatars' : IDL.Vec(IDL.Nat),
   'createdAt' : IDL.Int,
   'role' : Role,
+  'purchasedFrames' : IDL.Vec(IDL.Nat),
   'jazzCashNumber' : IDL.Text,
   'totalProfit' : IDL.Nat,
   'gameUID' : IDL.Text,
@@ -90,6 +92,7 @@ export const UserProfile = IDL.Record({
   'totalDeposited' : IDL.Nat,
   'walletBalance' : IDL.Nat,
   'matchHistory' : IDL.Vec(Match),
+  'selectedFrame' : IDL.Nat,
 });
 
 export const idlService = IDL.Service({
@@ -229,8 +232,10 @@ export const idlFactory = ({ IDL }) => {
   });
   const UserProfile = IDL.Record({
     'legendId' : IDL.Text,
+    'purchasedShopAvatars' : IDL.Vec(IDL.Nat),
     'createdAt' : IDL.Int,
     'role' : Role,
+    'purchasedFrames' : IDL.Vec(IDL.Nat),
     'jazzCashNumber' : IDL.Text,
     'totalProfit' : IDL.Nat,
     'gameUID' : IDL.Text,
@@ -242,6 +247,7 @@ export const idlFactory = ({ IDL }) => {
     'totalDeposited' : IDL.Nat,
     'walletBalance' : IDL.Nat,
     'matchHistory' : IDL.Vec(Match),
+    'selectedFrame' : IDL.Nat,
   });
   
   return IDL.Service({

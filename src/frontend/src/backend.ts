@@ -138,8 +138,10 @@ export interface Match {
 }
 export interface UserProfile {
     legendId: string;
+    purchasedShopAvatars: Array<bigint>;
     createdAt: bigint;
     role: Role;
+    purchasedFrames: Array<bigint>;
     jazzCashNumber: string;
     totalProfit: bigint;
     gameUID: string;
@@ -151,6 +153,7 @@ export interface UserProfile {
     totalDeposited: bigint;
     walletBalance: bigint;
     matchHistory: Array<Match>;
+    selectedFrame: bigint;
 }
 export enum DepositStatus {
     pending = "pending",
@@ -609,8 +612,10 @@ function from_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint
 }
 function from_candid_record_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     legendId: string;
+    purchasedShopAvatars: Array<bigint>;
     createdAt: bigint;
     role: _Role;
+    purchasedFrames: Array<bigint>;
     jazzCashNumber: string;
     totalProfit: bigint;
     gameUID: string;
@@ -622,10 +627,13 @@ function from_candid_record_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint
     totalDeposited: bigint;
     walletBalance: bigint;
     matchHistory: Array<_Match>;
+    selectedFrame: bigint;
 }): {
     legendId: string;
+    purchasedShopAvatars: Array<bigint>;
     createdAt: bigint;
     role: Role;
+    purchasedFrames: Array<bigint>;
     jazzCashNumber: string;
     totalProfit: bigint;
     gameUID: string;
@@ -637,11 +645,14 @@ function from_candid_record_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint
     totalDeposited: bigint;
     walletBalance: bigint;
     matchHistory: Array<Match>;
+    selectedFrame: bigint;
 } {
     return {
         legendId: value.legendId,
+        purchasedShopAvatars: value.purchasedShopAvatars,
         createdAt: value.createdAt,
         role: from_candid_Role_n8(_uploadFile, _downloadFile, value.role),
+        purchasedFrames: value.purchasedFrames,
         jazzCashNumber: value.jazzCashNumber,
         totalProfit: value.totalProfit,
         gameUID: value.gameUID,
@@ -652,7 +663,8 @@ function from_candid_record_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint
         transactions: from_candid_vec_n10(_uploadFile, _downloadFile, value.transactions),
         totalDeposited: value.totalDeposited,
         walletBalance: value.walletBalance,
-        matchHistory: from_candid_vec_n15(_uploadFile, _downloadFile, value.matchHistory)
+        matchHistory: from_candid_vec_n15(_uploadFile, _downloadFile, value.matchHistory),
+        selectedFrame: value.selectedFrame
     };
 }
 function from_candid_variant_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {

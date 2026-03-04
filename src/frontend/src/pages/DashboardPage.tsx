@@ -348,19 +348,24 @@ function getFrameSrc(frameIndex: number): string | null {
 function FrameOverlay({
   frameIndex,
   size = 80,
-}: { frameIndex: number; size?: number }) {
+  isActive = false,
+}: { frameIndex: number; size?: number; isActive?: boolean }) {
   const src = getFrameSrc(frameIndex);
   if (!src) return null;
+  // Frame extends well beyond the profile circle to show decorative border
+  // inset is negative = frame goes outside the container; extra = total extra size beyond circle
+  const extra = Math.round(size * 0.28); // ~28% extra on each side looks right for decorative frames
   return (
     <img
       src={src}
       alt="frame"
       aria-hidden="true"
+      className={isActive ? "animate-frame-shimmer" : ""}
       style={{
         position: "absolute",
-        inset: -4,
-        width: size + 8,
-        height: size + 8,
+        inset: -extra,
+        width: size + extra * 2,
+        height: size + extra * 2,
         pointerEvents: "none",
         zIndex: 3,
         objectFit: "contain",
@@ -2504,7 +2509,19 @@ export function DashboardPage() {
       return actor.getUserByLegendId(legendId);
     },
     enabled: !!actor && !isFetching && !!legendId,
+    staleTime: 0, // always refetch on mount
+    gcTime: 5 * 60 * 1000, // keep in cache 5 min
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
+
+  // Force refetch whenever actor becomes ready so data isn't stale on app open
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional -- refetch when actor is ready
+  useEffect(() => {
+    if (actor && !isFetching && legendId) {
+      refetchProfile();
+    }
+  }, [actor, isFetching]);
 
   const { data: leaderboardRaw = [], isLoading: isLeaderboardLoading } =
     useQuery<LeaderboardEntry[]>({
@@ -2596,14 +2613,7 @@ export function DashboardPage() {
     "logo",
   );
 
-  const selectedFrame = Number(
-    (
-      profile as
-        | (typeof profile & { selectedFrame?: bigint })
-        | null
-        | undefined
-    )?.selectedFrame ?? BigInt(0),
-  );
+  const selectedFrame = Number(profile?.selectedFrame ?? BigInt(0));
 
   // Reset error state whenever user selects a different avatar
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset when pic changes
@@ -2615,13 +2625,10 @@ export function DashboardPage() {
     if (!actor) return;
     setSelectingFrame(frameIndex);
     try {
-      const actorExt = actor as typeof actor & {
-        setProfileFrame?: (idx: bigint) => Promise<void>;
-      };
-      await actorExt.setProfileFrame?.(BigInt(frameIndex));
+      await (actor as any).setProfileFrame(BigInt(frameIndex));
       await refetchProfile();
       queryClient.invalidateQueries({ queryKey: ["userProfile", legendId] });
-      toast.success("Frame updated!");
+      toast.success(frameIndex === 0 ? "Frame removed!" : "Frame equipped!");
     } catch (err) {
       console.error(err);
       toast.error("Failed to update frame.");
@@ -2679,11 +2686,7 @@ export function DashboardPage() {
         {/* Avatar Grid */}
         <div className="grid grid-cols-2 gap-3">
           {SHOP_AVATARS.map((avatar, i) => {
-            const profileExt = profile as
-              | (typeof profile & { purchasedShopAvatars?: bigint[] })
-              | null
-              | undefined;
-            const isOwned = (profileExt?.purchasedShopAvatars ?? [])
+            const isOwned = (profile?.purchasedShopAvatars ?? [])
               .map(Number)
               .includes(avatar.index);
             const canAfford = Number(balance) >= avatar.price;
@@ -2811,22 +2814,29 @@ export function DashboardPage() {
                     <button
                       type="button"
                       data-ocid={`shop.avatar_buy_button.${i + 1}`}
-                      disabled={!canAfford}
+                      disabled={!canAfford || selectingPic === avatar.index}
                       onClick={async () => {
                         if (!actor) return;
+                        setSelectingPic(avatar.index);
                         try {
-                          const actorExt = actor as typeof actor & {
-                            buyShopAvatar?: (idx: bigint) => Promise<void>;
-                          };
-                          await actorExt.buyShopAvatar?.(BigInt(avatar.index));
+                          await (actor as any).buyShopAvatar(
+                            BigInt(avatar.index),
+                          );
                           await refetchProfile();
-                          toast.success(`${avatar.name} unlocked!`);
+                          queryClient.invalidateQueries({
+                            queryKey: ["userProfile", legendId],
+                          });
+                          toast.success(
+                            `${avatar.name} unlocked and equipped!`,
+                          );
                         } catch (err) {
                           console.error(err);
                           toast.error("Purchase failed. Please try again.");
+                        } finally {
+                          setSelectingPic(null);
                         }
                       }}
-                      className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1"
                       style={{
                         background: canAfford
                           ? `linear-gradient(135deg, ${avatar.glowColor}cc, ${avatar.glowColor}88)`
@@ -2837,6 +2847,9 @@ export function DashboardPage() {
                         color: canAfford ? "#fff" : "rgba(255,255,255,0.35)",
                       }}
                     >
+                      {selectingPic === avatar.index ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : null}
                       {canAfford ? "BUY" : "Insufficient Coins"}
                     </button>
                   )}
@@ -2857,14 +2870,7 @@ export function DashboardPage() {
           </p>
           <div className="grid grid-cols-2 gap-3">
             {SHOP_FRAMES.map((frame, i) => {
-              const profileExt = profile as
-                | (typeof profile & {
-                    purchasedFrames?: bigint[];
-                    selectedFrame?: bigint;
-                  })
-                | null
-                | undefined;
-              const isOwned = (profileExt?.purchasedFrames ?? [])
+              const isOwned = (profile?.purchasedFrames ?? [])
                 .map(Number)
                 .includes(frame.index);
               const isActive = selectedFrame === frame.index;
@@ -2886,36 +2892,49 @@ export function DashboardPage() {
                     boxShadow: isOwned
                       ? `0 4px 24px ${frame.glowColor}22`
                       : "0 4px 24px rgba(0,0,0,0.3)",
+                    // CSS variable for glow animation
+                    ["--frame-glow-shadow" as string]: isOwned
+                      ? `0 0 20px ${frame.glowColor}99, 0 0 40px ${frame.glowColor}44`
+                      : undefined,
+                    animation: isOwned
+                      ? "frameGlow 3s ease-in-out infinite"
+                      : "none",
                   }}
                 >
-                  {/* Frame preview */}
+                  {/* Frame preview -- show DEFAULT_PROFILE_PIC inside frame */}
                   <div
                     className="relative flex items-center justify-center"
                     style={{
-                      height: 120,
+                      height: 130,
                       background: "rgba(255,255,255,0.03)",
                     }}
                   >
                     <div className="relative" style={{ width: 80, height: 80 }}>
-                      <div
-                        className="w-full h-full rounded-full"
+                      {/* Profile image inside frame */}
+                      <img
+                        src={DEFAULT_PROFILE_PIC}
+                        alt="preview"
+                        className="w-full h-full rounded-full object-cover"
                         style={{
-                          background: "rgba(255,255,255,0.1)",
                           border: "2px solid rgba(255,255,255,0.15)",
+                          filter: isOwned ? "none" : "brightness(0.65)",
                         }}
                       />
+                      {/* Frame overlay around the profile pic */}
                       <img
                         src={frame.src}
                         alt={frame.name}
+                        className={isOwned ? "animate-frame-shimmer" : ""}
                         style={{
                           position: "absolute",
-                          inset: -8,
-                          width: 96,
-                          height: 96,
+                          inset: -22,
+                          width: 80 + 44,
+                          height: 80 + 44,
                           objectFit: "contain",
                           filter: isOwned
                             ? "none"
                             : "grayscale(60%) brightness(0.6)",
+                          pointerEvents: "none",
                         }}
                       />
                     </div>
@@ -3002,12 +3021,16 @@ export function DashboardPage() {
                           if (!actor) return;
                           setSelectingFrame(frame.index);
                           try {
-                            const actorExt = actor as typeof actor & {
-                              buyShopFrame?: (idx: bigint) => Promise<void>;
-                            };
-                            await actorExt.buyShopFrame?.(BigInt(frame.index));
+                            await (actor as any).buyShopFrame(
+                              BigInt(frame.index),
+                            );
                             await refetchProfile();
-                            toast.success(`${frame.name} unlocked!`);
+                            queryClient.invalidateQueries({
+                              queryKey: ["userProfile", legendId],
+                            });
+                            toast.success(
+                              `${frame.name} frame unlocked and equipped!`,
+                            );
                           } catch (err) {
                             console.error(err);
                             toast.error("Purchase failed. Please try again.");
@@ -3015,7 +3038,7 @@ export function DashboardPage() {
                             setSelectingFrame(null);
                           }
                         }}
-                        className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1"
                         style={{
                           background: canAfford
                             ? `linear-gradient(135deg, ${frame.glowColor}cc, ${frame.glowColor}88)`
@@ -3027,7 +3050,7 @@ export function DashboardPage() {
                         }}
                       >
                         {isLoading ? (
-                          <Loader2 className="w-3 h-3 animate-spin inline mr-1" />
+                          <Loader2 className="w-3 h-3 animate-spin" />
                         ) : null}
                         {canAfford ? "BUY" : "Insufficient Coins"}
                       </button>
@@ -3810,7 +3833,11 @@ export function DashboardPage() {
               </div>
             )}
             {/* Frame overlay on profile avatar */}
-            <FrameOverlay frameIndex={selectedFrame} size={72} />
+            <FrameOverlay
+              frameIndex={selectedFrame}
+              size={72}
+              isActive={selectedFrame > 0}
+            />
             {/* Pen edit icon */}
             <button
               type="button"
@@ -4817,27 +4844,15 @@ export function DashboardPage() {
 
                   {/* Shop Avatars */}
                   {SHOP_AVATARS.map((avatar, i) => {
-                    const profileExt = profile as
-                      | (typeof profile & { purchasedShopAvatars?: bigint[] })
-                      | null
-                      | undefined;
-                    const isOwned = (profileExt?.purchasedShopAvatars ?? [])
+                    const isOwned = (profile?.purchasedShopAvatars ?? [])
                       .map(Number)
                       .includes(avatar.index);
                     const isSelected = selectedProfilePic === avatar.index;
                     const isLoading = selectingPic === avatar.index;
-                    const canAfford = Number(balance) >= avatar.price;
                     return (
-                      <button
+                      <div
                         key={avatar.index}
-                        type="button"
                         data-ocid={`avatar_collection.logo_item.${i + 8}`}
-                        disabled={!isOwned || isLoading}
-                        onClick={() =>
-                          isOwned &&
-                          !isSelected &&
-                          handleSelectAvatar(avatar.index)
-                        }
                         className="flex flex-col items-center gap-2 p-3 rounded-2xl transition-all duration-200"
                         style={{
                           background: isSelected
@@ -4850,66 +4865,70 @@ export function DashboardPage() {
                             : isOwned
                               ? `1px solid ${avatar.glowColor}33`
                               : "1px solid rgba(255,255,255,0.07)",
-                          cursor:
-                            isOwned && !isSelected
-                              ? "pointer"
-                              : isSelected
-                                ? "default"
-                                : "not-allowed",
-                          opacity: isOwned ? 1 : 0.7,
                         }}
                       >
-                        <div
-                          className="relative"
-                          style={{ width: 64, height: 64 }}
+                        <button
+                          type="button"
+                          disabled={!isOwned || isLoading}
+                          onClick={() =>
+                            isOwned &&
+                            !isSelected &&
+                            handleSelectAvatar(avatar.index)
+                          }
+                          style={{
+                            background: "none",
+                            border: "none",
+                            padding: 0,
+                            cursor:
+                              isOwned && !isSelected
+                                ? "pointer"
+                                : isSelected
+                                  ? "default"
+                                  : "default",
+                            opacity: isOwned ? 1 : 0.7,
+                          }}
                         >
                           <div
-                            style={{
-                              position: "absolute",
-                              inset: isSelected ? -3 : -2,
-                              borderRadius: "50%",
-                              border: isSelected
-                                ? "2px solid #ffd700"
-                                : `2px solid ${avatar.glowColor}55`,
-                              boxShadow: isSelected
-                                ? "0 0 12px #ffd70066"
-                                : "none",
-                              zIndex: 2,
-                            }}
-                          />
-                          <img
-                            src={avatar.src}
-                            alt={avatar.name}
-                            className="w-full h-full rounded-full object-cover"
-                            style={{
-                              filter: isOwned
-                                ? "none"
-                                : "grayscale(60%) brightness(0.5)",
-                            }}
-                          />
-                          {!isOwned && (
+                            className="relative"
+                            style={{ width: 64, height: 64 }}
+                          >
                             <div
-                              className="absolute inset-0 rounded-full flex items-center justify-center"
-                              style={{ background: "rgba(0,0,0,0.55)" }}
-                            >
-                              <Lock
-                                className="w-4 h-4"
-                                style={{ color: "rgba(255,255,255,0.5)" }}
-                              />
-                            </div>
-                          )}
-                          {isLoading && (
-                            <div
-                              className="absolute inset-0 rounded-full flex items-center justify-center"
-                              style={{ background: "rgba(0,0,0,0.6)" }}
-                            >
-                              <Loader2
-                                className="w-4 h-4 animate-spin"
-                                style={{ color: "#ffd700" }}
-                              />
-                            </div>
-                          )}
-                        </div>
+                              style={{
+                                position: "absolute",
+                                inset: isSelected ? -3 : -2,
+                                borderRadius: "50%",
+                                border: isSelected
+                                  ? "2px solid #ffd700"
+                                  : `2px solid ${avatar.glowColor}55`,
+                                boxShadow: isSelected
+                                  ? "0 0 12px #ffd70066"
+                                  : "none",
+                                zIndex: 2,
+                              }}
+                            />
+                            <img
+                              src={avatar.src}
+                              alt={avatar.name}
+                              className="w-full h-full rounded-full object-cover"
+                              style={{
+                                filter: isOwned
+                                  ? "none"
+                                  : "grayscale(60%) brightness(0.5)",
+                              }}
+                            />
+                            {isLoading && (
+                              <div
+                                className="absolute inset-0 rounded-full flex items-center justify-center"
+                                style={{ background: "rgba(0,0,0,0.6)" }}
+                              >
+                                <Loader2
+                                  className="w-4 h-4 animate-spin"
+                                  style={{ color: "#ffd700" }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </button>
                         <span
                           className="font-display font-black uppercase text-center"
                           style={{
@@ -4932,19 +4951,30 @@ export function DashboardPage() {
                             ✓ Owned
                           </span>
                         ) : (
-                          <span
-                            className="font-body text-xs flex items-center gap-0.5"
+                          /* Not owned -- route to store */
+                          <button
+                            type="button"
+                            data-ocid={`avatar_collection.goto_store_button.${i + 1}`}
+                            onClick={() => {
+                              setShowAvatarModal(false);
+                              setActiveTab("shop");
+                            }}
+                            className="font-display font-black uppercase transition-all hover:opacity-80"
                             style={{
-                              color: canAfford
-                                ? "rgba(255,215,0,0.8)"
-                                : "rgba(255,255,255,0.35)",
+                              fontSize: "8px",
+                              letterSpacing: "0.08em",
+                              background: "rgba(255,215,0,0.12)",
+                              border: "1px solid rgba(255,215,0,0.3)",
+                              color: "#ffd700",
+                              borderRadius: "6px",
+                              padding: "2px 6px",
+                              cursor: "pointer",
                             }}
                           >
-                            <LegendCoin size={9} />
-                            {avatar.price}
-                          </span>
+                            Go to Store
+                          </button>
                         )}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -5009,22 +5039,15 @@ export function DashboardPage() {
                   </button>
 
                   {SHOP_FRAMES.map((frame, i) => {
-                    const profileExt = profile as
-                      | (typeof profile & {
-                          purchasedFrames?: bigint[];
-                          selectedFrame?: bigint;
-                        })
-                      | null
-                      | undefined;
-                    const isOwned = (profileExt?.purchasedFrames ?? [])
+                    const isOwned = (profile?.purchasedFrames ?? [])
                       .map(Number)
                       .includes(frame.index);
                     const isActive = selectedFrame === frame.index;
                     const isLoading = selectingFrame === frame.index;
-                    const canAfford = Number(balance) >= frame.price;
                     return (
                       <div
                         key={frame.index}
+                        data-ocid={`avatar_collection.frame_item.${i + 1}`}
                         className="flex flex-col items-center gap-2 p-3 rounded-2xl"
                         style={{
                           background: isActive
@@ -5039,26 +5062,35 @@ export function DashboardPage() {
                               : "1px solid rgba(255,255,255,0.07)",
                         }}
                       >
+                        {/* Frame preview with profile pic inside */}
                         <div
-                          className="relative"
+                          className="relative flex items-center justify-center"
                           style={{ width: 64, height: 64 }}
                         >
-                          <div
-                            className="w-full h-full rounded-full"
-                            style={{ background: "rgba(255,255,255,0.08)" }}
+                          <img
+                            src={DEFAULT_PROFILE_PIC}
+                            alt="preview"
+                            className="w-full h-full rounded-full object-cover"
+                            style={{
+                              filter: isOwned
+                                ? "none"
+                                : "brightness(0.5) grayscale(40%)",
+                            }}
                           />
                           <img
                             src={frame.src}
                             alt={frame.name}
+                            className={isActive ? "animate-frame-shimmer" : ""}
                             style={{
                               position: "absolute",
-                              inset: -8,
-                              width: 80,
-                              height: 80,
+                              inset: -18,
+                              width: 64 + 36,
+                              height: 64 + 36,
                               objectFit: "contain",
                               filter: isOwned
                                 ? "none"
                                 : "grayscale(60%) brightness(0.5)",
+                              pointerEvents: "none",
                             }}
                           />
                           {isActive && (
@@ -5115,54 +5147,27 @@ export function DashboardPage() {
                             {isActive ? "Active" : "Equip"}
                           </button>
                         ) : (
+                          /* Not owned -- route to store */
                           <button
                             type="button"
-                            data-ocid={`avatar_collection.frame_buy_button.${i + 1}`}
-                            disabled={!canAfford || isLoading}
-                            onClick={async () => {
-                              if (!actor) return;
-                              setSelectingFrame(frame.index);
-                              try {
-                                const actorExt = actor as typeof actor & {
-                                  buyShopFrame?: (idx: bigint) => Promise<void>;
-                                };
-                                await actorExt.buyShopFrame?.(
-                                  BigInt(frame.index),
-                                );
-                                await refetchProfile();
-                                toast.success(`${frame.name} unlocked!`);
-                              } catch (err) {
-                                console.error(err);
-                                toast.error("Purchase failed.");
-                              } finally {
-                                setSelectingFrame(null);
-                              }
+                            data-ocid={`avatar_collection.frame_goto_store_button.${i + 1}`}
+                            onClick={() => {
+                              setShowAvatarModal(false);
+                              setActiveTab("shop");
                             }}
-                            className="w-full py-1 rounded-lg font-display font-bold uppercase transition-all hover:opacity-80 disabled:opacity-40 flex items-center justify-center gap-1"
+                            className="font-display font-black uppercase transition-all hover:opacity-80"
                             style={{
-                              fontSize: "9px",
-                              background: canAfford
-                                ? `${frame.glowColor}cc`
-                                : "rgba(255,255,255,0.06)",
-                              color: canAfford
-                                ? "#fff"
-                                : "rgba(255,255,255,0.3)",
-                              border: canAfford
-                                ? "none"
-                                : "1px solid rgba(255,255,255,0.1)",
+                              fontSize: "8px",
+                              letterSpacing: "0.08em",
+                              background: "rgba(204,136,255,0.12)",
+                              border: "1px solid rgba(204,136,255,0.3)",
+                              color: "#cc88ff",
+                              borderRadius: "6px",
+                              padding: "2px 6px",
+                              cursor: "pointer",
                             }}
                           >
-                            {isLoading ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : null}
-                            {canAfford ? (
-                              <>
-                                <LegendCoin size={9} />
-                                {frame.price}
-                              </>
-                            ) : (
-                              "Need Coins"
-                            )}
+                            Go to Store
                           </button>
                         )}
                       </div>
@@ -5263,7 +5268,11 @@ export function DashboardPage() {
                   {(legendId ?? "?")[0].toUpperCase()}
                 </div>
               )}
-              <FrameOverlay frameIndex={selectedFrame} size={28} />
+              <FrameOverlay
+                frameIndex={selectedFrame}
+                size={28}
+                isActive={selectedFrame > 0}
+              />
             </div>
             <div
               className="w-2 h-2 rounded-full"

@@ -56,8 +56,10 @@ export interface Match {
 }
 export interface UserProfile {
     legendId: string;
+    purchasedShopAvatars: Array<bigint>;
     createdAt: bigint;
     role: Role;
+    purchasedFrames: Array<bigint>;
     jazzCashNumber: string;
     totalProfit: bigint;
     gameUID: string;
@@ -69,6 +71,7 @@ export interface UserProfile {
     totalDeposited: bigint;
     walletBalance: bigint;
     matchHistory: Array<Match>;
+    selectedFrame: bigint;
 }
 export enum DepositStatus {
     pending = "pending",

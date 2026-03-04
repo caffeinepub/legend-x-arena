@@ -1,42 +1,40 @@
 # Legend X Arena
 
 ## Current State
-- 5-tab dashboard: Shop, Ranking, Play, Deposit, Profile
-- Shop has 10 purchasable avatar logos
-- Profile has avatar gallery (logo selection) accessible via scrolling
-- Pencil icon on profile picture scrolls to avatar gallery in Profile tab
-- PWA install button in landing page using beforeinstallprompt
-- Backend stores selectedProfilePic (bigint index) per user
+Full-stack Free Fire esports tournament app with:
+- ICP Motoko backend with user profiles, tournaments, leaderboard, deposit management
+- UserProfile has: legendId, passwordHash, role, walletBalance, isBanned, createdAt, matchHistory, transactions, totalDeposited, selectedProfilePic, jazzCashNumber, gameName, gameUID, totalProfit
+- Shop avatars (indices 10-19) and shop frames (indices 20-34) exist in frontend but NO backend purchase logic
+- setProfilePicture exists (deposit-gated only, indices 0-6)
+- No buyShopAvatar, buyShopFrame, setProfileFrame backend functions
+- No purchasedShopAvatars, purchasedFrames, selectedFrame fields in UserProfile
+- Data loading issue: app data sometimes stale on first open, requires 5-8 refreshes
 
 ## Requested Changes (Diff)
 
 ### Add
-- 15 special profile frames to the Shop (purchasable with Legend Coins)
-- Frame data: index 20-34, each with name, price, image, glowColor
-- Frames are overlaid on top of profile pictures (ring/border effect)
-- Backend: `selectedFrame` field per user, `purchasedFrames` array, `buyShopFrame()`, `setProfileFrame()` functions
-- Pencil button popup: modal with 2 tabs — "Logo" (all avatar logos) and "Frames" (all frames owned/available)
-- Shop tab: new "Frames" section below Avatars section with all 15 frames
-- PWA: proper manifest.json in public folder with correct icons and display mode, service worker for install prompt
+- UserProfile fields: `purchasedShopAvatars: [Nat]`, `purchasedFrames: [Nat]`, `selectedFrame: Nat`
+- `buyShopAvatar(index: Nat)` -- deducts coins (price defined per index), adds to purchasedShopAvatars, sets as active selectedProfilePic
+- `buyShopFrame(index: Nat)` -- deducts coins (price defined per index), adds to purchasedFrames, sets as active selectedFrame
+- `setProfileFrame(frameIndex: Nat)` -- sets selectedFrame, must own the frame (index 0 = remove frame)
+- Avatar shop prices: 10=200, 11=350, 12=500, 13=150, 14=275, 15=450, 16=325, 17=600, 18=400, 19=250
+- Frame shop prices: 20=100, 21=150, 22=200, 23=200, 24=250, 25=300, 26=300, 27=350, 28=400, 29=450, 30=500, 31=600, 32=700, 33=800, 34=1000
+- setProfilePicture must also allow shop avatar indices (10-19) if owned
 
 ### Modify
-- Pencil icon on profile: clicking opens a popup modal (not scroll to section)
-- Profile avatar display: show selected frame overlaid on profile pic (absolutely positioned ring image over the avatar circle)
-- Leaderboard player avatars: also show their selected frame
-- Header avatar: show frame overlay
+- setProfilePicture: allow indices 0-19 (not just 0-6); for indices 10-19 check purchasedShopAvatars instead of totalDeposited
+- register: initialize purchasedShopAvatars=[], purchasedFrames=[], selectedFrame=0
+- getUserByLegendId: include new fields in returned profile
 
 ### Remove
-- Pencil click behavior that scrolled to avatar-gallery-section (replace with modal)
+- Nothing removed
 
 ## Implementation Plan
-1. Create `public/manifest.json` with proper PWA config
-2. Update `index.html` to link manifest.json
-3. Add FRAMES_COLLECTION array to DashboardPage (15 frames with imported images)
-4. Add frame overlay rendering helper component `FrameOverlay`
-5. All avatar circles across the app: wrap in relative container and overlay frame image
-6. Replace pencil button handler with `setShowAvatarModal(true)` state
-7. Create `AvatarCollectionModal` component with 2 tabs: Logo + Frames
-8. In Logo tab: show FREE joker + AVATAR_TIERS + SHOP_AVATARS (owned ones selectable)
-9. In Frames tab: show all 15 FRAMES, owned ones selectable, unowned show price + buy button
-10. Shop tab: add Frames Grid section after avatars
-11. Wire `buyShopFrame` / `setProfileFrame` calls (backend extended type cast like buyShopAvatar)
+1. Add purchasedShopAvatars, purchasedFrames, selectedFrame to UserProfile type
+2. Update register to initialize new fields
+3. Add shopAvatarPrice and shopFramePrice helper functions
+4. Implement buyShopAvatar: check balance >= price, deduct coins, add to purchasedShopAvatars, set selectedProfilePic
+5. Implement buyShopFrame: check balance >= price, deduct coins, add to purchasedFrames, set selectedFrame
+6. Implement setProfileFrame: check ownership (or 0 to remove), set selectedFrame
+7. Update setProfilePicture to allow indices 0-19, use correct ownership check
+8. All existing functions preserved as-is

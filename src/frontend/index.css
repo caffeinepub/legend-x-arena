@@ -510,6 +510,48 @@
   }
 }
 
+/* ─── Frame Animations ───────────────────────────────────── */
+
+/* Shop frame card glow pulse -- uses CSS variable for color */
+@keyframes frameGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: var(--frame-glow-shadow, 0 0 20px rgba(204,136,255,0.6), 0 0 40px rgba(204,136,255,0.3));
+  }
+}
+
+/* Active frame on profile -- subtle shimmer oscillation */
+@keyframes frameShimmer {
+  0%, 100% {
+    opacity: 0.88;
+    transform: scale(0.997);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.003);
+  }
+}
+
+/* Frame card preview entrance */
+@keyframes frameCardPulse {
+  0%, 100% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-frame-shimmer {
+  animation: frameShimmer 2.8s ease-in-out infinite;
+}
+
+.animate-frame-card-pulse {
+  animation: frameCardPulse 3s ease-in-out infinite;
+}
+
 /* Reduce motion */
 @media (prefers-reduced-motion: reduce) {
   .animate-fire-rise,
@@ -533,7 +575,9 @@
   .animate-play-pulse,
   .animate-legend-flame,
   .animate-arena-electric,
-  .animate-x-beat {
+  .animate-x-beat,
+  .animate-frame-shimmer,
+  .animate-frame-card-pulse {
     animation: none !important;
   }
   * {

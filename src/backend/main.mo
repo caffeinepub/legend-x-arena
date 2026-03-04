@@ -7,9 +7,9 @@ import Time "mo:core/Time";
 import Order "mo:core/Order";
 import Runtime "mo:core/Runtime";
 import Principal "mo:core/Principal";
+import Migration "migration";
 
-
-
+(with migration = Migration.run)
 actor {
   type Role = { #admin; #user };
   type GameMode = { #loneWolf; #csMod; #brMod };
@@ -31,6 +31,9 @@ actor {
     gameName : Text;
     gameUID : Text;
     totalProfit : Nat;
+    purchasedShopAvatars : [Nat];
+    purchasedFrames : [Nat];
+    selectedFrame : Nat;
   };
 
   type Match = {
@@ -95,26 +98,28 @@ actor {
     };
   };
 
-  func isAdmin(caller : Principal) : Bool {
-    switch (users.get(caller)) {
-      case (null) { false };
-      case (?userProfile) {
-        switch (userProfile.role) {
-          case (#admin) { true };
-          case (#user) { false };
+  // Helper function to check if the caller is unauthorized. If so trap.
+  func assertAdmin(caller : Principal) {
+    func isAdmin(caller : Principal) : Bool {
+      switch (users.get(caller)) {
+        case (null) { false };
+        case (?userProfile) {
+          switch (userProfile.role) {
+            case (#admin) { true };
+            case (#user) { false };
+          };
         };
       };
     };
-  };
-
-  func assertAdmin(caller : Principal) {
     if (not isAdmin(caller)) { Runtime.trap("Admin privileges required") };
   };
 
+  // Helper function to get user by legendId.
   func getUserByLegendIdInternal(legendId : Text) : ?(Principal, UserProfile) {
     users.entries().find(func((_, profile)) { profile.legendId == legendId });
   };
 
+  // Helper function to get user by Principal, or trap if not found.
   func getUserByPrincipalOrTrap(principal : Principal) : UserProfile {
     switch (users.get(principal)) {
       case (null) { Runtime.trap("User not found") };
@@ -122,6 +127,7 @@ actor {
     };
   };
 
+  // Helper function to update a user by applying a given function.
   func updateUser(
     principal : Principal,
     updateFunc : UserProfile -> UserProfile,
@@ -171,6 +177,9 @@ actor {
       gameName = ignName;
       gameUID = uid;
       totalProfit = 0;
+      purchasedShopAvatars = [];
+      purchasedFrames = [];
+      selectedFrame = 0;
     };
 
     users.add(caller, newUser);
@@ -319,8 +328,7 @@ actor {
     users.add(caller, updatedProfile);
   };
 
-  // Tournament Management
-
+  // Admin can initiate tournament creation process and get temporary ID
   public shared ({ caller }) func createTournament(
     title : Text,
     category : Text,
@@ -675,3 +683,4 @@ actor {
     };
   };
 };
+

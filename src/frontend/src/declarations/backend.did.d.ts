@@ -72,8 +72,10 @@ export type TransactionType = { 'withdraw' : null } |
   { 'deposit' : null };
 export interface UserProfile {
   'legendId' : string,
+  'purchasedShopAvatars' : Array<bigint>,
   'createdAt' : bigint,
   'role' : Role,
+  'purchasedFrames' : Array<bigint>,
   'jazzCashNumber' : string,
   'totalProfit' : bigint,
   'gameUID' : string,
@@ -85,6 +87,7 @@ export interface UserProfile {
   'totalDeposited' : bigint,
   'walletBalance' : bigint,
   'matchHistory' : Array<Match>,
+  'selectedFrame' : bigint,
 }
 export interface _SERVICE {
   'addCoins' : ActorMethod<[string, bigint], undefined>,
