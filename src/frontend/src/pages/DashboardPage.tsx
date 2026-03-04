@@ -2179,25 +2179,67 @@ export function DashboardPage() {
                         : "none",
                     }}
                   >
-                    {/* Rank badge */}
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 font-display font-black text-sm"
-                      style={{
-                        background:
-                          rank <= 3
-                            ? `radial-gradient(circle at 35% 35%, ${medalColor}88, ${medalColor}44)`
-                            : "rgba(255,255,255,0.06)",
-                        border: `1.5px solid ${medalColor}`,
-                        color: rank <= 3 ? medalColor : "rgba(255,255,255,0.5)",
-                      }}
-                    >
-                      {rank <= 3 ? (
-                        <Medal
-                          className="w-3.5 h-3.5"
-                          style={{ color: medalColor }}
+                    {/* Avatar with rank badge overlay */}
+                    <div className="relative flex-shrink-0">
+                      <div
+                        className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center"
+                        style={{
+                          border:
+                            rank <= 3
+                              ? `2px solid ${medalColor}`
+                              : "2px solid rgba(255,255,255,0.1)",
+                          background: "rgba(255,255,255,0.06)",
+                        }}
+                      >
+                        <img
+                          src={getProfilePicSrc(0)}
+                          alt={player.legendId}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const el = e.currentTarget;
+                            el.style.display = "none";
+                            const parent = el.parentElement;
+                            if (
+                              parent &&
+                              !parent.querySelector(".fallback-letter")
+                            ) {
+                              const fb = document.createElement("span");
+                              fb.className =
+                                "fallback-letter font-display font-black text-sm";
+                              fb.style.color = "#ff4422";
+                              fb.textContent =
+                                player.legendId[0]?.toUpperCase() ?? "?";
+                              parent.appendChild(fb);
+                            }
+                          }}
                         />
+                      </div>
+                      {rank <= 3 ? (
+                        <div
+                          className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                          style={{
+                            background: `radial-gradient(circle at 35% 35%, ${medalColor}cc, ${medalColor}88)`,
+                            border: "1.5px solid rgba(0,0,0,0.5)",
+                            boxShadow: `0 0 6px ${medalColor}66`,
+                          }}
+                        >
+                          <Medal
+                            className="w-3 h-3"
+                            style={{ color: "#000", opacity: 0.85 }}
+                          />
+                        </div>
                       ) : (
-                        rank
+                        <div
+                          className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center font-display font-black"
+                          style={{
+                            background: "rgba(20,20,35,0.95)",
+                            border: "1px solid rgba(255,255,255,0.15)",
+                            color: "rgba(255,255,255,0.5)",
+                            fontSize: "9px",
+                          }}
+                        >
+                          {rank}
+                        </div>
                       )}
                     </div>
 
@@ -2287,25 +2329,67 @@ export function DashboardPage() {
                         : "none",
                     }}
                   >
-                    {/* Rank badge */}
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 font-display font-black text-sm"
-                      style={{
-                        background:
-                          rank <= 3
-                            ? `radial-gradient(circle at 35% 35%, ${medalColor}88, ${medalColor}44)`
-                            : "rgba(255,255,255,0.06)",
-                        border: `1.5px solid ${medalColor}`,
-                        color: rank <= 3 ? medalColor : "rgba(255,255,255,0.5)",
-                      }}
-                    >
-                      {rank <= 3 ? (
-                        <Medal
-                          className="w-3.5 h-3.5"
-                          style={{ color: medalColor }}
+                    {/* Avatar with rank badge overlay */}
+                    <div className="relative flex-shrink-0">
+                      <div
+                        className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center"
+                        style={{
+                          border:
+                            rank <= 3
+                              ? `2px solid ${medalColor}`
+                              : "2px solid rgba(255,255,255,0.1)",
+                          background: "rgba(255,255,255,0.06)",
+                        }}
+                      >
+                        <img
+                          src={getProfilePicSrc(0)}
+                          alt={player.legendId}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const el = e.currentTarget;
+                            el.style.display = "none";
+                            const parent = el.parentElement;
+                            if (
+                              parent &&
+                              !parent.querySelector(".fallback-letter")
+                            ) {
+                              const fb = document.createElement("span");
+                              fb.className =
+                                "fallback-letter font-display font-black text-sm";
+                              fb.style.color = "#ff4422";
+                              fb.textContent =
+                                player.legendId[0]?.toUpperCase() ?? "?";
+                              parent.appendChild(fb);
+                            }
+                          }}
                         />
+                      </div>
+                      {rank <= 3 ? (
+                        <div
+                          className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                          style={{
+                            background: `radial-gradient(circle at 35% 35%, ${medalColor}cc, ${medalColor}88)`,
+                            border: "1.5px solid rgba(0,0,0,0.5)",
+                            boxShadow: `0 0 6px ${medalColor}66`,
+                          }}
+                        >
+                          <Medal
+                            className="w-3 h-3"
+                            style={{ color: "#000", opacity: 0.85 }}
+                          />
+                        </div>
                       ) : (
-                        rank
+                        <div
+                          className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center font-display font-black"
+                          style={{
+                            background: "rgba(20,20,35,0.95)",
+                            border: "1px solid rgba(255,255,255,0.15)",
+                            color: "rgba(255,255,255,0.5)",
+                            fontSize: "9px",
+                          }}
+                        >
+                          {rank}
+                        </div>
                       )}
                     </div>
 
@@ -2394,25 +2478,67 @@ export function DashboardPage() {
                         : "none",
                     }}
                   >
-                    {/* Rank badge */}
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 font-display font-black text-sm"
-                      style={{
-                        background:
-                          rank <= 3
-                            ? `radial-gradient(circle at 35% 35%, ${medalColor}88, ${medalColor}44)`
-                            : "rgba(255,255,255,0.06)",
-                        border: `1.5px solid ${medalColor}`,
-                        color: rank <= 3 ? medalColor : "rgba(255,255,255,0.5)",
-                      }}
-                    >
-                      {rank <= 3 ? (
-                        <Medal
-                          className="w-3.5 h-3.5"
-                          style={{ color: medalColor }}
+                    {/* Avatar with rank badge overlay */}
+                    <div className="relative flex-shrink-0">
+                      <div
+                        className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center"
+                        style={{
+                          border:
+                            rank <= 3
+                              ? `2px solid ${medalColor}`
+                              : "2px solid rgba(255,255,255,0.1)",
+                          background: "rgba(255,255,255,0.06)",
+                        }}
+                      >
+                        <img
+                          src={getProfilePicSrc(0)}
+                          alt={player.legendId}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const el = e.currentTarget;
+                            el.style.display = "none";
+                            const parent = el.parentElement;
+                            if (
+                              parent &&
+                              !parent.querySelector(".fallback-letter")
+                            ) {
+                              const fb = document.createElement("span");
+                              fb.className =
+                                "fallback-letter font-display font-black text-sm";
+                              fb.style.color = "#ff4422";
+                              fb.textContent =
+                                player.legendId[0]?.toUpperCase() ?? "?";
+                              parent.appendChild(fb);
+                            }
+                          }}
                         />
+                      </div>
+                      {rank <= 3 ? (
+                        <div
+                          className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                          style={{
+                            background: `radial-gradient(circle at 35% 35%, ${medalColor}cc, ${medalColor}88)`,
+                            border: "1.5px solid rgba(0,0,0,0.5)",
+                            boxShadow: `0 0 6px ${medalColor}66`,
+                          }}
+                        >
+                          <Medal
+                            className="w-3 h-3"
+                            style={{ color: "#000", opacity: 0.85 }}
+                          />
+                        </div>
                       ) : (
-                        rank
+                        <div
+                          className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center font-display font-black"
+                          style={{
+                            background: "rgba(20,20,35,0.95)",
+                            border: "1px solid rgba(255,255,255,0.15)",
+                            color: "rgba(255,255,255,0.5)",
+                            fontSize: "9px",
+                          }}
+                        >
+                          {rank}
+                        </div>
                       )}
                     </div>
 

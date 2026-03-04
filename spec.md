@@ -1,32 +1,31 @@
 # Legend X Arena
 
 ## Current State
-Full Free Fire esports app with:
-- 5-tab bottom navigation (Matches, Ranking, Play, Deposit, Profile)
-- JazzCash deposit system with admin approve/reject
-- User walletBalance tracks total deposited Legend Coins
-- Profile tab shows avatar (initials-based), stats, and logout
+Full Free Fire esports tournament platform with:
+- Manual Legend ID selection during registration (user types their own ID)
+- Leaderboard with 3 sections (Global Winners, Prime Legends, Oldest Legends) but NO profile picture shown per player row
+- Top 3 rank medals shown only as small medal icons inside rank badge circles
+- Backend has `register(legendId, passwordHash, jazzCash, uid, ignName)` - legendId is user-provided
 
 ## Requested Changes (Diff)
 
 ### Add
-- **Profile Picture Unlock System**: 6 tiered profile pictures that unlock based on total coins ever deposited (cumulative lifetime deposit, not current balance)
-- Unlock tiers: 50 LC = Pic 1, 100 LC = Pic 2, 200 LC = Pic 3, 500 LC = Pic 4, 800 LC = Pic 5, 1000 LC = Pic 6
-- **Avatar Selector UI**: In Profile tab, show all 6 avatars. Locked ones show lock icon + required deposit. Unlocked ones are selectable.
-- **setProfilePicture** backend API: stores which picture the user has selected
-- **totalDeposited** field tracked in backend UserProfile (incremented on each approved deposit)
-- Selected profile picture shown in profile header and anywhere avatar is displayed
+- `userIdCounter` variable in backend (starts at 1) to auto-increment unique Legend IDs
+- Auto-generated Legend ID format: 4-digit zero-padded number (0001, 0002, 0003, etc.)
+- Leaderboard rows: show player's profile avatar (small circle, 40x40) beside their name
+- Leaderboard top 3 rank badges: prominent gold/silver/bronze badge overlaid (like a profile pencil icon style -- visible badge positioned on the avatar)
 
 ### Modify
-- `UserProfile` backend type: add `selectedProfilePic: Nat` (0 = default initials) and `totalDeposited: Nat`
-- `approveDepositRequest` to also increment `totalDeposited`
-- Profile tab avatar area: replace initials circle with selected profile image (or initials if none selected)
+- Backend `register` function: remove `legendId` parameter, auto-generate it as `userIdCounter.toText()` zero-padded to 4 digits, then increment counter
+- Frontend AuthPage register form: remove "Choose Legend ID" text input field entirely; after successful registration show user their auto-assigned Legend ID (e.g. "Your Legend ID is 0042")
+- Frontend login form: Legend ID field stays (user types it to login)
+- Leaderboard entries: add profile pic (small avatar circle) to each row in all 3 leaderboard sections; show rank number/medal badge overlaid on the avatar for top 3
 
 ### Remove
-- Nothing removed
+- Manual Legend ID input from the registration form only (login still uses it)
 
 ## Implementation Plan
-1. Update `main.mo`: add `selectedProfilePic` and `totalDeposited` to UserProfile, add `setProfilePicture` update function, update `approveDepositRequest` to increment `totalDeposited`
-2. Generate 6 gaming-themed Free Fire style avatar images
-3. Frontend: Profile tab update -- show avatar grid with lock/unlock states, allow selecting unlocked pics, display selected pic in header
-4. Wire `setProfilePicture` call to backend on selection
+1. Regenerate backend with auto-increment userIdCounter, register removes legendId param, pads to 4 digits
+2. Update backend.d.ts register signature accordingly
+3. Update AuthPage.tsx: remove legendId register field, show assigned ID in success toast/modal
+4. Update DashboardPage.tsx leaderboard sections: add avatar circle to each row, make top 3 badge overlay on avatar prominent

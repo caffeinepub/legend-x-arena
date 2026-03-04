@@ -187,7 +187,7 @@ export interface backendInterface {
     getTournaments(): Promise<Array<Tournament>>;
     getUserByLegendId(legendId: string): Promise<UserProfile>;
     joinTournamentById(tournamentId: string): Promise<void>;
-    register(legendId: string, passwordHash: string, jazzCash: string, uid: string, ignName: string): Promise<void>;
+    register(passwordHash: string, jazzCash: string, uid: string, ignName: string): Promise<string>;
     rejectDepositRequest(requestId: string): Promise<void>;
     setProfilePicture(picIndex: bigint): Promise<void>;
     setTournamentRoom(tournamentId: string, roomId: string, roomPassword: string): Promise<void>;
@@ -370,17 +370,17 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async register(arg0: string, arg1: string, arg2: string, arg3: string, arg4: string): Promise<void> {
+    async register(arg0: string, arg1: string, arg2: string, arg3: string): Promise<string> {
         if (this.processError) {
             try {
-                const result = await this.actor.register(arg0, arg1, arg2, arg3, arg4);
+                const result = await this.actor.register(arg0, arg1, arg2, arg3);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.register(arg0, arg1, arg2, arg3, arg4);
+            const result = await this.actor.register(arg0, arg1, arg2, arg3);
             return result;
         }
     }

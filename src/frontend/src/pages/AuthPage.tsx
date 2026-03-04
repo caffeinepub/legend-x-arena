@@ -15,7 +15,6 @@ type LoginFormValues = {
 };
 
 type RegisterFormValues = {
-  legendId: string;
   password: string;
   gameName: string;
   gameUID: string;
@@ -78,35 +77,28 @@ export function AuthPage() {
     setIsSubmitting(true);
     try {
       const hash = await hashPassword(data.password);
-      await actor.register(
-        data.legendId.trim(),
+      const assignedLegendId = await actor.register(
         hash,
         data.jazzCashNumber.trim(),
         data.gameUID.trim(),
         data.gameName.trim(),
       );
-      // After register, authenticate and get profile
-      const ok = await actor.authenticate(data.legendId.trim(), hash);
+      // After register, authenticate and get profile using the assigned Legend ID
+      const ok = await actor.authenticate(assignedLegendId, hash);
       if (!ok) {
         toast.error("Registration error. Please try logging in.");
         return;
       }
-      const profile = await actor.getUserByLegendId(data.legendId.trim());
+      const profile = await actor.getUserByLegendId(assignedLegendId);
       const roleStr = profile.role === Role.admin ? "admin" : "user";
       login(profile.legendId, roleStr);
-      toast.success("Arena account created! 100 Legend Coins awarded!");
+      toast.success(
+        `Arena account created! Your Legend ID is: ${assignedLegendId} — 100 Legend Coins awarded!`,
+      );
       navigate({ to: "/dashboard" });
     } catch (err) {
       console.error(err);
-      const msg = err instanceof Error ? err.message : "Registration failed";
-      if (
-        msg.toLowerCase().includes("already") ||
-        msg.toLowerCase().includes("exist")
-      ) {
-        toast.error("This Legend ID is already taken.");
-      } else {
-        toast.error("Registration failed. Please try again.");
-      }
+      toast.error("Registration failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -318,45 +310,20 @@ export function AuthPage() {
                   noValidate
                 >
                   <div className="space-y-5">
-                    <div>
-                      <label
-                        className="block text-xs font-body uppercase tracking-wider mb-2"
-                        style={{ color: "rgba(255,255,255,0.5)" }}
-                        htmlFor="register-legend-id"
-                      >
-                        Choose Legend ID
-                      </label>
-                      <input
-                        id="register-legend-id"
-                        className="input-fire-blue w-full px-4 py-3 rounded-lg font-body text-sm text-foreground transition-all duration-200"
-                        placeholder="Create your unique Legend ID"
-                        autoComplete="username"
-                        style={{
-                          background: "rgba(255,255,255,0.05)",
-                          border: "1px solid rgba(0,102,255,0.25)",
-                          outline: "none",
-                        }}
-                        {...registerForm.register("legendId", {
-                          required: "Legend ID is required",
-                          minLength: { value: 3, message: "Min 3 characters" },
-                          maxLength: {
-                            value: 20,
-                            message: "Max 20 characters",
-                          },
-                          pattern: {
-                            value: /^[a-zA-Z0-9_]+$/,
-                            message: "Only letters, numbers, underscores",
-                          },
-                        })}
-                      />
-                      {registerForm.formState.errors.legendId && (
-                        <p
-                          className="text-xs mt-1.5 font-body"
-                          style={{ color: "#ff4422" }}
-                        >
-                          {registerForm.formState.errors.legendId.message}
-                        </p>
-                      )}
+                    {/* Auto-assigned Legend ID info banner */}
+                    <div
+                      className="flex items-start gap-2 px-3 py-2.5 rounded-lg text-xs font-body"
+                      style={{
+                        background: "rgba(0,153,255,0.08)",
+                        border: "1px solid rgba(0,153,255,0.25)",
+                        color: "#4499ff",
+                      }}
+                    >
+                      <span className="mt-0.5 flex-shrink-0">🪪</span>
+                      <span>
+                        Your unique Legend ID will be assigned automatically
+                        when you join.
+                      </span>
                     </div>
 
                     <div>

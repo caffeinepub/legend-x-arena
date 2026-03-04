@@ -1,14 +1,12 @@
 import Iter "mo:core/Iter";
 import Array "mo:core/Array";
-import Text "mo:core/Text";
 import Nat "mo:core/Nat";
+import Text "mo:core/Text";
 import Map "mo:core/Map";
 import Time "mo:core/Time";
 import Order "mo:core/Order";
 import Runtime "mo:core/Runtime";
 import Principal "mo:core/Principal";
-
-
 
 actor {
   type Role = { #admin; #user };
@@ -81,10 +79,15 @@ actor {
   let tournaments = Map.empty<Text, Tournament>();
   var depositIdCounter = 0;
   var tournamentIdCounter = 0;
+  var userIdCounter = 1;
 
   module UserProfile {
     public func compare(a : UserProfile, b : UserProfile) : Order.Order {
-      Text.compare(a.legendId, b.legendId);
+      switch (Text.compare(a.legendId, b.legendId)) {
+        case (#equal) { #equal };
+        case (#less) { #less };
+        case (#greater) { #greater };
+      };
     };
   };
 
@@ -123,10 +126,26 @@ actor {
     users.add(principal, updateFunc(profile));
   };
 
-  // UPDATED: Registration now takes jazzCashNumber, gameName, and gameUID
-  public shared ({ caller }) func register(legendId : Text, passwordHash : Text, jazzCash : Text, uid : Text, ignName : Text) : async () {
+  // Auto-generate legendId as a 4-digit zero-padded string
+  func generateLegendId(counter : Nat) : Text {
+    if (counter >= 1000) {
+      counter.toText();
+    } else if (counter >= 100) {
+      "0" # counter.toText();
+    } else if (counter >= 10) {
+      "00" # counter.toText();
+    } else {
+      "000" # counter.toText();
+    };
+  };
+
+  // Register function now auto-generates legendId and returns it
+  public shared ({ caller }) func register(passwordHash : Text, jazzCash : Text, uid : Text, ignName : Text) : async Text {
+    let legendId = generateLegendId(userIdCounter);
+
+    // Check if legendId (usually should not happen) is already taken
     if (users.values().any(func(p) { p.legendId == legendId })) {
-      Runtime.trap("Legend ID already taken");
+      Runtime.trap("Legend ID generation error, already taken");
     };
 
     let role = if (not isFirstAdminSet) { isFirstAdminSet := true; #admin } else {
@@ -150,6 +169,8 @@ actor {
     };
 
     users.add(caller, newUser);
+    userIdCounter += 1;
+    legendId;
   };
 
   // NEW METHOD: Only update IGN, UID, and JazzCash
@@ -185,7 +206,9 @@ actor {
     switch (getUserByLegendIdInternal(legendId)) {
       case (null) { Runtime.trap("User not found") };
       case (?(principal, profile)) {
-        let updatedProfile = { profile with isBanned = not profile.isBanned };
+        let updatedProfile = {
+          profile with isBanned = not profile.isBanned;
+        };
         users.add(principal, updatedProfile);
       };
     };
@@ -388,7 +411,11 @@ actor {
     );
   };
 
-  public shared ({ caller }) func setTournamentRoom(tournamentId : Text, roomId : Text, roomPassword : Text) : async () {
+  public shared ({ caller }) func setTournamentRoom(
+    tournamentId : Text,
+    roomId : Text,
+    roomPassword : Text,
+  ) : async () {
     assertAdmin(caller);
 
     switch (tournaments.get(tournamentId)) {
@@ -422,7 +449,9 @@ actor {
         };
 
         // Check if already joined
-        if (tournament.joinedPlayers.any(func(pid) { pid == userProfile.legendId })) {
+        if (
+          tournament.joinedPlayers.any(func(pid) { pid == userProfile.legendId })
+        ) {
           Runtime.trap("Already joined this tournament");
         };
 
@@ -451,7 +480,10 @@ actor {
     };
   };
 
-  public query ({ caller }) func getTournamentRoom(tournamentId : Text, legendId : Text) : async { roomId : Text; roomPassword : Text } {
+  public query ({ caller }) func getTournamentRoom(
+    tournamentId : Text,
+    legendId : Text,
+  ) : async { roomId : Text; roomPassword : Text } {
     switch (tournaments.get(tournamentId)) {
       case (null) { Runtime.trap("Tournament not found") };
       case (?tournament) {
@@ -464,7 +496,7 @@ actor {
     };
   };
 
-  // New leaderboard query implementation // <-------------------- COMMENT: EXPLAIN THIS
+  // New leaderboard query implementation
   type LeaderboardEntry = {
     legendId : Text;
     wins : Nat;

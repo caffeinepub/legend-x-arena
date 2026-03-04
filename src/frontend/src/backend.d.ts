@@ -105,7 +105,7 @@ export interface backendInterface {
     getTournaments(): Promise<Array<Tournament>>;
     getUserByLegendId(legendId: string): Promise<UserProfile>;
     joinTournamentById(tournamentId: string): Promise<void>;
-    register(legendId: string, passwordHash: string, jazzCash: string, uid: string, ignName: string): Promise<void>;
+    register(passwordHash: string, jazzCash: string, uid: string, ignName: string): Promise<string>;
     rejectDepositRequest(requestId: string): Promise<void>;
     setProfilePicture(picIndex: bigint): Promise<void>;
     setTournamentRoom(tournamentId: string, roomId: string, roomPassword: string): Promise<void>;

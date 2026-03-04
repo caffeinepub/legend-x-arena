@@ -110,8 +110,8 @@ export const idlService = IDL.Service({
   'getUserByLegendId' : IDL.Func([IDL.Text], [UserProfile], ['query']),
   'joinTournamentById' : IDL.Func([IDL.Text], [], []),
   'register' : IDL.Func(
-      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
-      [],
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [IDL.Text],
       [],
     ),
   'rejectDepositRequest' : IDL.Func([IDL.Text], [], []),
@@ -242,8 +242,8 @@ export const idlFactory = ({ IDL }) => {
     'getUserByLegendId' : IDL.Func([IDL.Text], [UserProfile], ['query']),
     'joinTournamentById' : IDL.Func([IDL.Text], [], []),
     'register' : IDL.Func(
-        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
-        [],
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Text],
         [],
       ),
     'rejectDepositRequest' : IDL.Func([IDL.Text], [], []),

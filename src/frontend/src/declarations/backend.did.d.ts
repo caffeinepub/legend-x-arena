@@ -101,7 +101,7 @@ export interface _SERVICE {
   'getTournaments' : ActorMethod<[], Array<Tournament>>,
   'getUserByLegendId' : ActorMethod<[string], UserProfile>,
   'joinTournamentById' : ActorMethod<[string], undefined>,
-  'register' : ActorMethod<[string, string, string, string, string], undefined>,
+  'register' : ActorMethod<[string, string, string, string], string>,
   'rejectDepositRequest' : ActorMethod<[string], undefined>,
   'setProfilePicture' : ActorMethod<[bigint], undefined>,
   'setTournamentRoom' : ActorMethod<[string, string, string], undefined>,
