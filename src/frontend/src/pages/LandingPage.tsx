@@ -4,94 +4,12 @@ import {
   Apple,
   ArrowDown,
   Globe,
-  MonitorDown,
   Shield,
   Smartphone,
   Sword,
 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-
-/* ─── Animated Download Button ─────────────────────────────── */
-function DownloadButton({
-  label,
-  sub,
-  icon,
-  ocid,
-  color,
-}: {
-  label: string;
-  sub: string;
-  icon: React.ReactNode;
-  ocid: string;
-  color: string;
-}) {
-  return (
-    <button
-      type="button"
-      data-ocid={ocid}
-      onClick={() =>
-        toast.info("Coming Soon!", {
-          description:
-            "The Legend X Arena app is launching shortly. Stay tuned!",
-        })
-      }
-      className="relative group flex items-center gap-4 px-7 py-4 rounded-2xl transition-all duration-300 hover:scale-[1.05] hover:-translate-y-1"
-      style={{
-        background: `linear-gradient(135deg, ${color}22, ${color}10)`,
-        border: `1.5px solid ${color}55`,
-        minWidth: "200px",
-        boxShadow: `0 4px 30px ${color}25`,
-      }}
-    >
-      {/* Sonar rings */}
-      <span
-        aria-hidden="true"
-        className="animate-sonar-1 absolute inset-0 rounded-2xl"
-        style={{ border: `1px solid ${color}30` }}
-      />
-      <span
-        aria-hidden="true"
-        className="animate-sonar-2 absolute inset-0 rounded-2xl"
-        style={{ border: `1px solid ${color}20` }}
-      />
-      <span
-        aria-hidden="true"
-        className="animate-sonar-3 absolute inset-0 rounded-2xl"
-        style={{ border: `1px solid ${color}15` }}
-      />
-
-      {/* Icon */}
-      <div
-        className="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl relative z-10"
-        style={{ background: `${color}22`, color }}
-      >
-        {icon}
-      </div>
-
-      {/* Text */}
-      <div className="text-left relative z-10">
-        <div className="text-xs font-body text-muted-foreground uppercase tracking-wider">
-          {sub}
-        </div>
-        <div
-          className="font-display font-black text-base tracking-wide"
-          style={{ color }}
-        >
-          {label}
-        </div>
-      </div>
-
-      {/* Bouncing arrow */}
-      <div
-        className="animate-download-bounce relative z-10 ml-auto"
-        aria-hidden="true"
-      >
-        <ArrowDown className="w-5 h-5" style={{ color }} />
-      </div>
-    </button>
-  );
-}
 
 /* ─── Feature Card ──────────────────────────────────────────── */
 function FeatureCard({
@@ -149,6 +67,7 @@ interface BeforeInstallPromptEvent extends Event {
 
 function PWAInstallButton() {
   const deferredPrompt = useRef<BeforeInstallPromptEvent | null>(null);
+  const [isGlowing, setIsGlowing] = useState(false);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -156,7 +75,12 @@ function PWAInstallButton() {
       deferredPrompt.current = e as BeforeInstallPromptEvent;
     };
     window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    // Start glow pulse
+    const interval = setInterval(() => setIsGlowing((g) => !g), 1800);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      clearInterval(interval);
+    };
   }, []);
 
   const handleInstall = async () => {
@@ -164,73 +88,69 @@ function PWAInstallButton() {
       await deferredPrompt.current.prompt();
       deferredPrompt.current = null;
     } else {
-      toast.info("Open in Chrome on Android, then tap 'Download App'", {
-        description:
-          "Open this page in Chrome on Android, then tap 'Download App' button to install directly to your home screen.",
-      });
+      // Fallback: try to trigger native install on supported browsers
+      toast.info(
+        "Open this link in Chrome on your Android phone to install the app.",
+        {
+          duration: 5000,
+        },
+      );
     }
   };
 
-  const color = "#4285F4";
+  const colorB = "#ffd700";
 
   return (
     <button
       type="button"
       data-ocid="landing.install_pwa_button"
       onClick={handleInstall}
-      className="relative group flex items-center gap-4 px-7 py-4 rounded-2xl transition-all duration-300 hover:scale-[1.05] hover:-translate-y-1"
+      className="relative group flex items-center justify-center gap-3 transition-all duration-300 hover:scale-[1.06] hover:-translate-y-1 active:scale-[0.97]"
       style={{
-        background: `linear-gradient(135deg, ${color}22, ${color}10)`,
-        border: `1.5px solid ${color}55`,
-        minWidth: "200px",
-        boxShadow: `0 4px 30px ${color}25`,
+        background: "linear-gradient(135deg, #cc1100, #ff4400)",
+        border: "2px solid rgba(255,215,0,0.5)",
+        borderRadius: "16px",
+        minWidth: "220px",
+        padding: "14px 28px",
+        boxShadow: isGlowing
+          ? "0 0 32px rgba(255,34,0,0.6), 0 0 64px rgba(255,150,0,0.3), 0 4px 20px rgba(0,0,0,0.5)"
+          : "0 0 16px rgba(255,34,0,0.35), 0 4px 20px rgba(0,0,0,0.4)",
+        transition: "box-shadow 1.8s ease-in-out, transform 0.2s",
       }}
     >
-      {/* Sonar rings */}
-      <span
-        aria-hidden="true"
-        className="animate-sonar-1 absolute inset-0 rounded-2xl"
-        style={{ border: `1px solid ${color}30` }}
-      />
-      <span
-        aria-hidden="true"
-        className="animate-sonar-2 absolute inset-0 rounded-2xl"
-        style={{ border: `1px solid ${color}20` }}
-      />
-      <span
-        aria-hidden="true"
-        className="animate-sonar-3 absolute inset-0 rounded-2xl"
-        style={{ border: `1px solid ${color}15` }}
-      />
-
-      {/* Icon */}
-      <div
-        className="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl relative z-10"
-        style={{ background: `${color}22`, color }}
-      >
-        <MonitorDown className="w-6 h-6" />
-      </div>
-
-      {/* Text */}
-      <div className="text-left relative z-10">
-        <div className="text-xs font-body text-muted-foreground uppercase tracking-wider">
-          Install the App
-        </div>
-        <div
-          className="font-display font-black text-base tracking-wide"
-          style={{ color }}
+      {/* Main label */}
+      <div className="flex flex-col items-start relative z-10">
+        <span
+          className="font-display font-black text-lg tracking-widest uppercase"
+          style={{ color: "#fff", letterSpacing: "0.15em", lineHeight: 1.1 }}
         >
           Download App
-        </div>
+        </span>
+        <span
+          className="font-body text-xs uppercase tracking-wider mt-0.5"
+          style={{ color: "rgba(255,215,0,0.8)" }}
+        >
+          Free · Legend X Arena
+        </span>
       </div>
 
       {/* Bouncing arrow */}
-      <div
-        className="animate-download-bounce relative z-10 ml-auto"
+      <ArrowDown
+        className="w-5 h-5 relative z-10 ml-1 animate-download-bounce flex-shrink-0"
+        style={{ color: colorB }}
         aria-hidden="true"
-      >
-        <ArrowDown className="w-5 h-5" style={{ color }} />
-      </div>
+      />
+
+      {/* Glow pulse overlay */}
+      <span
+        aria-hidden="true"
+        className="absolute inset-0 rounded-2xl pointer-events-none"
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(255,100,0,0.15), transparent)",
+          animation: "pulseGlow 2s ease-in-out infinite",
+        }}
+      />
     </button>
   );
 }
@@ -412,13 +332,43 @@ export function LandingPage() {
 
         {/* ── ANIMATED DOWNLOAD BUTTONS ── */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-8 w-full max-w-sm sm:max-w-none sm:w-auto">
-          <DownloadButton
-            ocid="landing.download_appstore_button"
-            label="App Store"
-            sub="Available on"
-            icon={<Apple className="w-6 h-6" />}
-            color="#ffffff"
-          />
+          {/* App Store button */}
+          <a
+            href="https://apps.apple.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-ocid="landing.download_appstore_button"
+            className="relative group flex items-center justify-center gap-3 transition-all duration-300 hover:scale-[1.05] hover:-translate-y-1 active:scale-[0.97] no-underline"
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))",
+              border: "1.5px solid rgba(255,255,255,0.3)",
+              borderRadius: "16px",
+              minWidth: "200px",
+              padding: "14px 28px",
+              boxShadow: "0 4px 24px rgba(255,255,255,0.08)",
+              animation: "appStoreGlow 3s ease-in-out infinite",
+            }}
+          >
+            <Apple
+              className="w-7 h-7 flex-shrink-0"
+              style={{ color: "#fff" }}
+            />
+            <div className="flex flex-col items-start">
+              <span
+                className="font-body text-xs uppercase tracking-wider"
+                style={{ color: "rgba(255,255,255,0.6)" }}
+              >
+                Download on the
+              </span>
+              <span
+                className="font-display font-black text-base tracking-wide"
+                style={{ color: "#fff" }}
+              >
+                App Store
+              </span>
+            </div>
+          </a>
           <PWAInstallButton />
         </div>
 
@@ -551,7 +501,7 @@ export function LandingPage() {
                     color: gm.color,
                   }}
                 >
-                  ₡{gm.fee} LC Entry
+                  L{gm.fee} LC Entry
                 </div>
               </div>
             ))}
@@ -560,24 +510,7 @@ export function LandingPage() {
           {/* Second CTA */}
           <div className="text-center mt-12 flex flex-col items-center gap-4">
             <div className="flex flex-col sm:flex-row items-center gap-4">
-              <button
-                type="button"
-                onClick={() =>
-                  toast.info("Coming Soon!", {
-                    description:
-                      "Download the app to access the full experience.",
-                  })
-                }
-                className="font-display font-black text-sm tracking-widest uppercase px-8 py-3.5 rounded-xl transition-all duration-200 hover:scale-105"
-                style={{
-                  background: "linear-gradient(135deg, #cc1100, #ff4400)",
-                  color: "#fff",
-                  boxShadow: "0 0 30px rgba(255,34,0,0.4)",
-                  animation: "pulseGlow 2s ease-in-out infinite",
-                }}
-              >
-                ↓ DOWNLOAD NOW
-              </button>
+              <PWAInstallButton />
             </div>
             <Link
               to="/auth"

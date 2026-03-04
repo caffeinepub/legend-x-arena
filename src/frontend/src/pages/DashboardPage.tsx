@@ -60,31 +60,31 @@ const AVATAR_TIERS = [
   },
   {
     index: 2,
-    src: "/assets/generated/avatar2-transparent.dim_200x200.png",
+    src: "/assets/uploads/quality_restoration_20260303171922447-3.jpg",
     required: 100,
-    label: "T2",
-    glowColor: "#0099ff",
+    label: "Bronze",
+    glowColor: "#cd7f32",
   },
   {
     index: 3,
-    src: "/assets/generated/avatar3-transparent.dim_200x200.png",
+    src: "/assets/uploads/quality_restoration_20260303171856888-1.jpg",
     required: 200,
-    label: "T3",
-    glowColor: "#22cc66",
+    label: "Platinum",
+    glowColor: "#0099ff",
   },
   {
     index: 4,
-    src: "/assets/generated/avatar4-transparent.dim_200x200.png",
+    src: "/assets/uploads/quality_restoration_20260303171818985-4.jpg",
     required: 500,
-    label: "T4",
-    glowColor: "#ff9900",
+    label: "Diamond",
+    glowColor: "#cc44ff",
   },
   {
     index: 5,
-    src: "/assets/generated/avatar5-transparent.dim_200x200.png",
+    src: "/assets/uploads/quality_restoration_20260303171742025-2.jpg",
     required: 800,
-    label: "T5",
-    glowColor: "#cc44ff",
+    label: "Heroic",
+    glowColor: "#ff2200",
   },
   {
     index: 6,
@@ -192,7 +192,7 @@ function MatchHistoryRow({ match, index }: { match: Match; index: number }) {
           className="text-xs font-display font-bold tabular-nums"
           style={{ color: "#ffd700" }}
         >
-          ₡{Number(match.coinsWagered)}
+          L{Number(match.coinsWagered)}
         </span>
       </div>
     </div>
@@ -245,7 +245,7 @@ function TransactionRow({ tx, index }: { tx: Transaction; index: number }) {
           className="text-sm font-display font-bold tabular-nums"
           style={{ color }}
         >
-          {isDeposit ? "+" : "−"}₡{Number(tx.amount).toLocaleString()}
+          {isDeposit ? "+" : "−"}L{Number(tx.amount).toLocaleString()}
         </span>
       </div>
     </div>
@@ -386,14 +386,43 @@ function DepositTab({
         >
           Legend Coins Balance
         </p>
-        <div
-          className="font-display font-black text-4xl tabular-nums mb-1"
-          style={{
-            color: "#ffd700",
-            textShadow: "0 0 20px rgba(255,215,0,0.5)",
-          }}
-        >
-          ₡{Number(balance).toLocaleString()}
+        {/* Animated L-coin */}
+        <div className="flex items-center justify-center gap-3 mb-1">
+          <div
+            aria-hidden="true"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle at 35% 30%, #fff7aa, #ffd700 40%, #b8860b 80%, #8b6914)",
+              border: "3px solid #ffa500",
+              boxShadow:
+                "inset 0 3px 6px rgba(255,255,200,0.8), inset 0 -3px 6px rgba(0,0,0,0.4)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 22,
+              fontFamily: "Mona Sans, sans-serif",
+              fontWeight: 900,
+              color: "#3d2200",
+              textShadow:
+                "0 1px 2px rgba(255,255,180,0.9), 0 0 6px rgba(255,200,0,0.7)",
+              animation: "coinLGlow 2s ease-in-out infinite",
+              flexShrink: 0,
+            }}
+          >
+            L
+          </div>
+          <div
+            className="font-display font-black text-4xl tabular-nums"
+            style={{
+              color: "#ffd700",
+              textShadow: "0 0 20px rgba(255,215,0,0.5)",
+            }}
+          >
+            {Number(balance).toLocaleString()}
+          </div>
         </div>
         <p className="text-xs font-body text-muted-foreground">
           Available to spend in tournaments
@@ -609,7 +638,7 @@ function DepositTab({
                       className="font-display font-black text-base tabular-nums"
                       style={{ color: "#ffd700" }}
                     >
-                      ₡{Number(req.amount).toLocaleString()} LC
+                      L{Number(req.amount).toLocaleString()} LC
                     </span>
                     {statusBadge(req.status)}
                   </div>
@@ -963,7 +992,7 @@ function ViewDetailsModal({
                 className="font-display font-black text-sm tabular-nums truncate"
                 style={{ color: "#ffd700" }}
               >
-                ₡{Number(tournament.entryFee).toLocaleString()}
+                L{Number(tournament.entryFee).toLocaleString()}
               </p>
             </div>
             <div
@@ -1003,7 +1032,7 @@ function ViewDetailsModal({
                 className="font-display font-black text-sm tabular-nums truncate"
                 style={{ color: "#0099ff" }}
               >
-                ₡{Number(tournament.returningCoins).toLocaleString()}
+                L{Number(tournament.returningCoins).toLocaleString()}
               </p>
             </div>
           </div>
@@ -1548,7 +1577,7 @@ function TournamentCard({
                 className="font-display font-black text-sm tabular-nums truncate"
                 style={{ color: "#ffd700" }}
               >
-                ₡{Number(tournament.entryFee).toLocaleString()}
+                L{Number(tournament.entryFee).toLocaleString()}
               </p>
             </div>
             <div
@@ -1588,7 +1617,7 @@ function TournamentCard({
                 className="font-display font-black text-sm tabular-nums truncate"
                 style={{ color: "#0099ff" }}
               >
-                ₡{Number(tournament.returningCoins).toLocaleString()}
+                L{Number(tournament.returningCoins).toLocaleString()}
               </p>
             </div>
           </div>
@@ -1876,7 +1905,7 @@ export function DashboardPage() {
       const entryFee = Number(tournament.entryFee);
       if (balance < entryFee) {
         toast.error("Insufficient coins", {
-          description: `You need ₡${entryFee} LC but have ₡${balance} LC`,
+          description: `You need L${entryFee} LC but have L${balance} LC`,
         });
         return;
       }
@@ -2349,7 +2378,7 @@ export function DashboardPage() {
                         )}
                       </div>
                       <div className="text-xs font-body text-muted-foreground">
-                        {Number(player.wins)} wins · ₡
+                        {Number(player.wins)} wins · L
                         {Number(player.totalProfit).toLocaleString()} profit
                       </div>
                     </div>
@@ -2360,7 +2389,7 @@ export function DashboardPage() {
                         className="font-display font-bold text-sm tabular-nums"
                         style={{ color: "#22cc66" }}
                       >
-                        ₡{Number(player.totalProfit).toLocaleString()}
+                        L{Number(player.totalProfit).toLocaleString()}
                       </div>
                       <div className="text-xs font-body text-muted-foreground">
                         Profit
@@ -2521,7 +2550,7 @@ export function DashboardPage() {
                         className="font-display font-bold text-sm tabular-nums"
                         style={{ color: "#cc66ff" }}
                       >
-                        ₡{Number(player.totalDeposited).toLocaleString()}
+                        L{Number(player.totalDeposited).toLocaleString()}
                       </div>
                       <div className="text-xs font-body text-muted-foreground">
                         Deposited
@@ -2878,7 +2907,7 @@ export function DashboardPage() {
                 className="text-xs font-display font-bold tracking-wider"
                 style={{ color: "rgba(255,215,0,0.7)" }}
               >
-                ₡{totalDeposited.toLocaleString()} total deposited
+                L{totalDeposited.toLocaleString()} total deposited
               </span>
             </div>
           </div>
@@ -2897,7 +2926,7 @@ export function DashboardPage() {
             { label: "Win Rate", value: `${winRate}%`, color: "#ffd700" },
             {
               label: "Legend Coins",
-              value: `₡${Number(balance).toLocaleString()}`,
+              value: `L${Number(balance).toLocaleString()}`,
               color: "#ffd700",
             },
             {
@@ -2960,7 +2989,7 @@ export function DashboardPage() {
                   className="text-xs font-display font-bold uppercase tracking-wider"
                   style={{ color: "rgba(255,255,255,0.6)" }}
                 >
-                  Next Unlock: {nextTier?.label} at ₡{nextTier?.required}
+                  Next Unlock: {nextTier?.label} at L{nextTier?.required}
                 </span>
                 <span
                   className="text-xs font-display font-black tabular-nums"
@@ -2986,7 +3015,7 @@ export function DashboardPage() {
                 className="mt-1.5 text-xs font-body text-center"
                 style={{ color: "rgba(255,255,255,0.35)" }}
               >
-                ₡{totalDeposited} / ₡{nextTier?.required} deposited
+                L{totalDeposited} / L{nextTier?.required} deposited
               </div>
             </>
           )}
@@ -3309,7 +3338,7 @@ export function DashboardPage() {
                       </span>
                     ) : (
                       <>
-                        ₡{tier.required}
+                        L{tier.required}
                         <br />
                         to unlock
                       </>

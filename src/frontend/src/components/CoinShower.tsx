@@ -56,19 +56,22 @@ export function CoinShower({ active, onComplete }: CoinShowerProps) {
             height: `${coin.size}px`,
             borderRadius: "50%",
             background:
-              "radial-gradient(circle at 35% 35%, #ffe066, #ffd700, #b8860b)",
-            border: "1.5px solid #ffec6e",
-            boxShadow: "0 0 8px rgba(255, 215, 0, 0.7)",
+              "radial-gradient(circle at 35% 30%, #fff7aa, #ffd700 40%, #b8860b 80%, #8b6914)",
+            border: "1.5px solid #ffa500",
+            boxShadow:
+              "0 0 10px rgba(255,215,0,0.8), 0 0 20px rgba(255,150,0,0.4)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: `${coin.size * 0.45}px`,
-            color: "#7a5c00",
-            fontWeight: "bold",
-            animation: `coinFall ${coin.duration}ms ease-in ${coin.delay}ms forwards`,
+            fontSize: `${coin.size * 0.48}px`,
+            fontFamily: "Mona Sans, sans-serif",
+            fontWeight: 900,
+            color: "#6b4c08",
+            textShadow: "0 1px 0 rgba(255,255,200,0.6)",
+            animation: `coinFall ${coin.duration}ms ease-in ${coin.delay}ms forwards, coinLGlow 2s ease-in-out infinite`,
           }}
         >
-          ₡
+          L
         </div>
       ))}
     </div>

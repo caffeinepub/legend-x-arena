@@ -90,7 +90,7 @@ function UserCard({
     try {
       await actor.addCoins(profile.legendId, BigInt(amount));
       toast.success(
-        `₡${amount.toLocaleString()} coins added to ${profile.legendId}!`,
+        `L${amount.toLocaleString()} coins added to ${profile.legendId}!`,
       );
       setAddCoinsAmount("");
       onCoinsAdded?.();
@@ -356,7 +356,7 @@ function UserCard({
                         className="font-display font-bold text-sm tabular-nums"
                         style={{ color: "#ffd700" }}
                       >
-                        ₡{Number(match.coinsWagered)}
+                        L{Number(match.coinsWagered)}
                       </TableCell>
                       <TableCell className="font-body text-sm text-muted-foreground">
                         {formatDate(match.date)}
@@ -432,7 +432,7 @@ function UserCard({
                         className="font-display font-bold text-sm tabular-nums"
                         style={{ color: isDeposit ? "#22cc66" : "#ff4422" }}
                       >
-                        {isDeposit ? "+" : "-"}₡{Number(tx.amount)}
+                        {isDeposit ? "+" : "-"}L{Number(tx.amount)}
                       </TableCell>
                       <TableCell className="font-body text-sm text-muted-foreground max-w-xs truncate">
                         {tx.description}
@@ -1032,7 +1032,7 @@ function MatchManagementSection() {
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, prizePool: e.target.value }))
                   }
-                  placeholder="₡5000 or PKR 1000"
+                  placeholder="L5000 or PKR 1000"
                   className="px-4 py-2.5 rounded-xl font-body text-sm placeholder:text-muted-foreground transition-all duration-200"
                   style={inputStyle}
                   onFocus={inputFocus}
@@ -1449,7 +1449,7 @@ function MatchManagementSection() {
                       <span>
                         Entry:{" "}
                         <span style={{ color: "#ffd700" }}>
-                          ₡{Number(t.entryFee)}
+                          L{Number(t.entryFee)}
                         </span>
                       </span>
                       <span>
@@ -1851,7 +1851,7 @@ function PendingDepositsSection() {
     try {
       await actor.approveDepositRequest(req.id);
       toast.success(
-        `Deposit approved! ₡${Number(req.amount).toLocaleString()} added to ${req.legendId}`,
+        `Deposit approved! L${Number(req.amount).toLocaleString()} added to ${req.legendId}`,
       );
       queryClient.invalidateQueries({ queryKey: ["pendingDeposits"] });
       await refetchDeposits();
@@ -2004,7 +2004,7 @@ function PendingDepositsSection() {
                         className="font-display font-black text-base tabular-nums"
                         style={{ color: "#ffd700" }}
                       >
-                        ₡{Number(req.amount).toLocaleString()} LC
+                        L{Number(req.amount).toLocaleString()} LC
                       </span>
                     </div>
                     <p

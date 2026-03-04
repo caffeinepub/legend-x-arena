@@ -136,12 +136,12 @@ function Coin({ style, delay }: { style: React.CSSProperties; delay: number }) {
           justifyContent: "center",
           fontFamily: "Mona Sans, sans-serif",
           fontWeight: 900,
-          fontSize: 10,
-          color: "#8b6914",
-          textShadow: "0 1px 0 rgba(255,255,200,0.6)",
+          fontSize: 11,
+          color: "#6b4c08",
+          textShadow: "0 1px 0 rgba(255,255,200,0.7)",
         }}
       >
-        ₡
+        L
       </div>
     </div>
   );
@@ -433,6 +433,10 @@ export function FirstLoginModal({
             text-shadow: 0 0 40px rgba(255,200,0,0.9), 0 0 60px rgba(255,60,0,0.5);
           }
         }
+        @keyframes coinLGlow {
+          0%, 100% { box-shadow: inset 0 4px 8px rgba(255,255,200,0.9), inset 0 -4px 8px rgba(0,0,0,0.5), 0 0 20px rgba(255,215,0,0.7), 0 0 40px rgba(255,150,0,0.3); }
+          50% { box-shadow: inset 0 4px 8px rgba(255,255,200,0.9), inset 0 -4px 8px rgba(0,0,0,0.5), 0 0 40px rgba(255,215,0,0.95), 0 0 80px rgba(255,150,0,0.6), 0 0 120px rgba(255,80,0,0.3); }
+        }
       `}</style>
 
       {/* Backdrop */}
@@ -612,20 +616,21 @@ export function FirstLoginModal({
                 alignItems: "center",
                 justifyContent: "center",
                 zIndex: 10,
-                animation: "coinSpin3D 2s linear infinite",
-                perspective: 400,
+                animation:
+                  "coinSpin3D 2s linear infinite, coinLGlow 2s ease-in-out infinite",
               }}
             >
               <span
                 style={{
                   fontFamily: "Mona Sans, sans-serif",
                   fontWeight: 900,
-                  fontSize: 28,
-                  color: "#8b6914",
-                  textShadow: "0 2px 4px rgba(255,255,200,0.7)",
+                  fontSize: 34,
+                  color: "#6b4c08",
+                  textShadow: "0 2px 4px rgba(255,255,200,0.8)",
+                  letterSpacing: "-0.02em",
                 }}
               >
-                ₡
+                L
               </span>
             </div>
 

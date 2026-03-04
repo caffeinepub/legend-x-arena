@@ -179,7 +179,7 @@ export function GameModeCard({
                 flexShrink: 0,
               }}
             >
-              ₡
+              L
             </span>
             <span
               className="font-display font-bold text-sm tabular-nums"
