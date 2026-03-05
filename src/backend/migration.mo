@@ -1,7 +1,7 @@
 import Map "mo:core/Map";
-import Principal "mo:core/Principal";
-import Text "mo:core/Text";
 import Nat "mo:core/Nat";
+import Text "mo:core/Text";
+import Time "mo:core/Time";
 
 module {
   type Role = { #admin; #user };
@@ -74,17 +74,7 @@ module {
   };
 
   type OldActor = {
-    isFirstAdminSet : Bool;
-    users : Map.Map<Principal, UserProfile>;
-    depositRequests : Map.Map<Text, DepositRequest>;
-    tournaments : Map.Map<Text, Tournament>;
-    depositIdCounter : Nat;
-    tournamentIdCounter : Nat;
-    userIdCounter : Nat;
-  };
-
-  type NewActor = {
-    isFirstAdminSet : Bool;
+    var isFirstAdminSet : Bool;
     users : Map.Map<Text, UserProfile>;
     depositRequests : Map.Map<Text, DepositRequest>;
     tournaments : Map.Map<Text, Tournament>;
@@ -93,14 +83,25 @@ module {
     userIdCounter : Nat;
   };
 
-  // Migration function called by the main actor via with-clause
+  type NewActor = {
+    var isFirstAdminSet : Bool;
+    users : Map.Map<Text, UserProfile>;
+    depositRequests : Map.Map<Text, DepositRequest>;
+    tournaments : Map.Map<Text, Tournament>;
+    depositIdCounter : Nat;
+    tournamentIdCounter : Nat;
+    userIdCounter : Nat;
+  };
+
   public func run(old : OldActor) : NewActor {
-    let newUsers = Map.empty<Text, UserProfile>();
-    old.users.entries().forEach(
-      func((_principal, profile)) {
-        newUsers.add(profile.legendId, profile);
-      }
-    );
-    { old with users = newUsers };
+    {
+      var isFirstAdminSet = old.isFirstAdminSet;
+      users = old.users;
+      depositRequests = old.depositRequests;
+      tournaments = old.tournaments;
+      depositIdCounter = old.depositIdCounter;
+      tournamentIdCounter = old.tournamentIdCounter;
+      userIdCounter = old.userIdCounter;
+    };
   };
 };

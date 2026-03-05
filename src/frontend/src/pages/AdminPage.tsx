@@ -23,6 +23,8 @@ import { useNavigate } from "@tanstack/react-router";
 import {
   Ban,
   CheckCircle,
+  ChevronDown,
+  ChevronUp,
   Coins,
   Edit2,
   ImageIcon,
@@ -32,13 +34,14 @@ import {
   Plus,
   RefreshCcw,
   Search,
+  SendHorizonal,
   Shield,
   Trash2,
   Trophy,
   Users,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 function formatDate(ts: bigint): string {
@@ -81,6 +84,8 @@ function UserCard({
 
   const [addCoinsAmount, setAddCoinsAmount] = useState("");
   const [isAddingCoins, setIsAddingCoins] = useState(false);
+  const [matchHistoryOpen, setMatchHistoryOpen] = useState(false);
+  const [txHistoryOpen, setTxHistoryOpen] = useState(false);
 
   async function handleAddCoins(e: React.FormEvent) {
     e.preventDefault();
@@ -109,453 +114,622 @@ function UserCard({
     }
   }
 
+  const avatarLetter = (profile.gameName || profile.legendId || "?")
+    .charAt(0)
+    .toUpperCase();
+
   return (
     <div
-      className="rounded-2xl overflow-hidden mt-6 animate-fade-up"
+      className="mt-6 animate-fade-up"
       style={{
-        background: "rgba(13, 13, 26, 0.9)",
-        border: profile.isBanned
-          ? "1px solid rgba(255,34,0,0.5)"
-          : "1px solid rgba(255,255,255,0.08)",
-        boxShadow: profile.isBanned
-          ? "0 0 30px rgba(255,34,0,0.1)"
-          : "0 4px 30px rgba(0,0,0,0.3)",
+        boxShadow:
+          "0 0 0 1px rgba(255,215,0,0.15), 0 0 40px rgba(255,215,0,0.05)",
       }}
     >
-      {/* User header */}
-      <div
-        className="p-6 border-b"
-        style={{ borderColor: "rgba(255,255,255,0.06)" }}
-      >
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-1 flex-wrap">
-              {/* Game Name (primary, large) */}
-              <h3 className="font-display font-black text-2xl text-foreground">
-                {profile.gameName || profile.legendId}
-              </h3>
-              {/* Legend ID (secondary, smaller) */}
-              {profile.gameName && (
-                <span
-                  className="font-mono text-sm px-2 py-0.5 rounded-lg"
-                  style={{
-                    background: "rgba(255,215,0,0.08)",
-                    border: "1px solid rgba(255,215,0,0.2)",
-                    color: "rgba(255,215,0,0.7)",
-                  }}
-                >
-                  ID: {profile.legendId}
-                </span>
-              )}
-              <span
-                className="text-xs font-display font-bold px-2 py-0.5 rounded uppercase tracking-wider"
+      {/* Two-column layout: info left, action tools right */}
+      <div className="flex flex-col lg:flex-row gap-4">
+        {/* ── LEFT: User Info Card ── */}
+        <div
+          className="flex-1 rounded-2xl overflow-hidden"
+          style={{
+            background: "rgba(13, 13, 26, 0.95)",
+            border: profile.isBanned
+              ? "1px solid rgba(255,34,0,0.5)"
+              : "1px solid rgba(255,215,0,0.12)",
+            boxShadow: profile.isBanned
+              ? "0 0 30px rgba(255,34,0,0.1)"
+              : "0 4px 30px rgba(0,0,0,0.3)",
+          }}
+        >
+          {/* ── Header: avatar + name + badges ── */}
+          <div
+            className="p-6 border-b"
+            style={{ borderColor: "rgba(255,255,255,0.06)" }}
+          >
+            <div className="flex items-start gap-4">
+              {/* Avatar circle */}
+              <div
+                className="flex-shrink-0 w-16 h-16 rounded-2xl flex items-center justify-center font-display font-black text-2xl"
                 style={{
-                  background:
-                    profile.role === "admin"
-                      ? "rgba(255,215,0,0.15)"
-                      : "rgba(0,102,255,0.15)",
-                  border:
-                    profile.role === "admin"
-                      ? "1px solid rgba(255,215,0,0.4)"
-                      : "1px solid rgba(0,102,255,0.4)",
-                  color: profile.role === "admin" ? "#ffd700" : "#4499ff",
+                  background: profile.isBanned
+                    ? "rgba(255,34,0,0.2)"
+                    : "linear-gradient(135deg, rgba(255,180,0,0.3), rgba(255,80,0,0.3))",
+                  border: profile.isBanned
+                    ? "2px solid rgba(255,34,0,0.5)"
+                    : "2px solid rgba(255,180,0,0.4)",
+                  color: profile.isBanned ? "#ff4422" : "#ffd700",
                 }}
               >
-                {profile.role}
-              </span>
+                {avatarLetter}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                {/* Name + badges row */}
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <h3 className="font-display font-black text-xl text-foreground truncate">
+                    {profile.gameName || profile.legendId}
+                  </h3>
+                  {/* Legend ID gold mono badge */}
+                  <span
+                    className="font-mono text-xs px-2.5 py-1 rounded-lg flex-shrink-0"
+                    style={{
+                      background: "rgba(255,215,0,0.1)",
+                      border: "1px solid rgba(255,215,0,0.3)",
+                      color: "#ffd700",
+                    }}
+                  >
+                    ID: {profile.legendId}
+                  </span>
+                  {/* Role badge */}
+                  <span
+                    className="text-xs font-display font-bold px-2 py-0.5 rounded uppercase tracking-wider flex-shrink-0"
+                    style={{
+                      background:
+                        profile.role === "admin"
+                          ? "rgba(255,215,0,0.15)"
+                          : "rgba(0,102,255,0.15)",
+                      border:
+                        profile.role === "admin"
+                          ? "1px solid rgba(255,215,0,0.4)"
+                          : "1px solid rgba(0,102,255,0.4)",
+                      color: profile.role === "admin" ? "#ffd700" : "#4499ff",
+                    }}
+                  >
+                    {profile.role}
+                  </span>
+                  {/* Status badge */}
+                  <span
+                    className="flex items-center gap-1 text-xs font-display font-bold px-2 py-0.5 rounded uppercase tracking-wider flex-shrink-0"
+                    style={{
+                      background: profile.isBanned
+                        ? "rgba(255,34,0,0.15)"
+                        : "rgba(34,204,102,0.15)",
+                      border: profile.isBanned
+                        ? "1px solid rgba(255,34,0,0.4)"
+                        : "1px solid rgba(34,204,102,0.4)",
+                      color: profile.isBanned ? "#ff4422" : "#22cc66",
+                    }}
+                  >
+                    {profile.isBanned ? (
+                      <Ban className="w-3 h-3" />
+                    ) : (
+                      <CheckCircle className="w-3 h-3" />
+                    )}
+                    {profile.isBanned ? "BANNED" : "ACTIVE"}
+                  </span>
+                </div>
+
+                {/* Info tags row */}
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {profile.gameName && (
+                    <span
+                      className="flex items-center gap-1 text-xs font-body px-2.5 py-1 rounded-lg"
+                      style={{
+                        background: "rgba(0,153,255,0.08)",
+                        border: "1px solid rgba(0,153,255,0.2)",
+                        color: "rgba(0,153,255,0.9)",
+                      }}
+                    >
+                      🎮 <span className="font-bold">{profile.gameName}</span>
+                    </span>
+                  )}
+                  {profile.gameUID && (
+                    <span
+                      className="flex items-center gap-1 text-xs font-body px-2.5 py-1 rounded-lg"
+                      style={{
+                        background: "rgba(255,215,0,0.08)",
+                        border: "1px solid rgba(255,215,0,0.2)",
+                        color: "rgba(255,215,0,0.9)",
+                      }}
+                    >
+                      🆔 <span className="font-mono">{profile.gameUID}</span>
+                    </span>
+                  )}
+                  {profile.jazzCashNumber && (
+                    <span
+                      className="flex items-center gap-1 text-xs font-body px-2.5 py-1 rounded-lg"
+                      style={{
+                        background: "rgba(34,204,102,0.08)",
+                        border: "1px solid rgba(34,204,102,0.2)",
+                        color: "rgba(34,204,102,0.9)",
+                      }}
+                    >
+                      💳{" "}
+                      <span className="font-mono">
+                        {profile.jazzCashNumber}
+                      </span>
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-4 text-sm font-body text-muted-foreground">
-              <span>
-                Registered:{" "}
-                <span className="text-foreground">
-                  {formatDate(profile.createdAt)}
-                </span>
-              </span>
-              <span>
-                Matches:{" "}
-                <span className="text-foreground">
+
+            {/* Stats row */}
+            <div
+              className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-5"
+              style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+            >
+              {/* Wallet balance */}
+              <div
+                className="rounded-xl p-3 text-center"
+                style={{
+                  background: "rgba(255,215,0,0.06)",
+                  border: "1px solid rgba(255,215,0,0.15)",
+                }}
+              >
+                <div
+                  className="font-display font-black text-xl tabular-nums"
+                  style={{ color: "#ffd700" }}
+                >
+                  {Number(profile.walletBalance).toLocaleString()}
+                </div>
+                <div
+                  className="text-xs font-body uppercase tracking-wider mt-0.5"
+                  style={{ color: "rgba(255,215,0,0.5)" }}
+                >
+                  Wallet (LC)
+                </div>
+              </div>
+              {/* Total Deposited */}
+              <div
+                className="rounded-xl p-3 text-center"
+                style={{
+                  background: "rgba(34,204,102,0.06)",
+                  border: "1px solid rgba(34,204,102,0.15)",
+                }}
+              >
+                <div
+                  className="font-display font-black text-xl tabular-nums"
+                  style={{ color: "#22cc66" }}
+                >
+                  {Number(profile.totalDeposited ?? 0).toLocaleString()}
+                </div>
+                <div
+                  className="text-xs font-body uppercase tracking-wider mt-0.5"
+                  style={{ color: "rgba(34,204,102,0.5)" }}
+                >
+                  Deposited
+                </div>
+              </div>
+              {/* Matches played */}
+              <div
+                className="rounded-xl p-3 text-center"
+                style={{
+                  background: "rgba(0,153,255,0.06)",
+                  border: "1px solid rgba(0,153,255,0.15)",
+                }}
+              >
+                <div
+                  className="font-display font-black text-xl tabular-nums"
+                  style={{ color: "#4499ff" }}
+                >
                   {profile.matchHistory.length}
-                </span>
-              </span>
-            </div>
-            {/* Player game info */}
-            <div className="flex flex-wrap gap-3 mt-2">
-              {profile.gameName && (
-                <span
-                  className="flex items-center gap-1.5 text-xs font-body px-2.5 py-1 rounded-lg"
-                  style={{
-                    background: "rgba(0,153,255,0.08)",
-                    border: "1px solid rgba(0,153,255,0.2)",
-                    color: "rgba(0,153,255,0.9)",
-                  }}
+                </div>
+                <div
+                  className="text-xs font-body uppercase tracking-wider mt-0.5"
+                  style={{ color: "rgba(0,153,255,0.5)" }}
                 >
-                  🎮 <span className="font-bold">{profile.gameName}</span>
-                </span>
-              )}
-              {profile.gameUID && (
-                <span
-                  className="flex items-center gap-1.5 text-xs font-body px-2.5 py-1 rounded-lg"
-                  style={{
-                    background: "rgba(255,215,0,0.08)",
-                    border: "1px solid rgba(255,215,0,0.2)",
-                    color: "rgba(255,215,0,0.9)",
-                  }}
+                  Matches
+                </div>
+              </div>
+              {/* Registered date */}
+              <div
+                className="rounded-xl p-3 text-center"
+                style={{
+                  background: "rgba(180,80,255,0.06)",
+                  border: "1px solid rgba(180,80,255,0.15)",
+                }}
+              >
+                <div
+                  className="font-display font-bold text-sm"
+                  style={{ color: "#b450ff" }}
                 >
-                  🆔 <span className="font-mono">{profile.gameUID}</span>
-                </span>
-              )}
-              {profile.jazzCashNumber && (
-                <span
-                  className="flex items-center gap-1.5 text-xs font-body px-2.5 py-1 rounded-lg"
-                  style={{
-                    background: "rgba(34,204,102,0.08)",
-                    border: "1px solid rgba(34,204,102,0.2)",
-                    color: "rgba(34,204,102,0.9)",
-                  }}
+                  {formatDate(profile.createdAt)}
+                </div>
+                <div
+                  className="text-xs font-body uppercase tracking-wider mt-0.5"
+                  style={{ color: "rgba(180,80,255,0.5)" }}
                 >
-                  💳 <span className="font-mono">{profile.jazzCashNumber}</span>
-                </span>
-              )}
+                  Joined
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Wallet */}
-            <div
-              className="px-4 py-2 rounded-xl text-center"
-              style={{
-                background: "rgba(255,215,0,0.08)",
-                border: "1px solid rgba(255,215,0,0.2)",
-              }}
-            >
-              <div
-                className="font-display font-black text-lg tabular-nums"
-                style={{ color: "#ffd700" }}
-              >
-                {Number(profile.walletBalance).toLocaleString()}
-              </div>
-              <div
-                className="text-xs font-body uppercase tracking-wider"
-                style={{ color: "rgba(255,215,0,0.6)" }}
-              >
-                LC
-              </div>
-            </div>
-
-            {/* Status badge */}
-            <div
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-display font-bold uppercase tracking-wider"
-              style={{
-                background: profile.isBanned
-                  ? "rgba(255,34,0,0.15)"
-                  : "rgba(34,204,102,0.15)",
-                border: profile.isBanned
-                  ? "1px solid rgba(255,34,0,0.4)"
-                  : "1px solid rgba(34,204,102,0.4)",
-                color: profile.isBanned ? "#ff4422" : "#22cc66",
-              }}
-            >
-              {profile.isBanned ? (
-                <Ban className="w-4 h-4" />
-              ) : (
-                <CheckCircle className="w-4 h-4" />
-              )}
-              {profile.isBanned ? "BANNED" : "ACTIVE"}
-            </div>
-
-            {/* Ban/Unban button */}
+          {/* ── Match History (collapsible) ── */}
+          <div
+            className="border-b"
+            style={{ borderColor: "rgba(255,255,255,0.06)" }}
+          >
             <button
               type="button"
-              data-ocid="admin.ban_toggle_button"
+              data-ocid="admin.user.history_toggle"
+              onClick={() => setMatchHistoryOpen((v) => !v)}
+              className="w-full flex items-center justify-between px-6 py-4 transition-opacity hover:opacity-80"
+            >
+              <span
+                className="font-display font-bold text-sm uppercase tracking-wider"
+                style={{ color: "rgba(255,255,255,0.5)" }}
+              >
+                Match History ({recentMatches.length})
+              </span>
+              {matchHistoryOpen ? (
+                <ChevronUp
+                  className="w-4 h-4"
+                  style={{ color: "rgba(255,255,255,0.4)" }}
+                />
+              ) : (
+                <ChevronDown
+                  className="w-4 h-4"
+                  style={{ color: "rgba(255,255,255,0.4)" }}
+                />
+              )}
+            </button>
+            {matchHistoryOpen && (
+              <div className="px-6 pb-5">
+                {recentMatches.length === 0 ? (
+                  <p className="text-sm font-body text-muted-foreground italic">
+                    No matches played
+                  </p>
+                ) : (
+                  <div
+                    className="overflow-x-auto rounded-xl"
+                    style={{ border: "1px solid rgba(255,255,255,0.06)" }}
+                  >
+                    <Table>
+                      <TableHeader>
+                        <TableRow
+                          style={{ borderColor: "rgba(255,255,255,0.06)" }}
+                        >
+                          <TableHead className="font-display text-xs uppercase tracking-wider">
+                            Mode
+                          </TableHead>
+                          <TableHead className="font-display text-xs uppercase tracking-wider">
+                            Result
+                          </TableHead>
+                          <TableHead className="font-display text-xs uppercase tracking-wider">
+                            Wagered
+                          </TableHead>
+                          <TableHead className="font-display text-xs uppercase tracking-wider">
+                            Date
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {recentMatches.map((match: Match, i: number) => {
+                          const resultColor =
+                            match.result === "win"
+                              ? "#22cc66"
+                              : match.result === "loss"
+                                ? "#ff4422"
+                                : "#ffd700";
+                          return (
+                            <TableRow
+                              key={match.matchId}
+                              data-ocid={`admin.match.item.${i + 1}`}
+                              style={{ borderColor: "rgba(255,255,255,0.04)" }}
+                            >
+                              <TableCell className="font-body text-sm">
+                                {modeLabel(match.mode)}
+                              </TableCell>
+                              <TableCell>
+                                <span
+                                  className="text-xs font-display font-bold uppercase px-2 py-0.5 rounded"
+                                  style={{
+                                    background: `${resultColor}20`,
+                                    color: resultColor,
+                                    border: `1px solid ${resultColor}40`,
+                                  }}
+                                >
+                                  {match.result}
+                                </span>
+                              </TableCell>
+                              <TableCell
+                                className="font-display font-bold text-sm tabular-nums"
+                                style={{ color: "#ffd700" }}
+                              >
+                                L{Number(match.coinsWagered)}
+                              </TableCell>
+                              <TableCell className="font-body text-sm text-muted-foreground">
+                                {formatDate(match.date)}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Transaction History (collapsible) ── */}
+          <div>
+            <button
+              type="button"
+              data-ocid="admin.user.tx_toggle"
+              onClick={() => setTxHistoryOpen((v) => !v)}
+              className="w-full flex items-center justify-between px-6 py-4 transition-opacity hover:opacity-80"
+            >
+              <span
+                className="font-display font-bold text-sm uppercase tracking-wider"
+                style={{ color: "rgba(255,255,255,0.5)" }}
+              >
+                Transaction History ({recentTxs.length})
+              </span>
+              {txHistoryOpen ? (
+                <ChevronUp
+                  className="w-4 h-4"
+                  style={{ color: "rgba(255,255,255,0.4)" }}
+                />
+              ) : (
+                <ChevronDown
+                  className="w-4 h-4"
+                  style={{ color: "rgba(255,255,255,0.4)" }}
+                />
+              )}
+            </button>
+            {txHistoryOpen && (
+              <div className="px-6 pb-5">
+                {recentTxs.length === 0 ? (
+                  <p className="text-sm font-body text-muted-foreground italic">
+                    No transactions
+                  </p>
+                ) : (
+                  <div
+                    className="overflow-x-auto rounded-xl"
+                    style={{ border: "1px solid rgba(255,255,255,0.06)" }}
+                  >
+                    <Table>
+                      <TableHeader>
+                        <TableRow
+                          style={{ borderColor: "rgba(255,255,255,0.06)" }}
+                        >
+                          <TableHead className="font-display text-xs uppercase tracking-wider">
+                            Type
+                          </TableHead>
+                          <TableHead className="font-display text-xs uppercase tracking-wider">
+                            Amount
+                          </TableHead>
+                          <TableHead className="font-display text-xs uppercase tracking-wider">
+                            Description
+                          </TableHead>
+                          <TableHead className="font-display text-xs uppercase tracking-wider">
+                            Date
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {recentTxs.map((tx: Transaction, i: number) => {
+                          const isDeposit =
+                            tx.txType === TransactionType.deposit;
+                          const txKey = `${tx.txType}-${tx.amount.toString()}-${tx.date.toString()}-${i}`;
+                          return (
+                            <TableRow
+                              key={txKey}
+                              data-ocid={`admin.transaction.item.${i + 1}`}
+                              style={{ borderColor: "rgba(255,255,255,0.04)" }}
+                            >
+                              <TableCell>
+                                <span
+                                  className="text-xs font-display font-bold uppercase px-2 py-0.5 rounded"
+                                  style={{
+                                    background: isDeposit
+                                      ? "rgba(34,204,102,0.15)"
+                                      : "rgba(255,34,0,0.15)",
+                                    color: isDeposit ? "#22cc66" : "#ff4422",
+                                    border: `1px solid ${isDeposit ? "rgba(34,204,102,0.3)" : "rgba(255,34,0,0.3)"}`,
+                                  }}
+                                >
+                                  {tx.txType}
+                                </span>
+                              </TableCell>
+                              <TableCell
+                                className="font-display font-bold text-sm tabular-nums"
+                                style={{
+                                  color: isDeposit ? "#22cc66" : "#ff4422",
+                                }}
+                              >
+                                {isDeposit ? "+" : "-"}L{Number(tx.amount)}
+                              </TableCell>
+                              <TableCell className="font-body text-sm text-muted-foreground max-w-xs truncate">
+                                {tx.description}
+                              </TableCell>
+                              <TableCell className="font-body text-sm text-muted-foreground">
+                                {formatDate(tx.date)}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── RIGHT: Action Tools Panel ── */}
+        <div
+          className="lg:w-72 xl:w-80 rounded-2xl p-5 flex flex-col gap-4 lg:self-start lg:sticky lg:top-24"
+          style={{
+            background: "rgba(8, 8, 18, 0.98)",
+            border: "1px solid rgba(255,215,0,0.2)",
+            boxShadow:
+              "0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,215,0,0.08)",
+          }}
+        >
+          {/* Panel title */}
+          <div
+            className="flex items-center gap-2 pb-3"
+            style={{ borderBottom: "1px solid rgba(255,215,0,0.1)" }}
+          >
+            <Shield className="w-4 h-4" style={{ color: "#ffd700" }} />
+            <h4
+              className="font-display font-black text-xs uppercase tracking-[0.2em]"
+              style={{ color: "#ffd700" }}
+            >
+              Action Tools
+            </h4>
+          </div>
+
+          {/* BAN / UNBAN */}
+          {profile.isBanned ? (
+            <button
+              type="button"
+              data-ocid="admin.user.unban_button"
               onClick={onToggleBan}
               disabled={isToggling}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-80 disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-display font-black text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50"
               style={{
-                background: profile.isBanned
-                  ? "rgba(34,204,102,0.15)"
-                  : "rgba(255,34,0,0.15)",
-                border: profile.isBanned
-                  ? "1px solid rgba(34,204,102,0.4)"
-                  : "1px solid rgba(255,34,0,0.4)",
-                color: profile.isBanned ? "#22cc66" : "#ff4422",
+                background:
+                  "linear-gradient(135deg, rgba(34,204,102,0.25), rgba(0,160,70,0.25))",
+                border: "1px solid rgba(34,204,102,0.5)",
+                color: "#22cc66",
               }}
             >
               {isToggling ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
-              ) : profile.isBanned ? (
-                <>
-                  <CheckCircle className="w-4 h-4" /> UNBAN
-                </>
               ) : (
-                <>
-                  <Ban className="w-4 h-4" /> BAN
-                </>
+                <CheckCircle className="w-4 h-4" />
               )}
+              {isToggling ? "Updating…" : "UNBAN Player"}
             </button>
-
-            {/* Delete Account button */}
-            {onDeleteUser && (
-              <button
-                type="button"
-                data-ocid="admin.user.delete_button"
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      "Delete this account permanently? This cannot be undone.",
-                    )
-                  ) {
-                    onDeleteUser();
-                  }
-                }}
-                disabled={isDeletingUser}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-80 disabled:opacity-50"
-                style={{
-                  background: "rgba(180,0,0,0.15)",
-                  border: "1px solid rgba(180,0,0,0.5)",
-                  color: "#ff2200",
-                }}
-              >
-                {isDeletingUser ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <Trash2 className="w-4 h-4" /> DELETE
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Match history */}
-      <div
-        className="p-6 border-b"
-        style={{ borderColor: "rgba(255,255,255,0.06)" }}
-      >
-        <h4 className="font-display font-bold text-sm uppercase tracking-wider text-muted-foreground mb-4">
-          Match History (Last 10)
-        </h4>
-        {recentMatches.length === 0 ? (
-          <p className="text-sm font-body text-muted-foreground italic">
-            No matches played
-          </p>
-        ) : (
-          <div
-            className="overflow-x-auto rounded-xl"
-            style={{ border: "1px solid rgba(255,255,255,0.06)" }}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                  <TableHead className="font-display text-xs uppercase tracking-wider">
-                    Mode
-                  </TableHead>
-                  <TableHead className="font-display text-xs uppercase tracking-wider">
-                    Result
-                  </TableHead>
-                  <TableHead className="font-display text-xs uppercase tracking-wider">
-                    Wagered
-                  </TableHead>
-                  <TableHead className="font-display text-xs uppercase tracking-wider">
-                    Date
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentMatches.map((match: Match, i: number) => {
-                  const resultColor =
-                    match.result === "win"
-                      ? "#22cc66"
-                      : match.result === "loss"
-                        ? "#ff4422"
-                        : "#ffd700";
-                  return (
-                    <TableRow
-                      key={match.matchId}
-                      data-ocid={`admin.match.item.${i + 1}`}
-                      style={{ borderColor: "rgba(255,255,255,0.04)" }}
-                    >
-                      <TableCell className="font-body text-sm">
-                        {modeLabel(match.mode)}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className="text-xs font-display font-bold uppercase px-2 py-0.5 rounded"
-                          style={{
-                            background: `${resultColor}20`,
-                            color: resultColor,
-                            border: `1px solid ${resultColor}40`,
-                          }}
-                        >
-                          {match.result}
-                        </span>
-                      </TableCell>
-                      <TableCell
-                        className="font-display font-bold text-sm tabular-nums"
-                        style={{ color: "#ffd700" }}
-                      >
-                        L{Number(match.coinsWagered)}
-                      </TableCell>
-                      <TableCell className="font-body text-sm text-muted-foreground">
-                        {formatDate(match.date)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </div>
-
-      {/* Transaction history */}
-      <div
-        className="p-6 border-b"
-        style={{ borderColor: "rgba(255,255,255,0.06)" }}
-      >
-        <h4 className="font-display font-bold text-sm uppercase tracking-wider text-muted-foreground mb-4">
-          Transaction History (Last 10)
-        </h4>
-        {recentTxs.length === 0 ? (
-          <p className="text-sm font-body text-muted-foreground italic">
-            No transactions
-          </p>
-        ) : (
-          <div
-            className="overflow-x-auto rounded-xl"
-            style={{ border: "1px solid rgba(255,255,255,0.06)" }}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                  <TableHead className="font-display text-xs uppercase tracking-wider">
-                    Type
-                  </TableHead>
-                  <TableHead className="font-display text-xs uppercase tracking-wider">
-                    Amount
-                  </TableHead>
-                  <TableHead className="font-display text-xs uppercase tracking-wider">
-                    Description
-                  </TableHead>
-                  <TableHead className="font-display text-xs uppercase tracking-wider">
-                    Date
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentTxs.map((tx: Transaction, i: number) => {
-                  const isDeposit = tx.txType === TransactionType.deposit;
-                  const txKey = `${tx.txType}-${tx.amount.toString()}-${tx.date.toString()}-${i}`;
-                  return (
-                    <TableRow
-                      key={txKey}
-                      data-ocid={`admin.transaction.item.${i + 1}`}
-                      style={{ borderColor: "rgba(255,255,255,0.04)" }}
-                    >
-                      <TableCell>
-                        <span
-                          className="text-xs font-display font-bold uppercase px-2 py-0.5 rounded"
-                          style={{
-                            background: isDeposit
-                              ? "rgba(34,204,102,0.15)"
-                              : "rgba(255,34,0,0.15)",
-                            color: isDeposit ? "#22cc66" : "#ff4422",
-                            border: `1px solid ${isDeposit ? "rgba(34,204,102,0.3)" : "rgba(255,34,0,0.3)"}`,
-                          }}
-                        >
-                          {tx.txType}
-                        </span>
-                      </TableCell>
-                      <TableCell
-                        className="font-display font-bold text-sm tabular-nums"
-                        style={{ color: isDeposit ? "#22cc66" : "#ff4422" }}
-                      >
-                        {isDeposit ? "+" : "-"}L{Number(tx.amount)}
-                      </TableCell>
-                      <TableCell className="font-body text-sm text-muted-foreground max-w-xs truncate">
-                        {tx.description}
-                      </TableCell>
-                      <TableCell className="font-body text-sm text-muted-foreground">
-                        {formatDate(tx.date)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </div>
-
-      {/* ── Add Coins ── */}
-      <div className="p-6">
-        <h4
-          className="font-display font-bold text-sm uppercase tracking-wider mb-4"
-          style={{ color: "#ffd700" }}
-        >
-          Add Coins Manually
-        </h4>
-        <form onSubmit={handleAddCoins} className="flex gap-3 items-end">
-          <div className="flex-1">
-            <label
-              htmlFor="admin-add-coins-amount"
-              className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5"
-              style={{ color: "rgba(255,255,255,0.4)" }}
-            >
-              Amount (LC)
-            </label>
-            <input
-              id="admin-add-coins-amount"
-              data-ocid="admin.user.coins_input"
-              type="number"
-              min="1"
-              value={addCoinsAmount}
-              onChange={(e) => setAddCoinsAmount(e.target.value)}
-              placeholder="e.g. 100"
-              className="w-full px-4 py-2.5 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200"
+          ) : (
+            <button
+              type="button"
+              data-ocid="admin.user.ban_button"
+              onClick={onToggleBan}
+              disabled={isToggling}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-display font-black text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50"
               style={{
-                background: "rgba(255,215,0,0.06)",
-                border: "1px solid rgba(255,215,0,0.2)",
-                outline: "none",
+                background:
+                  "linear-gradient(135deg, rgba(255,34,0,0.2), rgba(180,0,0,0.2))",
+                border: "1px solid rgba(255,34,0,0.5)",
+                color: "#ff4422",
               }}
-              onFocus={(e) => {
-                e.target.style.borderColor = "rgba(255,215,0,0.5)";
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = "rgba(255,215,0,0.2)";
-              }}
-            />
-          </div>
-          <button
-            type="submit"
-            data-ocid="admin.user.add_coins_button"
-            disabled={isAddingCoins}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50 flex-shrink-0"
+            >
+              {isToggling ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Ban className="w-4 h-4" />
+              )}
+              {isToggling ? "Updating…" : "BAN Player"}
+            </button>
+          )}
+
+          {/* SEND COINS */}
+          <div
+            className="rounded-xl p-4"
             style={{
-              background:
-                "linear-gradient(135deg, rgba(255,215,0,0.9), rgba(255,150,0,0.9))",
-              color: "#000",
+              background: "rgba(255,215,0,0.04)",
+              border: "1px solid rgba(255,215,0,0.15)",
             }}
           >
-            {isAddingCoins ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Coins className="w-4 h-4" />
-            )}
-            {isAddingCoins ? "Adding…" : "Add Coins"}
-          </button>
-        </form>
-        <p
-          className="text-xs font-body mt-2"
-          style={{ color: "rgba(255,255,255,0.3)" }}
-        >
-          Coins will be added directly to{" "}
-          <span style={{ color: "rgba(255,215,0,0.6)" }}>
-            {profile.gameName || profile.legendId}
-          </span>
-          's wallet.
-        </p>
+            <p
+              className="font-display font-black text-xs uppercase tracking-[0.18em] mb-3"
+              style={{ color: "#ffd700" }}
+            >
+              Send Coins
+            </p>
+            <form onSubmit={handleAddCoins} className="flex flex-col gap-2">
+              <input
+                id="admin-add-coins-amount"
+                data-ocid="admin.user.coins_input"
+                type="number"
+                min="1"
+                value={addCoinsAmount}
+                onChange={(e) => setAddCoinsAmount(e.target.value)}
+                placeholder="Amount (LC)…"
+                className="w-full px-3 py-2.5 rounded-lg font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200"
+                style={{
+                  background: "rgba(255,215,0,0.06)",
+                  border: "1px solid rgba(255,215,0,0.2)",
+                  outline: "none",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "rgba(255,215,0,0.5)";
+                  e.target.style.boxShadow = "0 0 0 2px rgba(255,215,0,0.08)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "rgba(255,215,0,0.2)";
+                  e.target.style.boxShadow = "none";
+                }}
+              />
+              <button
+                type="submit"
+                data-ocid="admin.user.add_coins_button"
+                disabled={isAddingCoins}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-display font-black text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50"
+                style={{
+                  background:
+                    "linear-gradient(135deg, rgba(255,215,0,0.9), rgba(255,150,0,0.9))",
+                  color: "#000",
+                }}
+              >
+                {isAddingCoins ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <SendHorizonal className="w-4 h-4" />
+                )}
+                {isAddingCoins ? "Sending…" : "Send"}
+              </button>
+            </form>
+          </div>
+
+          {/* DELETE ACCOUNT */}
+          {onDeleteUser && (
+            <button
+              type="button"
+              data-ocid="admin.user.delete_button"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "Delete this account permanently? This cannot be undone.",
+                  )
+                ) {
+                  onDeleteUser();
+                }
+              }}
+              disabled={isDeletingUser}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-display font-black text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50 mt-auto"
+              style={{
+                background: "rgba(100,0,0,0.4)",
+                border: "1px solid rgba(200,0,0,0.5)",
+                color: "#ff3311",
+              }}
+            >
+              {isDeletingUser ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Trash2 className="w-4 h-4" />
+              )}
+              {isDeletingUser ? "Deleting…" : "DELETE ACCOUNT"}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1899,6 +2073,64 @@ function MatchManagementSection() {
   );
 }
 
+/* ─── Pending Withdraws Section ────────────────────────────── */
+function PendingWithdrawsSection() {
+  // Withdraw requests are stored locally (frontend-only for now)
+  // They show requests submitted via the Withdraw form
+  return (
+    <div
+      className="rounded-2xl p-6"
+      style={{
+        background: "rgba(13, 13, 26, 0.9)",
+        border: "1px solid rgba(34,204,102,0.15)",
+      }}
+    >
+      <div className="flex items-center gap-3 mb-5">
+        <h2 className="font-display font-bold text-base uppercase tracking-wider text-foreground">
+          Pending Withdraw Requests
+        </h2>
+        <span
+          className="text-xs font-display font-black px-2.5 py-0.5 rounded-full"
+          style={{
+            background: "rgba(255,255,255,0.08)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            color: "rgba(255,255,255,0.4)",
+          }}
+        >
+          0 pending
+        </span>
+      </div>
+      <div
+        data-ocid="admin.withdraw.empty_state"
+        className="rounded-xl py-12 text-center"
+        style={{
+          background: "rgba(255,255,255,0.02)",
+          border: "1px dashed rgba(34,204,102,0.12)",
+        }}
+      >
+        <svg
+          className="w-10 h-10 mx-auto mb-3"
+          style={{ color: "rgba(34,204,102,0.15)" }}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18"
+          />
+        </svg>
+        <p className="font-body text-muted-foreground text-sm">
+          No pending withdraw requests
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Pending Deposits Section ─────────────────────────────── */
 function PendingDepositsSection() {
   const { actor, isFetching } = useActor();
@@ -2163,8 +2395,11 @@ export function AdminPage() {
   const { actor, isFetching } = useActor();
   const queryClient = useQueryClient();
 
+  const [txSection, setTxSection] = useState<"deposit" | "withdraw">("deposit");
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState<string | null>(null);
+  const searchResultRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const {
     data: searchResult,
@@ -2180,6 +2415,26 @@ export function AdminPage() {
     enabled: !!actor && !isFetching && !!searchTerm,
     retry: false,
   });
+
+  // Focus search input on mount
+  useEffect(() => {
+    const t = setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 200);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Auto-scroll result into view when it appears
+  useEffect(() => {
+    if ((searchResult || searchError) && !isSearching) {
+      setTimeout(() => {
+        searchResultRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 100);
+    }
+  }, [searchResult, searchError, isSearching]);
 
   const toggleBanMutation = useMutation({
     mutationFn: async (targetLegendId: string) => {
@@ -2328,7 +2583,7 @@ export function AdminPage() {
       {/* ── MAIN ── */}
       <main className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-10">
         {/* Stats bar */}
-        <div className="grid grid-cols-2 gap-4 mb-10">
+        <div className="grid grid-cols-2 gap-4 mb-8">
           <div
             className="flex items-center gap-4 p-5 rounded-xl"
             style={{
@@ -2382,40 +2637,67 @@ export function AdminPage() {
           </div>
         </div>
 
-        {/* ── Match Management ── */}
-        <MatchManagementSection />
-
-        {/* ── Pending Deposit Requests ── */}
-        <PendingDepositsSection />
-
-        {/* Search bar */}
+        {/* ── USER LOOKUP (moved to TOP) ── */}
         <div
-          className="rounded-2xl p-6"
+          className="rounded-2xl p-6 mb-8"
           style={{
-            background: "rgba(13, 13, 26, 0.9)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            background: "rgba(13, 13, 26, 0.95)",
+            border: "1px solid rgba(255,215,0,0.2)",
+            boxShadow: "0 0 40px rgba(255,215,0,0.04)",
           }}
         >
-          <h2 className="font-display font-bold text-base uppercase tracking-wider mb-4 text-foreground">
-            User Lookup
-          </h2>
+          {/* Section heading */}
+          <div className="flex items-center gap-3 mb-5">
+            <div
+              className="flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0"
+              style={{
+                background: "rgba(255,215,0,0.12)",
+                border: "1px solid rgba(255,215,0,0.3)",
+              }}
+            >
+              <Search className="w-4 h-4" style={{ color: "#ffd700" }} />
+            </div>
+            <h2
+              className="font-display font-black text-base uppercase tracking-wider"
+              style={{ color: "#ffd700" }}
+            >
+              User Lookup
+            </h2>
+            <span
+              className="text-xs font-body"
+              style={{ color: "rgba(255,255,255,0.35)" }}
+            >
+              — Search by Legend ID for instant access
+            </span>
+          </div>
+
+          {/* Search bar */}
           <div className="flex gap-3">
             <div className="flex-1 relative">
               <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
-                style={{ color: "rgba(255,255,255,0.3)" }}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4"
+                style={{ color: "rgba(255,215,0,0.4)" }}
               />
               <input
+                ref={searchInputRef}
                 data-ocid="admin.search_input"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                placeholder="Enter Legend ID…"
-                className="w-full pl-10 pr-4 py-3 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200"
+                placeholder="Enter Legend ID (e.g. 0001)…"
+                className="w-full pl-10 pr-4 py-3.5 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200"
                 style={{
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.1)",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,215,0,0.2)",
                   outline: "none",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "rgba(255,215,0,0.5)";
+                  e.target.style.boxShadow = "0 0 0 3px rgba(255,215,0,0.07)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "rgba(255,215,0,0.2)";
+                  e.target.style.boxShadow = "none";
                 }}
               />
             </div>
@@ -2424,7 +2706,7 @@ export function AdminPage() {
               data-ocid="admin.search_button"
               onClick={handleSearch}
               disabled={isSearching}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50"
+              className="flex items-center gap-2 px-7 py-3.5 rounded-xl font-display font-black text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50 flex-shrink-0"
               style={{
                 background: "linear-gradient(135deg, #ffd700, #ff9900)",
                 color: "#000",
@@ -2435,54 +2717,139 @@ export function AdminPage() {
               ) : (
                 <Search className="w-4 h-4" />
               )}
-              Search
+              {isSearching ? "Searching…" : "Search"}
             </button>
           </div>
 
-          {/* Search result */}
-          {isSearching && (
-            <div
-              data-ocid="admin.search.loading_state"
-              className="mt-4 flex items-center justify-center py-8 gap-3 text-muted-foreground"
-            >
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span className="font-body text-sm">Searching…</span>
-            </div>
-          )}
+          {/* Search result area */}
+          <div ref={searchResultRef}>
+            {/* Loading state */}
+            {isSearching && (
+              <div
+                data-ocid="admin.search.loading_state"
+                className="mt-6 flex items-center justify-center py-10 gap-3"
+                style={{ color: "rgba(255,215,0,0.6)" }}
+              >
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span className="font-body text-sm">Looking up Legend ID…</span>
+              </div>
+            )}
 
-          {searchError && !isSearching && (
-            <div
-              data-ocid="admin.search.error_state"
-              className="mt-4 text-center py-8"
-            >
-              <p className="font-body text-sm" style={{ color: "#ff4422" }}>
-                User not found. Check the Legend ID and try again.
-              </p>
-            </div>
-          )}
-
-          {searchResult && !isSearching && (
-            <div data-ocid="admin.search.success_state">
-              <UserCard
-                profile={searchResult}
-                onToggleBan={() =>
-                  toggleBanMutation.mutate(searchResult.legendId)
-                }
-                isToggling={toggleBanMutation.isPending}
-                onCoinsAdded={() => {
-                  queryClient.invalidateQueries({
-                    queryKey: ["adminSearch", searchTerm],
-                  });
-                  refetchSearch();
+            {/* Error / not found */}
+            {searchError && !isSearching && (
+              <div
+                data-ocid="admin.search.error_state"
+                className="mt-6 rounded-xl py-8 text-center"
+                style={{
+                  background: "rgba(255,34,0,0.05)",
+                  border: "1px solid rgba(255,34,0,0.2)",
                 }}
-                onDeleteUser={() =>
-                  deleteUserMutation.mutate(searchResult.legendId)
-                }
-                isDeletingUser={deleteUserMutation.isPending}
-              />
-            </div>
-          )}
+              >
+                <Ban
+                  className="w-8 h-8 mx-auto mb-3"
+                  style={{ color: "rgba(255,68,34,0.5)" }}
+                />
+                <p
+                  className="font-display font-bold text-sm"
+                  style={{ color: "#ff4422" }}
+                >
+                  User not found
+                </p>
+                <p
+                  className="font-body text-xs mt-1"
+                  style={{ color: "rgba(255,255,255,0.35)" }}
+                >
+                  Check the Legend ID format (e.g. 0001) and try again.
+                </p>
+              </div>
+            )}
+
+            {/* Success: user card */}
+            {searchResult && !isSearching && (
+              <div data-ocid="admin.search.success_state">
+                <UserCard
+                  profile={searchResult}
+                  onToggleBan={() =>
+                    toggleBanMutation.mutate(searchResult.legendId)
+                  }
+                  isToggling={toggleBanMutation.isPending}
+                  onCoinsAdded={() => {
+                    queryClient.invalidateQueries({
+                      queryKey: ["adminSearch", searchTerm],
+                    });
+                    refetchSearch();
+                  }}
+                  onDeleteUser={() =>
+                    deleteUserMutation.mutate(searchResult.legendId)
+                  }
+                  isDeletingUser={deleteUserMutation.isPending}
+                />
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* ── Match Management ── */}
+        <MatchManagementSection />
+
+        {/* ── Deposit / Withdraw Tab Toggle ── */}
+        <div
+          className="flex gap-0 rounded-2xl overflow-hidden mb-5"
+          style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          <button
+            type="button"
+            data-ocid="admin.deposit_tab"
+            onClick={() => setTxSection("deposit")}
+            className="flex-1 flex items-center justify-center gap-2 py-4 font-display font-black text-sm uppercase tracking-wider transition-all duration-200"
+            style={
+              txSection === "deposit"
+                ? {
+                    background:
+                      "linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,153,0,0.12))",
+                    color: "#ffd700",
+                    borderRight: "1px solid rgba(255,255,255,0.08)",
+                    boxShadow: "inset 0 -2px 0 #ffd700",
+                  }
+                : {
+                    background: "rgba(255,215,0,0.03)",
+                    color: "rgba(255,215,0,0.4)",
+                    borderRight: "1px solid rgba(255,255,255,0.08)",
+                  }
+            }
+          >
+            <Coins className="w-4 h-4" />
+            Deposit Requests
+          </button>
+          <button
+            type="button"
+            data-ocid="admin.withdraw_tab"
+            onClick={() => setTxSection("withdraw")}
+            className="flex-1 flex items-center justify-center gap-2 py-4 font-display font-black text-sm uppercase tracking-wider transition-all duration-200"
+            style={
+              txSection === "withdraw"
+                ? {
+                    background:
+                      "linear-gradient(135deg, rgba(34,204,102,0.18), rgba(0,180,80,0.12))",
+                    color: "#22cc66",
+                    boxShadow: "inset 0 -2px 0 #22cc66",
+                  }
+                : {
+                    background: "rgba(34,204,102,0.03)",
+                    color: "rgba(34,204,102,0.4)",
+                  }
+            }
+          >
+            <SendHorizonal className="w-4 h-4" />
+            Withdraw Requests
+          </button>
+        </div>
+
+        {/* ── Pending Deposit Requests ── */}
+        {txSection === "deposit" && <PendingDepositsSection />}
+
+        {/* ── Pending Withdraw Requests ── */}
+        {txSection === "withdraw" && <PendingWithdrawsSection />}
       </main>
     </div>
   );

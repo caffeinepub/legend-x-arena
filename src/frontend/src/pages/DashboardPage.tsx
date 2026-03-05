@@ -410,6 +410,7 @@ function DepositTab({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawJazzCash, setWithdrawJazzCash] = useState(userJazzCash ?? "");
+  const [withdrawJazzCashName, setWithdrawJazzCashName] = useState("");
   const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   // Sync withdrawJazzCash when userJazzCash becomes available (only if not yet set)
@@ -442,6 +443,14 @@ function DepositTab({
     const amount = Number(pkrAmount);
     if (!pkrAmount || amount <= 0) {
       toast.error("Enter a valid amount in PKR");
+      return;
+    }
+    if (amount < 50) {
+      toast.error("Minimum deposit is 50");
+      return;
+    }
+    if (amount % 10 !== 0) {
+      toast.error("Amount must be in multiples of 10 (50, 60, 70…)");
       return;
     }
     if (!txId.trim()) {
@@ -524,14 +533,27 @@ function DepositTab({
       toast.error("Enter a valid amount");
       return;
     }
+    if (amount < 100) {
+      toast.error("Minimum withdrawal is 100");
+      return;
+    }
+    if (amount % 10 !== 0) {
+      toast.error("Amount must be in multiples of 10 (100, 110, 120…)");
+      return;
+    }
     if (!withdrawJazzCash.trim()) {
       toast.error("Enter your JazzCash number");
+      return;
+    }
+    if (!withdrawJazzCashName.trim()) {
+      toast.error("Enter your JazzCash account name");
       return;
     }
     setIsWithdrawing(true);
     try {
       toast.success("Withdraw request submitted! Admin will process shortly.");
       setWithdrawAmount("");
+      setWithdrawJazzCashName("");
       // Keep withdrawJazzCash as the registered number (read-only)
     } catch (err) {
       console.error(err);
@@ -692,30 +714,31 @@ function DepositTab({
               Send any amount to this JazzCash number, then fill in the form
               below to submit your deposit request.
             </p>
-            <div className="flex items-center justify-between mb-2">
-              <span
-                className="text-xs font-body"
-                style={{ color: "rgba(255,215,0,0.5)" }}
-              >
-                JazzCash Holder Name
-              </span>
-              <span
-                className="text-xs font-display font-bold"
-                style={{ color: "rgba(255,215,0,0.85)" }}
-              >
-                Muhammed Qasim
-              </span>
-            </div>
             <button
               type="button"
               data-ocid="deposit.jazzcash_copy_button"
               onClick={copyNumber}
-              className="w-full flex items-center justify-between gap-3 px-5 py-4 rounded-xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
+              className="w-full flex flex-col gap-1 px-5 py-4 rounded-xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
               style={{
                 background: "rgba(255,215,0,0.08)",
                 border: "1px solid rgba(255,215,0,0.35)",
               }}
             >
+              <div className="flex items-center justify-between gap-3">
+                <span
+                  className="font-display font-black text-2xl tabular-nums tracking-widest"
+                  style={{
+                    color: "#ffd700",
+                    textShadow: "0 0 16px rgba(255,215,0,0.5)",
+                  }}
+                >
+                  Muhammed Qasim
+                </span>
+                <Copy
+                  className="w-5 h-5 flex-shrink-0"
+                  style={{ color: "rgba(255,215,0,0.7)" }}
+                />
+              </div>
               <span
                 className="font-display font-black text-2xl tabular-nums tracking-widest"
                 style={{
@@ -725,10 +748,6 @@ function DepositTab({
               >
                 0324-2646964
               </span>
-              <Copy
-                className="w-5 h-5 flex-shrink-0"
-                style={{ color: "rgba(255,215,0,0.7)" }}
-              />
             </button>
             <p
               className="text-xs font-body mt-2 text-center"
@@ -765,10 +784,19 @@ function DepositTab({
                   id="deposit-amount"
                   data-ocid="deposit.amount_input"
                   type="number"
-                  min="1"
+                  min="50"
+                  step="10"
                   value={pkrAmount}
                   onChange={(e) => setPkrAmount(e.target.value)}
-                  placeholder="Enter amount in PKR"
+                  onBlur={(e) => {
+                    const v = Number(e.target.value);
+                    if (v && v % 10 !== 0) {
+                      const snapped = Math.round(v / 10) * 10;
+                      setPkrAmount(String(Math.max(50, snapped)));
+                    }
+                    e.target.style.borderColor = "rgba(255,215,0,0.2)";
+                  }}
+                  placeholder="Min 50, steps of 10 (50, 60, 70…)"
                   className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200"
                   style={{
                     background: "rgba(255,255,255,0.05)",
@@ -778,10 +806,13 @@ function DepositTab({
                   onFocus={(e) => {
                     e.target.style.borderColor = "rgba(255,215,0,0.5)";
                   }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "rgba(255,215,0,0.2)";
-                  }}
                 />
+                <p
+                  className="text-xs font-body mt-1"
+                  style={{ color: "rgba(255,215,0,0.45)" }}
+                >
+                  Minimum: 50 · Multiples of 10 only
+                </p>
               </div>
               <div>
                 <label
@@ -1070,10 +1101,54 @@ function DepositTab({
                   id="withdraw-amount"
                   data-ocid="deposit.withdraw_amount_input"
                   type="number"
-                  min="1"
+                  min="100"
+                  step="10"
                   value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(e.target.value)}
-                  placeholder="Enter amount to withdraw"
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setWithdrawAmount(raw);
+                  }}
+                  onBlur={(e) => {
+                    const v = Number(e.target.value);
+                    if (v && v % 10 !== 0) {
+                      const snapped = Math.round(v / 10) * 10;
+                      setWithdrawAmount(String(Math.max(100, snapped)));
+                    }
+                    e.target.style.borderColor = "rgba(34,204,102,0.2)";
+                  }}
+                  placeholder="Min 100, steps of 10 (100, 110, 120…)"
+                  className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(34,204,102,0.2)",
+                    outline: "none",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "rgba(34,204,102,0.5)";
+                  }}
+                />
+                <p
+                  className="text-xs font-body mt-1"
+                  style={{ color: "rgba(34,204,102,0.45)" }}
+                >
+                  Minimum: 100 · Multiples of 10 only
+                </p>
+              </div>
+              <div>
+                <label
+                  htmlFor="withdraw-jazzcash-name"
+                  className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5"
+                  style={{ color: "rgba(34,204,102,0.6)" }}
+                >
+                  Your JazzCash Name
+                </label>
+                <input
+                  id="withdraw-jazzcash-name"
+                  data-ocid="deposit.withdraw_jazzcash_name_input"
+                  type="text"
+                  value={withdrawJazzCashName}
+                  onChange={(e) => setWithdrawJazzCashName(e.target.value)}
+                  placeholder="Enter your JazzCash account name"
                   className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200"
                   style={{
                     background: "rgba(255,255,255,0.05)",

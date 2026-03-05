@@ -6,9 +6,9 @@ import Map "mo:core/Map";
 import Time "mo:core/Time";
 import Order "mo:core/Order";
 import Runtime "mo:core/Runtime";
+import Migration "migration";
 
-
-
+(with migration = Migration.run)
 actor {
   type Role = { #admin; #user };
   type GameMode = { #loneWolf; #csMod; #brMod };
@@ -79,13 +79,13 @@ actor {
     returningCoins : Nat;
   };
 
-  var isFirstAdminSet = false;
-  let users = Map.empty<Text, UserProfile>();
-  let depositRequests = Map.empty<Text, DepositRequest>();
-  let tournaments = Map.empty<Text, Tournament>();
-  var depositIdCounter = 0;
-  var tournamentIdCounter = 0;
-  var userIdCounter = 1;
+  stable var isFirstAdminSet = false;
+  stable var users = Map.empty<Text, UserProfile>();
+  stable var depositRequests = Map.empty<Text, DepositRequest>();
+  stable var tournaments = Map.empty<Text, Tournament>();
+  stable var depositIdCounter = 0;
+  stable var tournamentIdCounter = 0;
+  stable var userIdCounter = 1;
 
   module UserProfile {
     public func compare(a : UserProfile, b : UserProfile) : Order.Order {
