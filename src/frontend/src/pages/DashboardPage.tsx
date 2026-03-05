@@ -49,7 +49,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import blazeHunterImg from "/assets/generated/shop-avatar-blaze-hunter-transparent.dim_200x200.png";
 import bloodWolfImg from "/assets/generated/shop-avatar-blood-wolf-transparent.dim_200x200.png";
@@ -89,6 +89,36 @@ function LegendCoin({ size = 16 }: { size?: number }) {
       }}
     >
       L
+    </span>
+  );
+}
+
+/* ─── APP OWNER badge (for Legend ID 0001) ──────────────────── */
+function AppOwnerBadge() {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 3,
+        background:
+          "linear-gradient(135deg, rgba(255,215,0,0.25), rgba(255,153,0,0.15))",
+        border: "1px solid rgba(255,215,0,0.5)",
+        borderRadius: 6,
+        padding: "1px 6px",
+        fontSize: 9,
+        fontFamily: "Mona Sans, sans-serif",
+        fontWeight: 900,
+        color: "#ffd700",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        textShadow: "0 0 8px rgba(255,215,0,0.5)",
+        flexShrink: 0,
+        verticalAlign: "middle",
+        marginLeft: 4,
+      }}
+    >
+      👑 APP OWNER
     </span>
   );
 }
@@ -363,11 +393,13 @@ function DepositTab({
   transactions,
   actor,
   isFetching,
+  userJazzCash,
 }: {
   balance: bigint;
   transactions: Transaction[];
   actor: backendInterface | null;
   isFetching: boolean;
+  userJazzCash: string;
 }) {
   const queryClient = useQueryClient();
   const [activeSection, setActiveSection] = useState<"deposit" | "withdraw">(
@@ -377,8 +409,17 @@ function DepositTab({
   const [txId, setTxId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
-  const [withdrawJazzCash, setWithdrawJazzCash] = useState("");
+  const [withdrawJazzCash, setWithdrawJazzCash] = useState(userJazzCash ?? "");
   const [isWithdrawing, setIsWithdrawing] = useState(false);
+
+  // Sync withdrawJazzCash when userJazzCash becomes available (only if not yet set)
+  const didInitWithdrawJazzCash = useRef(false);
+  useEffect(() => {
+    if (userJazzCash && !didInitWithdrawJazzCash.current) {
+      didInitWithdrawJazzCash.current = true;
+      setWithdrawJazzCash(userJazzCash);
+    }
+  }, [userJazzCash]);
 
   const { data: myRequests = [], refetch: refetchRequests } = useQuery<
     DepositRequest[]
@@ -491,7 +532,7 @@ function DepositTab({
     try {
       toast.success("Withdraw request submitted! Admin will process shortly.");
       setWithdrawAmount("");
-      setWithdrawJazzCash("");
+      // Keep withdrawJazzCash as the registered number (read-only)
     } catch (err) {
       console.error(err);
       toast.error("Failed to submit withdraw request.");
@@ -1050,31 +1091,40 @@ function DepositTab({
               <div>
                 <label
                   htmlFor="withdraw-jazzcash"
-                  className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5"
+                  className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5 flex items-center gap-1.5"
                   style={{ color: "rgba(34,204,102,0.6)" }}
                 >
+                  <Lock className="w-3 h-3" />
                   JazzCash Number
                 </label>
-                <input
-                  id="withdraw-jazzcash"
-                  data-ocid="deposit.withdraw_jazzcash_input"
-                  type="tel"
-                  value={withdrawJazzCash}
-                  onChange={(e) => setWithdrawJazzCash(e.target.value)}
-                  placeholder="Your JazzCash mobile number"
-                  className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200"
-                  style={{
-                    background: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(34,204,102,0.2)",
-                    outline: "none",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "rgba(34,204,102,0.5)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "rgba(34,204,102,0.2)";
-                  }}
-                />
+                <div className="relative">
+                  <input
+                    id="withdraw-jazzcash"
+                    data-ocid="deposit.withdraw_jazzcash_input"
+                    type="tel"
+                    value={withdrawJazzCash}
+                    readOnly
+                    placeholder="Your registered JazzCash number"
+                    className="w-full px-4 py-3 pr-10 rounded-xl font-body text-sm placeholder:text-muted-foreground"
+                    style={{
+                      background: "rgba(34,204,102,0.04)",
+                      border: "1px solid rgba(34,204,102,0.25)",
+                      outline: "none",
+                      color: "rgba(255,255,255,0.7)",
+                      cursor: "default",
+                    }}
+                  />
+                  <Lock
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4"
+                    style={{ color: "rgba(34,204,102,0.5)" }}
+                  />
+                </div>
+                <p
+                  className="text-xs font-body mt-1"
+                  style={{ color: "rgba(34,204,102,0.5)" }}
+                >
+                  Using your registered JazzCash number
+                </p>
               </div>
               <button
                 type="submit"
@@ -2131,183 +2181,210 @@ function TournamentCard({
 function MyMatchesModal({
   allMatches,
   onClose,
+  legendId,
+  actor,
+  activeTournaments,
 }: {
   allMatches: Match[];
   onClose: () => void;
+  legendId: string | null;
+  actor: backendInterface | null;
+  activeTournaments: Tournament[];
 }) {
-  const modeLabel = (mode: Match["mode"]) =>
-    mode === GameMode.loneWolf
-      ? "Lone Wolf"
-      : mode === GameMode.csMod
-        ? "CS Mod"
-        : "BR Mod";
-  const resultColor = (r: Match["result"]) =>
-    r === Result.win ? "#22cc66" : r === Result.loss ? "#ff4422" : "#ffd700";
-  const resultLabel = (r: Match["result"]) =>
-    r === Result.win ? "WIN" : r === Result.loss ? "LOSS" : "DRAW";
+  const [viewDetailsTournament, setViewDetailsTournament] =
+    useState<Tournament | null>(null);
+
+  // Build a lookup map from tournamentId -> Tournament
+  const tournamentMap = new Map<string, Tournament>(
+    activeTournaments.map((t) => [t.id, t]),
+  );
 
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: backdrop close
-    <div
-      data-ocid="play.my_matches.modal"
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+    <>
+      {viewDetailsTournament && (
+        <ViewDetailsModal
+          tournament={viewDetailsTournament}
+          legendId={legendId}
+          actor={actor}
+          onClose={() => setViewDetailsTournament(null)}
+        />
+      )}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: backdrop close */}
       <div
-        className="w-full max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden"
-        style={{
-          background: "rgba(13,13,26,0.98)",
-          border: "1px solid rgba(255,255,255,0.12)",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.6)",
-          maxHeight: "80vh",
-          display: "flex",
-          flexDirection: "column",
+        data-ocid="play.my_matches.modal"
+        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+        style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
         }}
       >
-        {/* Header */}
         <div
-          className="relative p-5 flex-shrink-0"
+          className="w-full max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden"
           style={{
-            background:
-              "linear-gradient(135deg, rgba(255,180,0,0.08), rgba(255,100,0,0.04))",
-            borderBottom: "1px solid rgba(255,255,255,0.07)",
+            background: "rgba(13,13,26,0.98)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 24px 60px rgba(0,0,0,0.6)",
+            maxHeight: "80vh",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
+          {/* Header */}
           <div
+            className="relative p-5 flex-shrink-0"
             style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              height: "2px",
               background:
-                "linear-gradient(90deg, transparent, #ffb400 40%, transparent)",
+                "linear-gradient(135deg, rgba(255,180,0,0.08), rgba(255,100,0,0.04))",
+              borderBottom: "1px solid rgba(255,255,255,0.07)",
             }}
-          />
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ClipboardList className="w-5 h-5" style={{ color: "#ffb400" }} />
-              <h3
-                className="font-display font-black text-base uppercase tracking-wider"
-                style={{ color: "#ffb400" }}
-              >
-                My Matches
-              </h3>
-              <span
-                className="text-xs font-display font-bold px-2 py-0.5 rounded-full"
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: "2px",
+                background:
+                  "linear-gradient(90deg, transparent, #ffb400 40%, transparent)",
+              }}
+            />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ClipboardList
+                  className="w-5 h-5"
+                  style={{ color: "#ffb400" }}
+                />
+                <h3
+                  className="font-display font-black text-base uppercase tracking-wider"
+                  style={{ color: "#ffb400" }}
+                >
+                  My Matches
+                </h3>
+                <span
+                  className="text-xs font-display font-bold px-2 py-0.5 rounded-full"
+                  style={{
+                    background: "rgba(255,180,0,0.15)",
+                    border: "1px solid rgba(255,180,0,0.3)",
+                    color: "#ffb400",
+                  }}
+                >
+                  {allMatches.length}
+                </span>
+              </div>
+              <button
+                type="button"
+                data-ocid="play.my_matches.close_button"
+                onClick={onClose}
+                className="w-7 h-7 rounded-lg flex items-center justify-center transition-opacity hover:opacity-70"
                 style={{
-                  background: "rgba(255,180,0,0.15)",
-                  border: "1px solid rgba(255,180,0,0.3)",
-                  color: "#ffb400",
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.1)",
                 }}
               >
-                {allMatches.length}
-              </span>
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
             </div>
-            <button
-              type="button"
-              data-ocid="play.my_matches.close_button"
-              onClick={onClose}
-              className="w-7 h-7 rounded-lg flex items-center justify-center transition-opacity hover:opacity-70"
-              style={{
-                background: "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(255,255,255,0.1)",
-              }}
-            >
-              <X className="w-4 h-4 text-muted-foreground" />
-            </button>
           </div>
-        </div>
 
-        {/* Body */}
-        <div
-          className="p-4 overflow-y-auto flex-1"
-          style={{ scrollbarWidth: "none" }}
-        >
-          {allMatches.length === 0 ? (
-            <div
-              data-ocid="play.my_matches.empty_state"
-              className="rounded-xl py-12 text-center"
-              style={{
-                background: "rgba(255,255,255,0.02)",
-                border: "1px dashed rgba(255,255,255,0.08)",
-              }}
-            >
-              <Trophy
-                className="w-10 h-10 mx-auto mb-3"
-                style={{ color: "rgba(255,255,255,0.12)" }}
-              />
-              <p className="font-body text-muted-foreground text-sm">
-                No matches yet. Join a tournament!
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {[...allMatches].reverse().map((match, i) => {
-                const rc = resultColor(match.result);
-                const rl = resultLabel(match.result);
-                const ml = modeLabel(match.mode);
-                const ms = Number(match.date) / 1_000_000;
-                const dateStr = new Date(ms).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                });
-                return (
-                  <div
-                    // biome-ignore lint/suspicious/noArrayIndexKey: match history index ok
-                    key={i}
-                    data-ocid={`play.my_matches.item.${i + 1}`}
-                    className="flex items-center justify-between py-3 px-4 rounded-xl"
-                    style={{
-                      background: "rgba(255,255,255,0.03)",
-                      border: "1px solid rgba(255,255,255,0.06)",
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Trophy
-                        className="w-4 h-4 flex-shrink-0"
-                        style={{ color: rc }}
-                      />
-                      <div>
-                        <div className="text-sm font-display font-bold text-foreground">
-                          {ml}
-                        </div>
-                        <div className="text-xs font-body text-muted-foreground">
-                          {dateStr}
+          {/* Body */}
+          <div
+            className="p-4 overflow-y-auto flex-1"
+            style={{ scrollbarWidth: "none" }}
+          >
+            {allMatches.length === 0 ? (
+              <div
+                data-ocid="play.my_matches.empty_state"
+                className="rounded-xl py-12 text-center"
+                style={{
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px dashed rgba(255,255,255,0.08)",
+                }}
+              >
+                <Trophy
+                  className="w-10 h-10 mx-auto mb-3"
+                  style={{ color: "rgba(255,255,255,0.12)" }}
+                />
+                <p className="font-body text-muted-foreground text-sm">
+                  No matches yet. Join a tournament!
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {[...allMatches].reverse().map((match, i) => {
+                  const ms = Number(match.date) / 1_000_000;
+                  const dateStr = new Date(ms).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  });
+                  const tournament = tournamentMap.get(match.matchId);
+                  const matchTitle =
+                    tournament?.title ?? `Match #${match.matchId}`;
+                  return (
+                    <div
+                      // biome-ignore lint/suspicious/noArrayIndexKey: match history index ok
+                      key={i}
+                      data-ocid={`play.my_matches.item.${i + 1}`}
+                      className="flex items-center justify-between gap-3 py-3 px-4 rounded-xl"
+                      style={{
+                        background: "rgba(34,204,102,0.03)",
+                        border: "1px solid rgba(34,204,102,0.12)",
+                      }}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <Trophy
+                          className="w-4 h-4 flex-shrink-0"
+                          style={{ color: "#22cc66" }}
+                        />
+                        <div className="min-w-0">
+                          <div className="text-sm font-display font-bold text-foreground truncate max-w-[140px]">
+                            {matchTitle}
+                          </div>
+                          <div className="text-xs font-body text-muted-foreground">
+                            {dateStr}
+                          </div>
                         </div>
                       </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {/* Green JOINED badge */}
+                        <span
+                          className="text-xs font-display font-black uppercase px-2 py-0.5 rounded-full"
+                          style={{
+                            background: "rgba(34,204,102,0.85)",
+                            color: "#fff",
+                          }}
+                        >
+                          JOINED
+                        </span>
+                        {/* View Details button */}
+                        {tournament && (
+                          <button
+                            type="button"
+                            data-ocid={`play.my_matches.secondary_button.${i + 1}`}
+                            onClick={() => {
+                              setViewDetailsTournament(tournament);
+                            }}
+                            className="text-xs font-display font-bold uppercase px-2 py-0.5 rounded-lg transition-opacity hover:opacity-80"
+                            style={{
+                              background: "rgba(0,153,255,0.15)",
+                              border: "1px solid rgba(0,153,255,0.35)",
+                              color: "#0099ff",
+                            }}
+                          >
+                            View Details
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="text-xs font-display font-bold uppercase px-2 py-0.5 rounded"
-                        style={{
-                          background: `${rc}20`,
-                          color: rc,
-                          border: `1px solid ${rc}40`,
-                        }}
-                      >
-                        {rl}
-                      </span>
-                      <span
-                        className="text-xs font-display font-bold tabular-nums flex items-center gap-0.5"
-                        style={{ color: "#ffd700" }}
-                      >
-                        <LegendCoin size={12} />
-                        {Number(match.coinsWagered)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -2355,6 +2432,9 @@ function PlayTab({
         <MyMatchesModal
           allMatches={allMatches}
           onClose={() => setShowMyMatches(false)}
+          legendId={legendId}
+          actor={actor}
+          activeTournaments={activeTournaments}
         />
       )}
       {/* Welcome banner */}
@@ -3518,14 +3598,17 @@ export function DashboardPage() {
                     {/* Player Name */}
                     <div className="flex-1 min-w-0">
                       <div
-                        className="font-display font-bold text-sm truncate"
+                        className="font-display font-bold text-sm flex items-center flex-wrap gap-1"
                         style={{
                           color: isMe ? "#ffd700" : "rgba(255,255,255,0.9)",
                         }}
                       >
-                        {player.gameName || "Player"}
+                        <span className="truncate">
+                          {player.gameName || "Player"}
+                        </span>
+                        {player.legendId === "0001" && <AppOwnerBadge />}
                         {isMe && (
-                          <span className="ml-2 text-xs font-body text-muted-foreground">
+                          <span className="text-xs font-body text-muted-foreground">
                             (you)
                           </span>
                         )}
@@ -3684,14 +3767,17 @@ export function DashboardPage() {
                     {/* Player Name */}
                     <div className="flex-1 min-w-0">
                       <div
-                        className="font-display font-bold text-sm truncate"
+                        className="font-display font-bold text-sm flex items-center flex-wrap gap-1"
                         style={{
                           color: isMe ? "#cc66ff" : "rgba(255,255,255,0.9)",
                         }}
                       >
-                        {player.gameName || "Player"}
+                        <span className="truncate">
+                          {player.gameName || "Player"}
+                        </span>
+                        {player.legendId === "0001" && <AppOwnerBadge />}
                         {isMe && (
-                          <span className="ml-2 text-xs font-body text-muted-foreground">
+                          <span className="text-xs font-body text-muted-foreground">
                             (you)
                           </span>
                         )}
@@ -3849,14 +3935,17 @@ export function DashboardPage() {
                     {/* Player Name + join date */}
                     <div className="flex-1 min-w-0">
                       <div
-                        className="font-display font-bold text-sm truncate"
+                        className="font-display font-bold text-sm flex items-center flex-wrap gap-1"
                         style={{
                           color: isMe ? "#00ccff" : "rgba(255,255,255,0.9)",
                         }}
                       >
-                        {player.gameName || "Player"}
+                        <span className="truncate">
+                          {player.gameName || "Player"}
+                        </span>
+                        {player.legendId === "0001" && <AppOwnerBadge />}
                         {isMe && (
-                          <span className="ml-2 text-xs font-body text-muted-foreground">
+                          <span className="text-xs font-body text-muted-foreground">
                             (you)
                           </span>
                         )}
@@ -3934,6 +4023,7 @@ export function DashboardPage() {
         transactions={transactions}
         actor={actor}
         isFetching={isFetching}
+        userJazzCash={profile?.jazzCashNumber ?? ""}
       />
     ),
 
@@ -4042,10 +4132,11 @@ export function DashboardPage() {
           </div>
           <div>
             <div
-              className="font-display font-black text-lg tracking-wide"
+              className="font-display font-black text-lg tracking-wide flex items-center flex-wrap gap-1"
               style={{ color: "#fff" }}
             >
-              {profile?.gameName || legendId}
+              <span>{profile?.gameName || legendId}</span>
+              {legendId === "0001" && <AppOwnerBadge />}
             </div>
             {/* Legend ID — visible only to the player themselves (this is always their own profile) */}
             <div

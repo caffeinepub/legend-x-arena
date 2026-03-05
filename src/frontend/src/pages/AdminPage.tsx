@@ -65,11 +65,15 @@ function UserCard({
   onToggleBan,
   isToggling,
   onCoinsAdded,
+  onDeleteUser,
+  isDeletingUser,
 }: {
   profile: UserProfile;
   onToggleBan: () => void;
   isToggling: boolean;
   onCoinsAdded?: () => void;
+  onDeleteUser?: () => void;
+  isDeletingUser?: boolean;
 }) {
   const { actor } = useActor();
   const recentMatches = profile.matchHistory.slice(-10).reverse();
@@ -288,6 +292,38 @@ function UserCard({
                 </>
               )}
             </button>
+
+            {/* Delete Account button */}
+            {onDeleteUser && (
+              <button
+                type="button"
+                data-ocid="admin.user.delete_button"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Delete this account permanently? This cannot be undone.",
+                    )
+                  ) {
+                    onDeleteUser();
+                  }
+                }}
+                disabled={isDeletingUser}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-80 disabled:opacity-50"
+                style={{
+                  background: "rgba(180,0,0,0.15)",
+                  border: "1px solid rgba(180,0,0,0.5)",
+                  color: "#ff2200",
+                }}
+              >
+                {isDeletingUser ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" /> DELETE
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -2163,6 +2199,25 @@ export function AdminPage() {
     },
   });
 
+  const deleteUserMutation = useMutation({
+    mutationFn: async (targetLegendId: string) => {
+      if (!actor) throw new Error("Actor not ready");
+      const { legendId: adminLid, passwordHash: adminPh } =
+        useAuthStore.getState();
+      if (!adminLid || !adminPh) throw new Error("Not authenticated");
+      await actor.deleteUser(adminLid, adminPh, targetLegendId);
+    },
+    onSuccess: () => {
+      toast.success("Account deleted");
+      setSearchTerm(null);
+      setSearchInput("");
+      queryClient.invalidateQueries({ queryKey: ["adminSearch"] });
+    },
+    onError: () => {
+      toast.error("Failed to delete account");
+    },
+  });
+
   function handleSearch() {
     const trimmed = searchInput.trim();
     if (!trimmed) {
@@ -2420,6 +2475,10 @@ export function AdminPage() {
                   });
                   refetchSearch();
                 }}
+                onDeleteUser={() =>
+                  deleteUserMutation.mutate(searchResult.legendId)
+                }
+                isDeletingUser={deleteUserMutation.isPending}
               />
             </div>
           )}

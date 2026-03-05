@@ -189,10 +189,12 @@ export interface backendInterface {
     createTournament(adminLegendId: string, adminPasswordHash: string, title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, returningCoins: bigint): Promise<string>;
     declareMatchResult(adminLegendId: string, adminPasswordHash: string, tournamentId: string, winnerLegendId: string, loserLegendId: string, winnerCoins: bigint, loserCoins: bigint): Promise<void>;
     deleteTournament(adminLegendId: string, adminPasswordHash: string, id: string): Promise<void>;
+    deleteUser(adminLegendId: string, adminPasswordHash: string, targetLegendId: string): Promise<void>;
     getActiveTournaments(): Promise<Array<Tournament>>;
     getAllUsers(adminLegendId: string): Promise<Array<UserProfile>>;
     getLeaderboard(): Promise<Array<LeaderboardEntry>>;
     getMyDepositRequests(legendId: string, passwordHash: string): Promise<Array<DepositRequest>>;
+    getNextLegendId(): Promise<string>;
     getPendingDepositRequests(adminLegendId: string, adminPasswordHash: string): Promise<Array<DepositRequest>>;
     getTournamentRoom(tournamentId: string, legendId: string): Promise<{
         roomPassword: string;
@@ -326,6 +328,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async deleteUser(arg0: string, arg1: string, arg2: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteUser(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteUser(arg0, arg1, arg2);
+            return result;
+        }
+    }
     async getActiveTournaments(): Promise<Array<Tournament>> {
         if (this.processError) {
             try {
@@ -380,6 +396,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.getMyDepositRequests(arg0, arg1);
             return from_candid_vec_n18(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getNextLegendId(): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getNextLegendId();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getNextLegendId();
+            return result;
         }
     }
     async getPendingDepositRequests(arg0: string, arg1: string): Promise<Array<DepositRequest>> {

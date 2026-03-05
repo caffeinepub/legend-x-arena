@@ -117,10 +117,12 @@ export interface _SERVICE {
     undefined
   >,
   'deleteTournament' : ActorMethod<[string, string, string], undefined>,
+  'deleteUser' : ActorMethod<[string, string, string], undefined>,
   'getActiveTournaments' : ActorMethod<[], Array<Tournament>>,
   'getAllUsers' : ActorMethod<[string], Array<UserProfile>>,
   'getLeaderboard' : ActorMethod<[], Array<LeaderboardEntry>>,
   'getMyDepositRequests' : ActorMethod<[string, string], Array<DepositRequest>>,
+  'getNextLegendId' : ActorMethod<[], string>,
   'getPendingDepositRequests' : ActorMethod<
     [string, string],
     Array<DepositRequest>

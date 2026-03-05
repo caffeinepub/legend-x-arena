@@ -1,39 +1,49 @@
 # Legend X Arena
 
 ## Current State
-- Full esports tournament app with Shop, Ranking, Play, Deposit, and Profile tabs
-- Registration uses `users.add(caller, newUser)` where `caller` is the ICP Principal -- this changes on every new session/reload, causing registration failures and login failures
-- Login/register after every app update fails because the new actor has a fresh anonymous Principal
-- Play tab welcome banner shows "Welcome, Name" + My Matches button (left-aligned next to name), plus a WalletDisplay below
-- No profile avatar/frame shown in the welcome banner
-- Registration success only shows a toast with Legend ID
-- Data load takes 3-5 minutes because actor is awaited and retried
+- Full Free Fire esports tournament app with 5-tab navigation (Shop, Ranking, Play, Deposit, Profile)
+- User registration with auto-assigned Legend ID (0001, 0002...)
+- JazzCash deposit system with admin approve/reject
+- Withdraw section in Deposit tab
+- Leaderboard with 3 sections: Global Winners (by totalProfit), Prime Legends (by deposit), Oldest Legends (by createdAt)
+- Match join system with View Details modal showing Room ID/Password
+- First-login roulette (5/10/15/20 RS coins) with biased odds
+- Avatar/frame collection system with shop purchase
+- Admin panel with match management, deposit approval, user management
 
 ## Requested Changes (Diff)
 
 ### Add
-- After successful registration, show the assigned Legend ID prominently on-screen (inside AuthPage) in red color with red glow, before auto-navigating to dashboard
-- Player profile avatar + frame display in the Play tab welcome banner, placed below the "Welcome, Name" text (display-only, not clickable for editing -- editing only via Profile tab)
+- **JazzCash uniqueness validation**: Backend must reject registration if `jazzCashNumber` already exists on another account. Similarly, `updatePlayerInfo` must block if new jazzCashNumber is already used by a different user.
+- **Duplicate field validation on registration**: `gameName`, `gameUID`, and `jazzCashNumber` must all be globally unique. If any already exists, registration fails with a clear error message indicating which field is duplicate.
+- **Withdraw JazzCash uniqueness**: In withdraw form, once a user has saved their JazzCash number (from their profile), it auto-fills and locks. They cannot change it — it's their registered number. First time they set it during registration, it stays.
+- **APP OWNER title for Legend ID 0001**: Wherever any user's name is shown (leaderboard, ranking cards, profile header, any player row), if that user's legendId is "0001", show a gold "APP OWNER" badge/title next to their game name.
+- **Registration bonus coins**: Change from 100 coins to 5 coins on registration. The roulette spin can give 5 or 10 (luck). Roulette coins already go to wallet — no change needed there except starting balance.
+- **Roulette coins excluded from leaderboard**: Roulette coins (spin reward) should NOT count toward totalProfit or appear in any leaderboard. They just go to walletBalance silently. Currently roulette coins may increment totalProfit — fix so they only go to walletBalance.
+- **Global Winners leaderboard shows only match-declared wins**: The totalProfit field (incremented via declareMatchResult winner coins) is correctly used. Ensure roulette coins do NOT add to totalProfit.
+- **My Matches tab: "View Details" button on each joined match + "Joined" badge**: In the "My Matches" section (the modal/panel that shows joined matches), each match card should show a green "JOINED" badge and a "View Details" button that opens the ViewDetailsModal. No "Loss" label anywhere in My Matches — only show "JOINED" in green.
+- **updatePlayerInfo duplicate check**: Backend `updatePlayerInfo` must check that the new gameName/gameUID/jazzCashNumber don't already exist on a DIFFERENT user.
 
 ### Modify
-- **Critical bug fix**: Backend `register` function currently stores users by `caller` (ICP Principal). Since the anonymous Principal changes per session, this breaks re-login after app updates. Fix: store users by a stable key derived from legendId instead of caller. Use a separate Map keyed by legendId (Text) rather than Principal.
-- **Backend**: `getUserByPrincipalOrTrap` used by `submitDepositRequest`, `updatePlayerInfo`, `setProfilePicture`, `buyShopAvatar`, `buyShopFrame`, `setProfileFrame`, `joinTournamentById` -- all use caller Principal. These all need to accept a `legendId` parameter instead, or pass legendId from the frontend session.
-- **Backend alternative (simpler)**: Store users in a Map<Text, UserProfile> keyed by legendId (not Principal). Update all functions that currently use `caller` to instead require legendId + password verification, OR pass legendId as explicit param for already-authenticated operations. For admin functions, keep admin check by legendId stored in session.
-- **Frontend AuthPage**: After register succeeds, show the assigned Legend ID (e.g. "0001") inside the register form area in a styled red box with glow animation, then navigate to dashboard after 2 seconds or on button press
-- **Frontend PlayTab welcome banner**: 
-  - Move `My Matches` button to the right side (flex row, space-between)
-  - Remove `WalletDisplay` from inside the welcome banner (coins already shown in header top-right)
-  - Add profile avatar circle + frame overlay below the "Welcome, Name" heading inside the banner -- display-only, no pen icon, no edit capability here
+- **Backend register**: walletBalance starts at 5 (down from 100). Validate uniqueness of gameName, gameUID, jazzCashNumber across existing users before creating.
+- **Backend updatePlayerInfo**: Add duplicate checks for gameName, gameUID, jazzCashNumber — reject if another user already has that value.
+- **Withdraw form**: Pre-fill JazzCash number from user's profile `jazzCashNumber` field. Make it read-only (disabled input). User cannot change it — it's locked to their registered number.
+- **Global Leaderboard (totalProfit)**: Roulette collectReward must NOT modify `totalProfit` — only `walletBalance`. Winning from admin-declared match result correctly increments `totalProfit`. This is already correctly set in the backend for `declareMatchResult`; no backend change needed unless roulette was adding to totalProfit.
+- **My Matches section**: Show "JOINED" green badge on each match card. Remove any "Loss" display. Add "View Details" button that opens the existing ViewDetailsModal. 
 
 ### Remove
-- WalletDisplay component from inside the Play tab welcome banner
-- Coins shown below My Matches button inside Play tab (the WalletDisplay)
+- **Nothing to remove** — only additions and modifications.
 
 ## Implementation Plan
-1. **Backend**: Change `users` Map from `Map<Principal, UserProfile>` to `Map<Text, UserProfile>` keyed by legendId. Update all functions accordingly -- `register` stores by legendId, `getUserByPrincipalOrTrap` becomes `getUserByLegendIdOrTrap(legendId)`, all shared functions that use `caller` now require `legendId: Text` param (passed from authenticated frontend session). Keep admin check via stored role. Remove Principal imports if unused.
-2. **Frontend AuthPage**: After `actor.register(...)` returns `assignedLegendId`, display a red-glowing "YOUR LEGEND ID: 0001" box inside the register form. Auto-navigate after 2.5s or on "Enter Arena" button click.
-3. **Frontend DashboardPage PlayTab**: 
-   - In welcome banner, restructure flex layout: left side has "Commander Online" subtitle + "Welcome, Name" heading; right side has My Matches button (no WalletDisplay)
-   - Below the heading row, add a small profile avatar circle (40px) with frame overlay -- same getProfilePicSrc() logic, display only
-4. **Frontend AuthStore**: No changes needed -- legendId-based session still works the same.
-5. **Frontend backend.d.ts / backend.ts**: Regenerate or manually update function signatures for changed backend methods.
+1. Backend (`main.mo`):
+   - Change starting `walletBalance` in `register` from 100 to 5
+   - Add uniqueness check in `register` for `gameName`, `gameUID`, `jazzCashNumber` — trap with descriptive message if duplicate
+   - Add uniqueness check in `updatePlayerInfo` for `gameName`, `gameUID`, `jazzCashNumber` — exclude the current user from check
+   - Ensure `declareMatchResult` is the only place that increments `totalProfit` — roulette coin collect only modifies `walletBalance` (frontend-only change)
+
+2. Frontend (`DashboardPage.tsx`):
+   - **APP OWNER badge**: Create a helper `isAppOwner(legendId)` that returns true if legendId === "0001". Wrap any game name display in leaderboard / ranking sections with a gold "APP OWNER" badge if true.
+   - **Withdraw form**: Pre-fill `withdrawJazzCash` with `profile.jazzCashNumber` and make input `readOnly` + visually disabled.
+   - **My Matches**: In the My Matches modal/section, for each joined match, show green "JOINED" badge. Replace any "Loss" text. Add "View Details" button that opens ViewDetailsModal for that tournament.
+   - **Roulette**: `collectReward` already only sets `walletBalance` in state — confirm it does NOT call any backend function that touches `totalProfit`. No backend call needed for roulette reward.
+   - **Registration error messages**: Show which field is a duplicate when registration fails (backend trap message propagated to toast).

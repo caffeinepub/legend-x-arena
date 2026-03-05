@@ -107,10 +107,12 @@ export interface backendInterface {
     createTournament(adminLegendId: string, adminPasswordHash: string, title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, returningCoins: bigint): Promise<string>;
     declareMatchResult(adminLegendId: string, adminPasswordHash: string, tournamentId: string, winnerLegendId: string, loserLegendId: string, winnerCoins: bigint, loserCoins: bigint): Promise<void>;
     deleteTournament(adminLegendId: string, adminPasswordHash: string, id: string): Promise<void>;
+    deleteUser(adminLegendId: string, adminPasswordHash: string, targetLegendId: string): Promise<void>;
     getActiveTournaments(): Promise<Array<Tournament>>;
     getAllUsers(adminLegendId: string): Promise<Array<UserProfile>>;
     getLeaderboard(): Promise<Array<LeaderboardEntry>>;
     getMyDepositRequests(legendId: string, passwordHash: string): Promise<Array<DepositRequest>>;
+    getNextLegendId(): Promise<string>;
     getPendingDepositRequests(adminLegendId: string, adminPasswordHash: string): Promise<Array<DepositRequest>>;
     getTournamentRoom(tournamentId: string, legendId: string): Promise<{
         roomPassword: string;

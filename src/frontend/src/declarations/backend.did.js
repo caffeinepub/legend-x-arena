@@ -125,6 +125,7 @@ export const idlService = IDL.Service({
       [],
     ),
   'deleteTournament' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+  'deleteUser' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'getActiveTournaments' : IDL.Func([], [IDL.Vec(Tournament)], ['query']),
   'getAllUsers' : IDL.Func([IDL.Text], [IDL.Vec(UserProfile)], ['query']),
   'getLeaderboard' : IDL.Func([], [IDL.Vec(LeaderboardEntry)], ['query']),
@@ -133,6 +134,7 @@ export const idlService = IDL.Service({
       [IDL.Vec(DepositRequest)],
       [],
     ),
+  'getNextLegendId' : IDL.Func([], [IDL.Text], ['query']),
   'getPendingDepositRequests' : IDL.Func(
       [IDL.Text, IDL.Text],
       [IDL.Vec(DepositRequest)],
@@ -310,6 +312,7 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'deleteTournament' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+    'deleteUser' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'getActiveTournaments' : IDL.Func([], [IDL.Vec(Tournament)], ['query']),
     'getAllUsers' : IDL.Func([IDL.Text], [IDL.Vec(UserProfile)], ['query']),
     'getLeaderboard' : IDL.Func([], [IDL.Vec(LeaderboardEntry)], ['query']),
@@ -318,6 +321,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(DepositRequest)],
         [],
       ),
+    'getNextLegendId' : IDL.Func([], [IDL.Text], ['query']),
     'getPendingDepositRequests' : IDL.Func(
         [IDL.Text, IDL.Text],
         [IDL.Vec(DepositRequest)],

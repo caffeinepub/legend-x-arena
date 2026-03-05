@@ -6,9 +6,9 @@ import Map "mo:core/Map";
 import Time "mo:core/Time";
 import Order "mo:core/Order";
 import Runtime "mo:core/Runtime";
-import Migration "migration";
 
-(with migration = Migration.run)
+
+
 actor {
   type Role = { #admin; #user };
   type GameMode = { #loneWolf; #csMod; #brMod };
@@ -130,8 +130,71 @@ actor {
     };
   };
 
+  public query ({ caller }) func getNextLegendId() : async Text {
+    var maxExistingId = 0;
+    for (user in users.values()) {
+      let numericId = switch (user.legendId.size()) {
+        case (4) {
+          let chars : [Char] = user.legendId.toArray();
+          let idText = "" # chars[0].toText() # chars[1].toText() # chars[2].toText() # chars[3].toText();
+          switch (Nat.fromText(idText)) {
+            case (?id) { id };
+            case (null) { 0 };
+          };
+        };
+        case (3) { 0 };
+        case (2) { 0 };
+        case (1) { 0 };
+        case (0) { 0 };
+        case (_) { 0 };
+      };
+      if (numericId > maxExistingId) {
+        maxExistingId := numericId;
+      };
+    };
+
+    let nextId = if (maxExistingId >= userIdCounter) { maxExistingId + 1 } else { userIdCounter };
+    generateLegendId(nextId);
+  };
+
   public shared ({ caller }) func register(passwordHash : Text, jazzCash : Text, uid : Text, ignName : Text) : async Text {
-    let legendId = generateLegendId(userIdCounter);
+    // Validate uniqueness of gameName, gameUID, jazzCashNumber
+    for (user in users.values()) {
+      if (user.gameName == ignName and ignName != "") {
+        Runtime.trap("Game Name already taken. Please choose a different Game Name.");
+      };
+      if (user.gameUID == uid and uid != "") {
+        Runtime.trap("Game UID already registered. Each UID can only be used once.");
+      };
+      if (user.jazzCashNumber == jazzCash and jazzCash != "") {
+        Runtime.trap("JazzCash number already registered on another account. Each number can only be used once.");
+      };
+    };
+    var maxExistingId = 0;
+    for (user in users.values()) {
+      let numericId = switch (user.legendId.size()) {
+        case (4) {
+          let chars : [Char] = user.legendId.toArray();
+          let idText = "" # chars[0].toText() # chars[1].toText() # chars[2].toText() # chars[3].toText();
+          switch (Nat.fromText(idText)) {
+            case (?id) { id };
+            case (null) { 0 };
+          };
+        };
+        case (3) { 0 };
+        case (2) { 0 };
+        case (1) { 0 };
+        case (0) { 0 };
+        case (_) { 0 };
+      };
+      if (numericId > maxExistingId) {
+        maxExistingId := numericId;
+      };
+    };
+
+    let usedId = if (maxExistingId >= userIdCounter) { maxExistingId + 1 } else { userIdCounter };
+
+    let legendId = generateLegendId(usedId);
 
     if (users.values().any(func(p) { p.legendId == legendId })) {
       Runtime.trap("Legend ID generation error, already taken");
@@ -145,7 +208,7 @@ actor {
       legendId;
       passwordHash;
       role;
-      walletBalance = 100;
+      walletBalance = 5;
       isBanned = false;
       createdAt = Time.now();
       matchHistory = [];
@@ -162,7 +225,7 @@ actor {
     };
 
     users.add(legendId, newUser);
-    userIdCounter += 1;
+    userIdCounter := usedId + 1;
     legendId;
   };
 
@@ -189,6 +252,20 @@ actor {
   ) : async () {
     let userProfile = getUserByLegendIdOrTrap(legendId);
     if (not (userProfile.passwordHash == passwordHash)) { Runtime.trap("Incorrect password") };
+    // Check uniqueness against other users
+    for (otherUser in users.values()) {
+      if (otherUser.legendId != legendId) {
+        if (otherUser.gameName == gameName and gameName != "") {
+          Runtime.trap("Game Name already taken by another account.");
+        };
+        if (otherUser.gameUID == gameUID and gameUID != "") {
+          Runtime.trap("Game UID already registered on another account.");
+        };
+        if (otherUser.jazzCashNumber == jazzCashNumber and jazzCashNumber != "") {
+          Runtime.trap("JazzCash number already registered on another account.");
+        };
+      };
+    };
     let updatedProfile = {
       userProfile with
       gameName;
@@ -207,6 +284,19 @@ actor {
           profile with isBanned = not profile.isBanned;
         };
         users.add(targetLegendId, updatedProfile);
+      };
+    };
+  };
+
+  public shared ({ caller }) func deleteUser(adminLegendId : Text, adminPasswordHash : Text, targetLegendId : Text) : async () {
+    assertAdmin(adminLegendId, adminPasswordHash);
+    if (adminLegendId == targetLegendId) {
+      Runtime.trap("Admins cannot delete their own account");
+    };
+    switch (users.get(targetLegendId)) {
+      case (null) { Runtime.trap("User not found") };
+      case (?_) {
+        users.remove(targetLegendId);
       };
     };
   };

@@ -26,10 +26,28 @@ export function AuthPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [assignedId, setAssignedId] = useState<string | null>(null);
   const [pendingNav, setPendingNav] = useState(false);
+  const [nextLegendId, setNextLegendId] = useState<string | null>(null);
   const registerBtnRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
   const { actor } = useActor();
   const login = useAuthStore((s) => s.login);
+
+  // Fetch next Legend ID when register tab is active
+  useEffect(() => {
+    if (activeTab !== "register" || !actor) return;
+    let cancelled = false;
+    actor
+      .getNextLegendId()
+      .then((id) => {
+        if (!cancelled) setNextLegendId(id);
+      })
+      .catch(() => {
+        /* silently ignore */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, actor]);
 
   const loginForm = useForm<LoginFormValues>();
   const registerForm = useForm<RegisterFormValues>();
@@ -108,7 +126,17 @@ export function AuthPage() {
       setPendingNav(true);
     } catch (err) {
       console.error(err);
-      toast.error("Registration failed. Please try again.");
+      const errMsg = err instanceof Error ? err.message : String(err);
+      const userMsg =
+        errMsg.includes("already") ||
+        errMsg.includes("taken") ||
+        errMsg.includes("registered")
+          ? errMsg
+              .replace(/^.*?Error:\s*/i, "")
+              .replace(/\s*\(\s*at.*\).*$/s, "")
+              .trim()
+          : "Registration failed. Please try again.";
+      toast.error(userMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -410,10 +438,29 @@ export function AuthPage() {
                         }}
                       >
                         <span className="mt-0.5 flex-shrink-0">🪪</span>
-                        <span>
-                          Your unique Legend ID will be assigned automatically
-                          when you join.
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span>
+                            Your unique Legend ID will be assigned automatically
+                            when you join.
+                          </span>
+                          {nextLegendId && (
+                            <span className="flex items-center gap-2 mt-0.5">
+                              <span style={{ color: "rgba(100,180,255,0.8)" }}>
+                                Your Legend ID will be:
+                              </span>
+                              <span
+                                className="font-display font-black text-sm tracking-widest"
+                                style={{
+                                  color: "#ff2200",
+                                  textShadow:
+                                    "0 0 8px rgba(255,34,0,0.9), 0 0 16px rgba(255,34,0,0.5), 0 0 24px rgba(255,34,0,0.3)",
+                                }}
+                              >
+                                {nextLegendId}
+                              </span>
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       <div>
