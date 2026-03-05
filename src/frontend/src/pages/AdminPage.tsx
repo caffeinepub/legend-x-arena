@@ -620,6 +620,13 @@ function MatchManagementSection() {
         BigInt(winnerCoins),
         BigInt(loserCoins),
       );
+      // Queue coin shower animation for the winner on their next app open/focus
+      if (winnerIdInput.trim()) {
+        localStorage.setItem(
+          `lxa_pending_coinshower_${winnerIdInput.trim()}`,
+          "1",
+        );
+      }
       toast.success("Result declared! Players updated.");
       queryClient.invalidateQueries({ queryKey: ["allTournaments"] });
       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
@@ -1850,6 +1857,8 @@ function PendingDepositsSection() {
     setLoadingId(req.id);
     try {
       await actor.approveDepositRequest(req.id);
+      // Queue coin shower animation for this user on their next app open/focus
+      localStorage.setItem(`lxa_pending_coinshower_${req.legendId}`, "1");
       toast.success(
         `Deposit approved! L${Number(req.amount).toLocaleString()} added to ${req.legendId}`,
       );

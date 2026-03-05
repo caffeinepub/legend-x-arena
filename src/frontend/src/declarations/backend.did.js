@@ -34,6 +34,7 @@ export const LeaderboardEntry = IDL.Record({
   'gameName' : IDL.Text,
   'selectedProfilePic' : IDL.Nat,
   'totalDeposited' : IDL.Nat,
+  'selectedFrame' : IDL.Nat,
 });
 export const DepositStatus = IDL.Variant({
   'pending' : IDL.Null,
@@ -99,7 +100,7 @@ export const UserProfile = IDL.Record({
 export const idlService = IDL.Service({
   'addCoins' : IDL.Func([IDL.Text, IDL.Nat], [], []),
   'approveDepositRequest' : IDL.Func([IDL.Text], [], []),
-  'authenticate' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
+  'authenticate' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], ['query']),
   'buyShopAvatar' : IDL.Func([IDL.Nat], [], []),
   'buyShopFrame' : IDL.Func([IDL.Nat], [], []),
   'createTournament' : IDL.Func(
@@ -193,6 +194,7 @@ export const idlFactory = ({ IDL }) => {
     'gameName' : IDL.Text,
     'selectedProfilePic' : IDL.Nat,
     'totalDeposited' : IDL.Nat,
+    'selectedFrame' : IDL.Nat,
   });
   const DepositStatus = IDL.Variant({
     'pending' : IDL.Null,
@@ -258,7 +260,7 @@ export const idlFactory = ({ IDL }) => {
   return IDL.Service({
     'addCoins' : IDL.Func([IDL.Text, IDL.Nat], [], []),
     'approveDepositRequest' : IDL.Func([IDL.Text], [], []),
-    'authenticate' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
+    'authenticate' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], ['query']),
     'buyShopAvatar' : IDL.Func([IDL.Nat], [], []),
     'buyShopFrame' : IDL.Func([IDL.Nat], [], []),
     'createTournament' : IDL.Func(

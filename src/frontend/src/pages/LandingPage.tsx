@@ -67,11 +67,14 @@ interface BeforeInstallPromptEvent extends Event {
 function PWAInstallButton() {
   const deferredPrompt = useRef<BeforeInstallPromptEvent | null>(null);
   const [isGlowing, setIsGlowing] = useState(false);
+  const [showFallback, setShowFallback] = useState(false);
 
   useEffect(() => {
+    // Capture the beforeinstallprompt event for native Android install
     const handler = (e: Event) => {
       e.preventDefault();
       deferredPrompt.current = e as BeforeInstallPromptEvent;
+      setShowFallback(false); // prompt is available, no fallback needed
     };
     window.addEventListener("beforeinstallprompt", handler);
     // Start glow pulse
@@ -85,66 +88,83 @@ function PWAInstallButton() {
   const handleInstall = async () => {
     if (deferredPrompt.current) {
       await deferredPrompt.current.prompt();
-      deferredPrompt.current = null;
+      const { outcome } = await deferredPrompt.current.userChoice;
+      if (outcome === "accepted") {
+        deferredPrompt.current = null;
+        setShowFallback(false);
+      }
+    } else {
+      // Browser doesn't support the install prompt — show helpful instructions
+      setShowFallback(true);
     }
-    // If no prompt available, do nothing -- the browser will show its own UI
-    // or the user is already on a device that can't install PWAs this way
   };
 
   const colorB = "#ffd700";
 
   return (
-    <button
-      type="button"
-      data-ocid="landing.install_pwa_button"
-      onClick={handleInstall}
-      className="relative group flex items-center justify-center gap-3 transition-all duration-300 hover:scale-[1.06] hover:-translate-y-1 active:scale-[0.97]"
-      style={{
-        background: "linear-gradient(135deg, #cc1100, #ff4400)",
-        border: "2px solid rgba(255,215,0,0.5)",
-        borderRadius: "16px",
-        minWidth: "220px",
-        padding: "14px 28px",
-        boxShadow: isGlowing
-          ? "0 0 32px rgba(255,34,0,0.6), 0 0 64px rgba(255,150,0,0.3), 0 4px 20px rgba(0,0,0,0.5)"
-          : "0 0 16px rgba(255,34,0,0.35), 0 4px 20px rgba(0,0,0,0.4)",
-        transition: "box-shadow 1.8s ease-in-out, transform 0.2s",
-      }}
-    >
-      {/* Main label */}
-      <div className="flex flex-col items-start relative z-10">
-        <span
-          className="font-display font-black text-lg tracking-widest uppercase"
-          style={{ color: "#fff", letterSpacing: "0.15em", lineHeight: 1.1 }}
-        >
-          Download App
-        </span>
-        <span
-          className="font-body text-xs uppercase tracking-wider mt-0.5"
-          style={{ color: "rgba(255,215,0,0.8)" }}
-        >
-          Free · Legend X Arena
-        </span>
-      </div>
-
-      {/* Bouncing arrow */}
-      <ArrowDown
-        className="w-5 h-5 relative z-10 ml-1 animate-download-bounce flex-shrink-0"
-        style={{ color: colorB }}
-        aria-hidden="true"
-      />
-
-      {/* Glow pulse overlay */}
-      <span
-        aria-hidden="true"
-        className="absolute inset-0 rounded-2xl pointer-events-none"
+    <div className="flex flex-col items-center gap-2">
+      <button
+        type="button"
+        data-ocid="landing.install_pwa_button"
+        onClick={handleInstall}
+        className="relative group flex items-center justify-center gap-3 transition-all duration-300 hover:scale-[1.06] hover:-translate-y-1 active:scale-[0.97]"
         style={{
-          background:
-            "linear-gradient(135deg, rgba(255,100,0,0.15), transparent)",
-          animation: "pulseGlow 2s ease-in-out infinite",
+          background: "linear-gradient(135deg, #cc1100, #ff4400)",
+          border: "2px solid rgba(255,215,0,0.5)",
+          borderRadius: "16px",
+          minWidth: "220px",
+          padding: "14px 28px",
+          boxShadow: isGlowing
+            ? "0 0 32px rgba(255,34,0,0.6), 0 0 64px rgba(255,150,0,0.3), 0 4px 20px rgba(0,0,0,0.5)"
+            : "0 0 16px rgba(255,34,0,0.35), 0 4px 20px rgba(0,0,0,0.4)",
+          transition: "box-shadow 1.8s ease-in-out, transform 0.2s",
         }}
-      />
-    </button>
+      >
+        {/* Main label */}
+        <div className="flex flex-col items-start relative z-10">
+          <span
+            className="font-display font-black text-lg tracking-widest uppercase"
+            style={{ color: "#fff", letterSpacing: "0.15em", lineHeight: 1.1 }}
+          >
+            Download App
+          </span>
+          <span
+            className="font-body text-xs uppercase tracking-wider mt-0.5"
+            style={{ color: "rgba(255,215,0,0.8)" }}
+          >
+            Free · Legend X Arena
+          </span>
+        </div>
+
+        {/* Bouncing arrow */}
+        <ArrowDown
+          className="w-5 h-5 relative z-10 ml-1 animate-download-bounce flex-shrink-0"
+          style={{ color: colorB }}
+          aria-hidden="true"
+        />
+
+        {/* Glow pulse overlay */}
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 rounded-2xl pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(135deg, rgba(255,100,0,0.15), transparent)",
+            animation: "pulseGlow 2s ease-in-out infinite",
+          }}
+        />
+      </button>
+
+      {/* Fallback message when browser doesn't support native install prompt */}
+      {showFallback && (
+        <p
+          className="font-body text-xs text-center max-w-[240px]"
+          style={{ color: "rgba(255,215,0,0.85)" }}
+        >
+          Open in Chrome browser and use menu → Install App
+        </p>
+      )}
+    </div>
   );
 }
 

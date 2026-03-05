@@ -22,6 +22,7 @@ export interface LeaderboardEntry {
     gameName: string;
     selectedProfilePic: bigint;
     totalDeposited: bigint;
+    selectedFrame: bigint;
 }
 export interface DepositRequest {
     id: string;

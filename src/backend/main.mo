@@ -8,8 +8,6 @@ import Order "mo:core/Order";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
 
-
-
 actor {
   type Role = { #admin; #user };
   type GameMode = { #loneWolf; #csMod; #brMod };
@@ -98,7 +96,6 @@ actor {
     };
   };
 
-  // Helper function to check if the caller is unauthorized. If so trap.
   func assertAdmin(caller : Principal) {
     func isAdmin(caller : Principal) : Bool {
       switch (users.get(caller)) {
@@ -114,12 +111,10 @@ actor {
     if (not isAdmin(caller)) { Runtime.trap("Admin privileges required") };
   };
 
-  // Helper function to get user by legendId.
   func getUserByLegendIdInternal(legendId : Text) : ?(Principal, UserProfile) {
     users.entries().find(func((_, profile)) { profile.legendId == legendId });
   };
 
-  // Helper function to get user by Principal, or trap if not found.
   func getUserByPrincipalOrTrap(principal : Principal) : UserProfile {
     switch (users.get(principal)) {
       case (null) { Runtime.trap("User not found") };
@@ -127,7 +122,6 @@ actor {
     };
   };
 
-  // Auto-generate legendId as a 4-digit zero-padded string
   func generateLegendId(counter : Nat) : Text {
     if (counter >= 1000) {
       counter.toText();
@@ -140,11 +134,9 @@ actor {
     };
   };
 
-  // Register function now auto-generates legendId and returns it
   public shared ({ caller }) func register(passwordHash : Text, jazzCash : Text, uid : Text, ignName : Text) : async Text {
     let legendId = generateLegendId(userIdCounter);
 
-    // Check if legendId (usually should not happen) is already taken
     if (users.values().any(func(p) { p.legendId == legendId })) {
       Runtime.trap("Legend ID generation error, already taken");
     };
@@ -178,7 +170,6 @@ actor {
     legendId;
   };
 
-  // NEW METHOD: Only update IGN, UID, and JazzCash
   public shared ({ caller }) func updatePlayerInfo(gameName : Text, gameUID : Text, jazzCashNumber : Text) : async () {
     let userProfile = getUserByPrincipalOrTrap(caller);
     let updatedProfile = {
@@ -190,12 +181,10 @@ actor {
     users.add(caller, updatedProfile);
   };
 
-  public shared ({ caller }) func authenticate(legendId : Text, passwordHash : Text) : async Bool {
-    switch (users.get(caller)) {
+  public query ({ caller }) func authenticate(legendId : Text, passwordHash : Text) : async Bool {
+    switch (getUserByLegendIdInternal(legendId)) {
       case (null) { false };
-      case (?userProfile) {
-        userProfile.legendId == legendId and userProfile.passwordHash == passwordHash;
-      };
+      case (?(_, profile)) { profile.passwordHash == passwordHash and not profile.isBanned };
     };
   };
 
@@ -218,8 +207,6 @@ actor {
       };
     };
   };
-
-  // Deposit Management
 
   public shared ({ caller }) func submitDepositRequest(amount : Nat, transactionId : Text) : async () {
     let userProfile = getUserByPrincipalOrTrap(caller);
@@ -266,7 +253,6 @@ actor {
     switch (userEntry) {
       case (null) { Runtime.trap("User not found for deposit") };
       case (?(userPrincipal, userData)) {
-        // Update deposit status
         depositRequests.add(requestId, { request with status = #approved });
 
         let newTransaction : Transaction = {
@@ -276,7 +262,6 @@ actor {
           description = "Deposit Approved";
         };
 
-        // Update user and transactions
         let updatedProfile = {
           userData with
           walletBalance = userData.walletBalance + request.amount;
@@ -319,7 +304,6 @@ actor {
     users.add(caller, updatedProfile);
   };
 
-  // Admin can initiate tournament creation process and get temporary ID
   public shared ({ caller }) func createTournament(
     title : Text,
     category : Text,
@@ -384,13 +368,13 @@ actor {
       entryFee;
       prizePool;
       maxPlayers;
-      currentPlayers = tournament.currentPlayers; // Preserve existing players count
+      currentPlayers = tournament.currentPlayers;
       imageUrl;
       isActive;
       createdAt = tournament.createdAt;
-      roomId = tournament.roomId; // Preserve roomId
-      roomPassword = tournament.roomPassword; // Preserve roomPassword
-      joinedPlayers = tournament.joinedPlayers; // Preserve joinedPlayers
+      roomId = tournament.roomId;
+      roomPassword = tournament.roomPassword;
+      joinedPlayers = tournament.joinedPlayers;
       returningCoins;
     };
 
@@ -456,7 +440,6 @@ actor {
           Runtime.trap("Insufficient balance");
         };
 
-        // Check if already joined
         if (
           tournament.joinedPlayers.any(func(pid) { pid == userProfile.legendId })
         ) {
@@ -477,7 +460,6 @@ actor {
           matchHistory = updatedMatchHistory;
         });
 
-        // Add user to joinedPlayers
         let updatedTournament = {
           tournament with
           currentPlayers = tournament.currentPlayers + 1;
@@ -495,7 +477,6 @@ actor {
     switch (tournaments.get(tournamentId)) {
       case (null) { Runtime.trap("Tournament not found") };
       case (?tournament) {
-        // Check if user has joined
         if (not tournament.joinedPlayers.any(func(id) { id == legendId })) {
           Runtime.trap("You must join the tournament to view room details");
         };
@@ -504,7 +485,6 @@ actor {
     };
   };
 
-  // New leaderboard query implementation
   type LeaderboardEntry = {
     legendId : Text;
     wins : Nat;
@@ -514,6 +494,7 @@ actor {
     totalProfit : Nat;
     gameName : Text;
     selectedProfilePic : Nat;
+    selectedFrame : Nat;
   };
 
   public query ({ caller }) func getLeaderboard() : async [LeaderboardEntry] {
@@ -533,12 +514,12 @@ actor {
           totalProfit = user.totalProfit;
           gameName = user.gameName;
           selectedProfilePic = user.selectedProfilePic;
+          selectedFrame = user.selectedFrame;
         };
       }
     );
   };
 
-  // New admin function for declaring match results
   public shared ({ caller }) func declareMatchResult(
     tournamentId : Text,
     winnerLegendId : Text,
@@ -548,7 +529,6 @@ actor {
   ) : async () {
     assertAdmin(caller);
 
-    // Retrieve winner and loser profiles iterating over all users
     let winnerEntry = users.entries().find(
       func((_, p)) { p.legendId == winnerLegendId }
     );
@@ -559,7 +539,6 @@ actor {
 
     switch (winnerEntry, loserEntry) {
       case (?(winnerPrincipal, winnerProfile), ?(loserPrincipal, loserProfile)) {
-        // Update winner
         let winnerTx = {
           txType = #deposit;
           amount = winnerCoins;
@@ -573,7 +552,6 @@ actor {
 
         let winnerMatchHistory = switch (winnerMatchIndex) {
           case (?idx) {
-            // Update existing match result
             let updatedMatch = {
               winnerProfile.matchHistory[idx] with result = #win
             };
@@ -582,7 +560,6 @@ actor {
             } });
           };
           case (null) {
-            // Add new match entry if not found
             winnerProfile.matchHistory.concat([{
               matchId = tournamentId;
               mode = #loneWolf;
@@ -604,7 +581,6 @@ actor {
           },
         );
 
-        // Update loser
         if (loserCoins > 0) {
           let loserTx = {
             txType = #deposit;
@@ -619,7 +595,6 @@ actor {
 
           let loserMatchHistory = switch (loserMatchIndex) {
             case (?idx) {
-              // Update existing match result
               let updatedMatch = {
                 loserProfile.matchHistory[idx] with result = #loss
               };
@@ -630,7 +605,6 @@ actor {
               } });
             };
             case (null) {
-              // Add new match entry if not found
               loserProfile.matchHistory.concat([{
                 matchId = tournamentId;
                 mode = #loneWolf;
@@ -658,7 +632,6 @@ actor {
     };
   };
 
-  // Bonus Coin Distribution (Admin Function)
   public shared ({ caller }) func addCoins(legendId : Text, amount : Nat) : async () {
     assertAdmin(caller);
     switch (getUserByLegendIdInternal(legendId)) {
@@ -675,8 +648,6 @@ actor {
       };
     };
   };
-
-  // Expanded Shop Features
 
   func isValidRange(value : Nat, start : Nat, end : Nat) : Bool {
     value >= start and value <= end
@@ -703,7 +674,6 @@ actor {
 
     let userProfile = getUserByPrincipalOrTrap(caller);
 
-    // Check if already purchased
     if (userProfile.purchasedShopAvatars.any(func(v) { v == avatarIndex })) {
       Runtime.trap("Avatar already purchased");
     };
@@ -758,7 +728,6 @@ actor {
 
     let userProfile = getUserByPrincipalOrTrap(caller);
 
-    // Check if already purchased
     if (userProfile.purchasedFrames.any(func(v) { v == frameIndex })) {
       Runtime.trap("Frame already purchased");
     };
@@ -791,7 +760,6 @@ actor {
     let userProfile = getUserByPrincipalOrTrap(caller);
 
     if (frameIndex == 0) {
-      // Always allow removing frame by setting index 0
       let updatedProfile = {
         userProfile with selectedFrame = 0;
       };
@@ -799,7 +767,6 @@ actor {
     } else if (
       userProfile.purchasedFrames.any(func(v) { v == frameIndex })
     ) {
-      // Check if frame is in purchased frames
       let updatedProfile = {
         userProfile with selectedFrame = frameIndex;
       };

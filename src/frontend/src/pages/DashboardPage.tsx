@@ -273,6 +273,24 @@ function formatDate(ts: bigint): string {
 
 type TabId = "shop" | "ranking" | "play" | "deposit" | "profile";
 
+/* ─── AccountAge live counter ──────────────────────────────── */
+function AccountAge({ createdAt }: { createdAt: bigint }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const ms = now - Number(createdAt) / 1_000_000;
+  const totalHours = Math.floor(ms / 3_600_000);
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  return (
+    <span style={{ color: "#00ccff" }}>
+      {days}d {hours}h
+    </span>
+  );
+}
+
 /* ─── Leaderboard helpers ──────────────────────────────────── */
 
 function getPrimeLevel(totalDeposited: bigint): string {
@@ -352,10 +370,12 @@ function DepositTab({
   isFetching: boolean;
 }) {
   const queryClient = useQueryClient();
+  const [activeSection, setActiveSection] = useState<"deposit" | "withdraw">(
+    "deposit",
+  );
   const [pkrAmount, setPkrAmount] = useState("");
   const [txId, setTxId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawJazzCash, setWithdrawJazzCash] = useState("");
   const [isWithdrawing, setIsWithdrawing] = useState(false);
@@ -462,7 +482,6 @@ function DepositTab({
       toast.success("Withdraw request submitted! Admin will process shortly.");
       setWithdrawAmount("");
       setWithdrawJazzCash("");
-      setShowWithdrawModal(false);
     } catch (err) {
       console.error(err);
       toast.error("Failed to submit withdraw request.");
@@ -476,77 +495,503 @@ function DepositTab({
       className="animate-tab-in px-4 py-6 space-y-6"
       aria-label="Wallet & Deposit"
     >
-      {/* ── Withdraw Modal ── */}
-      {showWithdrawModal && (
-        // biome-ignore lint/a11y/useKeyWithClickEvents: backdrop close
-        <div
-          data-ocid="deposit.withdraw_modal"
-          className="fixed inset-0 z-50 flex items-center justify-center px-4"
-          style={{ background: "rgba(0,0,0,0.8)", backdropFilter: "blur(8px)" }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowWithdrawModal(false);
-          }}
+      {/* ── Deposit / Withdraw Toggle ── */}
+      <div
+        className="flex gap-0 rounded-2xl overflow-hidden"
+        style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+      >
+        <button
+          type="button"
+          data-ocid="deposit.deposit_tab"
+          onClick={() => setActiveSection("deposit")}
+          className="flex-1 flex items-center justify-center gap-2 py-4 font-display font-black text-sm uppercase tracking-wider transition-all duration-200"
+          style={
+            activeSection === "deposit"
+              ? {
+                  background:
+                    "linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,153,0,0.12))",
+                  color: "#ffd700",
+                  borderRight: "1px solid rgba(255,255,255,0.08)",
+                  boxShadow: "inset 0 -2px 0 #ffd700",
+                }
+              : {
+                  background: "rgba(255,215,0,0.03)",
+                  color: "rgba(255,215,0,0.4)",
+                  borderRight: "1px solid rgba(255,255,255,0.08)",
+                  outline: "1px solid transparent",
+                }
+          }
         >
+          <Wallet className="w-4 h-4" />
+          Deposit
+        </button>
+        <button
+          type="button"
+          data-ocid="deposit.withdraw_tab"
+          onClick={() => setActiveSection("withdraw")}
+          className="flex-1 flex items-center justify-center gap-2 py-4 font-display font-black text-sm uppercase tracking-wider transition-all duration-200"
+          style={
+            activeSection === "withdraw"
+              ? {
+                  background:
+                    "linear-gradient(135deg, rgba(34,204,102,0.18), rgba(0,180,80,0.12))",
+                  color: "#22cc66",
+                  boxShadow: "inset 0 -2px 0 #22cc66",
+                }
+              : {
+                  background: "rgba(34,204,102,0.03)",
+                  color: "rgba(34,204,102,0.4)",
+                }
+          }
+        >
+          <ArrowUpRight className="w-4 h-4" />
+          Withdraw
+        </button>
+      </div>
+
+      {/* ── DEPOSIT SECTION ── */}
+      {activeSection === "deposit" && (
+        <>
+          {/* Balance display */}
           <div
-            className="w-full max-w-sm rounded-2xl overflow-hidden"
+            className="rounded-2xl p-6 text-center relative overflow-hidden"
             style={{
-              background: "rgba(13,13,26,0.98)",
-              border: "1px solid rgba(255,100,0,0.3)",
-              boxShadow: "0 24px 60px rgba(0,0,0,0.6)",
+              background:
+                "linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,153,0,0.06))",
+              border: "1px solid rgba(255,215,0,0.25)",
             }}
           >
             <div
-              className="relative p-5"
               style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: "2px",
                 background:
-                  "linear-gradient(135deg, rgba(255,100,0,0.08), rgba(255,60,0,0.04))",
-                borderBottom: "1px solid rgba(255,255,255,0.07)",
+                  "linear-gradient(90deg, transparent, #ffd700, transparent)",
               }}
+            />
+            <p
+              className="text-xs font-body uppercase tracking-[0.3em] mb-2"
+              style={{ color: "rgba(255,215,0,0.6)" }}
             >
+              Legend Coins Balance
+            </p>
+            <div className="flex items-center justify-center gap-3 mb-1">
               <div
+                aria-hidden="true"
                 style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: "2px",
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
                   background:
-                    "linear-gradient(90deg, transparent, #ff6600 40%, transparent)",
+                    "radial-gradient(circle at 35% 30%, #fff7aa, #ffd700 40%, #b8860b 80%, #8b6914)",
+                  border: "3px solid #ffa500",
+                  boxShadow:
+                    "inset 0 3px 6px rgba(255,255,200,0.8), inset 0 -3px 6px rgba(0,0,0,0.4)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 22,
+                  fontFamily: "Mona Sans, sans-serif",
+                  fontWeight: 900,
+                  color: "#3d2200",
+                  textShadow:
+                    "0 1px 2px rgba(255,255,180,0.9), 0 0 6px rgba(255,200,0,0.7)",
+                  animation: "coinLGlow 2s ease-in-out infinite",
+                  flexShrink: 0,
                 }}
-              />
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ArrowUpRight
-                    className="w-5 h-5"
-                    style={{ color: "#ff6600" }}
-                  />
-                  <h3
-                    className="font-display font-black text-base uppercase tracking-wider"
-                    style={{ color: "#ff6600" }}
-                  >
-                    Withdraw Request
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  data-ocid="deposit.withdraw_modal_close_button"
-                  onClick={() => setShowWithdrawModal(false)}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center transition-opacity hover:opacity-70"
-                  style={{
-                    background: "rgba(255,255,255,0.08)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                  }}
-                >
-                  <X className="w-4 h-4 text-muted-foreground" />
-                </button>
+              >
+                L
+              </div>
+              <div
+                className="font-display font-black text-4xl tabular-nums"
+                style={{
+                  color: "#ffd700",
+                  textShadow: "0 0 20px rgba(255,215,0,0.5)",
+                }}
+              >
+                {Number(balance).toLocaleString()}
               </div>
             </div>
-            <form onSubmit={handleWithdraw} className="p-5 space-y-4">
+            <p className="text-xs font-body text-muted-foreground">
+              Available to spend in tournaments
+            </p>
+          </div>
+
+          {/* JazzCash Instructions */}
+          <div
+            className="rounded-2xl p-5"
+            style={{
+              background: "rgba(255,215,0,0.05)",
+              border: "1px solid rgba(255,215,0,0.2)",
+            }}
+          >
+            <h3
+              className="font-display font-black text-base uppercase tracking-wider mb-3"
+              style={{ color: "#ffd700" }}
+            >
+              Deposit via JazzCash
+            </h3>
+            <p
+              className="text-xs font-body mb-4"
+              style={{ color: "rgba(255,255,255,0.55)" }}
+            >
+              Send any amount to this JazzCash number, then fill in the form
+              below to submit your deposit request.
+            </p>
+            <button
+              type="button"
+              data-ocid="deposit.jazzcash_copy_button"
+              onClick={copyNumber}
+              className="w-full flex items-center justify-between gap-3 px-5 py-4 rounded-xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
+              style={{
+                background: "rgba(255,215,0,0.08)",
+                border: "1px solid rgba(255,215,0,0.35)",
+              }}
+            >
+              <span
+                className="font-display font-black text-2xl tabular-nums tracking-widest"
+                style={{
+                  color: "#ffd700",
+                  textShadow: "0 0 16px rgba(255,215,0,0.5)",
+                }}
+              >
+                0324-2646964
+              </span>
+              <Copy
+                className="w-5 h-5 flex-shrink-0"
+                style={{ color: "rgba(255,215,0,0.7)" }}
+              />
+            </button>
+            <p
+              className="text-xs font-body mt-2 text-center"
+              style={{ color: "rgba(255,215,0,0.5)" }}
+            >
+              Tap number to copy
+            </p>
+          </div>
+
+          {/* Deposit Request Form */}
+          <div
+            className="rounded-2xl p-5"
+            style={{
+              background: "rgba(255,215,0,0.03)",
+              border: "1px solid rgba(255,215,0,0.12)",
+            }}
+          >
+            <h3
+              className="font-display font-black text-base uppercase tracking-wider mb-4"
+              style={{ color: "#ffd700" }}
+            >
+              Submit Deposit Request
+            </h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label
+                  htmlFor="deposit-amount"
+                  className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5"
+                  style={{ color: "rgba(255,215,0,0.55)" }}
+                >
+                  Amount (PKR)
+                </label>
+                <input
+                  id="deposit-amount"
+                  data-ocid="deposit.amount_input"
+                  type="number"
+                  min="1"
+                  value={pkrAmount}
+                  onChange={(e) => setPkrAmount(e.target.value)}
+                  placeholder="Enter amount in PKR"
+                  className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,215,0,0.2)",
+                    outline: "none",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "rgba(255,215,0,0.5)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "rgba(255,215,0,0.2)";
+                  }}
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="deposit-txid"
+                  className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5"
+                  style={{ color: "rgba(255,215,0,0.55)" }}
+                >
+                  JazzCash Transaction ID
+                </label>
+                <input
+                  id="deposit-txid"
+                  data-ocid="deposit.txid_input"
+                  type="text"
+                  value={txId}
+                  onChange={(e) => setTxId(e.target.value)}
+                  placeholder="Enter your JazzCash Transaction ID"
+                  className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,215,0,0.2)",
+                    outline: "none",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "rgba(255,215,0,0.5)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "rgba(255,215,0,0.2)";
+                  }}
+                />
+              </div>
+              <button
+                type="submit"
+                data-ocid="deposit.submit_button"
+                disabled={isSubmitting}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50"
+                style={{
+                  background: isSubmitting
+                    ? "rgba(255,215,0,0.2)"
+                    : "linear-gradient(135deg, rgba(255,215,0,0.9), rgba(255,153,0,0.9))",
+                  color: isSubmitting ? "rgba(255,215,0,0.8)" : "#000",
+                  border: "1px solid rgba(255,215,0,0.3)",
+                }}
+              >
+                {isSubmitting ? (
+                  <>
+                    <svg
+                      className="w-4 h-4 animate-spin"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      />
+                    </svg>
+                    Submitting…
+                  </>
+                ) : (
+                  "Submit Request"
+                )}
+              </button>
+            </form>
+          </div>
+
+          {/* My Deposit Requests */}
+          <div>
+            <h3
+              className="font-display font-bold text-sm uppercase tracking-wider mb-3"
+              style={{ color: "rgba(255,215,0,0.8)" }}
+            >
+              My Deposit Requests
+            </h3>
+            {myRequests.length === 0 ? (
+              <div
+                data-ocid="deposit.request.empty_state"
+                className="rounded-xl py-12 text-center"
+                style={{
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px dashed rgba(255,215,0,0.12)",
+                }}
+              >
+                <Wallet
+                  className="w-10 h-10 mx-auto mb-3"
+                  style={{ color: "rgba(255,215,0,0.15)" }}
+                />
+                <p className="font-body text-muted-foreground text-sm">
+                  No deposit requests yet.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {[...myRequests].reverse().map((req, i) => (
+                  <div
+                    key={req.id}
+                    data-ocid={`deposit.request.item.${i + 1}`}
+                    className="flex items-start justify-between gap-3 py-3 px-4 rounded-xl"
+                    style={{
+                      background: "rgba(255,215,0,0.03)",
+                      border: "1px solid rgba(255,215,0,0.1)",
+                    }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span
+                          className="font-display font-black text-base tabular-nums flex items-center gap-1"
+                          style={{ color: "#ffd700" }}
+                        >
+                          <LegendCoin size={15} />
+                          {Number(req.amount).toLocaleString()}
+                        </span>
+                        {statusBadge(req.status)}
+                      </div>
+                      <p
+                        className="text-xs font-mono truncate max-w-[200px]"
+                        style={{ color: "rgba(255,255,255,0.45)" }}
+                      >
+                        ID: {req.transactionId}
+                      </p>
+                      <p
+                        className="text-xs font-body mt-0.5"
+                        style={{ color: "rgba(255,255,255,0.3)" }}
+                      >
+                        {formatDate(req.submittedAt)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Transaction History */}
+          <div>
+            <h3
+              className="font-display font-bold text-sm uppercase tracking-wider mb-3"
+              style={{ color: "rgba(255,215,0,0.8)" }}
+            >
+              Transaction History
+            </h3>
+            {transactions.length === 0 ? (
+              <div
+                data-ocid="deposit.transaction.empty_state"
+                className="rounded-xl py-12 text-center"
+                style={{
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px dashed rgba(255,215,0,0.12)",
+                }}
+              >
+                <Wallet
+                  className="w-10 h-10 mx-auto mb-3"
+                  style={{ color: "rgba(255,215,0,0.15)" }}
+                />
+                <p className="font-body text-muted-foreground text-sm">
+                  No transactions yet.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {[...transactions].reverse().map((tx, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: transactions have no unique ID
+                  <TransactionRow key={`tx-${i}`} tx={tx} index={i + 1} />
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ── WITHDRAW SECTION ── */}
+      {activeSection === "withdraw" && (
+        <>
+          {/* Green Balance display */}
+          <div
+            className="rounded-2xl p-6 text-center relative overflow-hidden"
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(34,204,102,0.1), rgba(0,180,80,0.06))",
+              border: "1px solid rgba(34,204,102,0.25)",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: "2px",
+                background:
+                  "linear-gradient(90deg, transparent, #22cc66, transparent)",
+              }}
+            />
+            <p
+              className="text-xs font-body uppercase tracking-[0.3em] mb-2"
+              style={{ color: "rgba(34,204,102,0.6)" }}
+            >
+              Available Balance
+            </p>
+            <div className="flex items-center justify-center gap-3 mb-1">
+              <div
+                aria-hidden="true"
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  background:
+                    "radial-gradient(circle at 35% 30%, #aaffcc, #22cc66 40%, #008833 80%, #006622)",
+                  border: "3px solid #22cc66",
+                  boxShadow:
+                    "inset 0 3px 6px rgba(100,255,180,0.5), inset 0 -3px 6px rgba(0,0,0,0.4)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 22,
+                  fontFamily: "Mona Sans, sans-serif",
+                  fontWeight: 900,
+                  color: "#003311",
+                  flexShrink: 0,
+                }}
+              >
+                L
+              </div>
+              <div
+                className="font-display font-black text-4xl tabular-nums"
+                style={{
+                  color: "#22cc66",
+                  textShadow: "0 0 20px rgba(34,204,102,0.5)",
+                }}
+              >
+                {Number(balance).toLocaleString()}
+              </div>
+            </div>
+            <p className="text-xs font-body text-muted-foreground">
+              Your current Legend Coins balance
+            </p>
+          </div>
+
+          {/* Withdraw Form */}
+          <div
+            className="rounded-2xl p-5"
+            style={{
+              background: "rgba(34,204,102,0.03)",
+              border: "1px solid rgba(34,204,102,0.15)",
+            }}
+          >
+            <h3
+              className="font-display font-black text-base uppercase tracking-wider mb-4 flex items-center gap-2"
+              style={{ color: "#22cc66" }}
+            >
+              <ArrowUpRight className="w-5 h-5" />
+              Withdraw Request
+            </h3>
+            <p
+              className="text-xs font-body mb-4"
+              style={{ color: "rgba(255,255,255,0.45)" }}
+            >
+              Your withdrawal will be sent to your JazzCash number. Admin will
+              process the request shortly.
+            </p>
+            <form onSubmit={handleWithdraw} className="space-y-4">
               <div>
                 <label
                   htmlFor="withdraw-amount"
                   className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5"
-                  style={{ color: "rgba(255,255,255,0.5)" }}
+                  style={{ color: "rgba(34,204,102,0.6)" }}
                 >
                   Amount (PKR)
                 </label>
@@ -558,11 +1003,17 @@ function DepositTab({
                   value={withdrawAmount}
                   onChange={(e) => setWithdrawAmount(e.target.value)}
                   placeholder="Enter amount to withdraw"
-                  className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground"
+                  className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200"
                   style={{
                     background: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(255,255,255,0.1)",
+                    border: "1px solid rgba(34,204,102,0.2)",
                     outline: "none",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "rgba(34,204,102,0.5)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "rgba(34,204,102,0.2)";
                   }}
                 />
               </div>
@@ -570,7 +1021,7 @@ function DepositTab({
                 <label
                   htmlFor="withdraw-jazzcash"
                   className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5"
-                  style={{ color: "rgba(255,255,255,0.5)" }}
+                  style={{ color: "rgba(34,204,102,0.6)" }}
                 >
                   JazzCash Number
                 </label>
@@ -581,405 +1032,44 @@ function DepositTab({
                   value={withdrawJazzCash}
                   onChange={(e) => setWithdrawJazzCash(e.target.value)}
                   placeholder="Your JazzCash mobile number"
-                  className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground"
+                  className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200"
                   style={{
                     background: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(255,255,255,0.1)",
+                    border: "1px solid rgba(34,204,102,0.2)",
                     outline: "none",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "rgba(34,204,102,0.5)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "rgba(34,204,102,0.2)";
                   }}
                 />
               </div>
-              <div className="flex gap-3 pt-1">
-                <button
-                  type="submit"
-                  data-ocid="deposit.withdraw_submit_button"
-                  disabled={isWithdrawing}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50"
-                  style={{
-                    background:
-                      "linear-gradient(135deg, rgba(255,100,0,0.9), rgba(200,50,0,0.9))",
-                    color: "#fff",
-                  }}
-                >
-                  {isWithdrawing ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : null}
-                  {isWithdrawing ? "Submitting…" : "Submit Request"}
-                </button>
-                <button
-                  type="button"
-                  data-ocid="deposit.withdraw_cancel_button"
-                  onClick={() => setShowWithdrawModal(false)}
-                  disabled={isWithdrawing}
-                  className="flex-1 py-3 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-80"
-                  style={{
-                    background: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    color: "rgba(255,255,255,0.6)",
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── Deposit / Withdraw header ── */}
-      <div className="flex items-center justify-between">
-        <h2 className="font-display font-black text-xl uppercase tracking-wider text-foreground">
-          DEPOSIT
-        </h2>
-        <button
-          type="button"
-          data-ocid="deposit.withdraw_button"
-          onClick={() => setShowWithdrawModal(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-80"
-          style={{
-            background: "rgba(255,100,0,0.12)",
-            border: "1px solid rgba(255,100,0,0.35)",
-            color: "#ff6600",
-          }}
-        >
-          <ArrowUpRight className="w-4 h-4" />
-          Withdraw
-        </button>
-      </div>
-
-      {/* ── Balance display ── */}
-      <div
-        className="rounded-2xl p-6 text-center relative overflow-hidden"
-        style={{
-          background:
-            "linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,153,0,0.06))",
-          border: "1px solid rgba(255,215,0,0.25)",
-        }}
-      >
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: "2px",
-            background:
-              "linear-gradient(90deg, transparent, #ffd700, transparent)",
-          }}
-        />
-        <p
-          className="text-xs font-body uppercase tracking-[0.3em] mb-2"
-          style={{ color: "rgba(255,215,0,0.6)" }}
-        >
-          Legend Coins Balance
-        </p>
-        {/* Animated L-coin */}
-        <div className="flex items-center justify-center gap-3 mb-1">
-          <div
-            aria-hidden="true"
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: "50%",
-              background:
-                "radial-gradient(circle at 35% 30%, #fff7aa, #ffd700 40%, #b8860b 80%, #8b6914)",
-              border: "3px solid #ffa500",
-              boxShadow:
-                "inset 0 3px 6px rgba(255,255,200,0.8), inset 0 -3px 6px rgba(0,0,0,0.4)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 22,
-              fontFamily: "Mona Sans, sans-serif",
-              fontWeight: 900,
-              color: "#3d2200",
-              textShadow:
-                "0 1px 2px rgba(255,255,180,0.9), 0 0 6px rgba(255,200,0,0.7)",
-              animation: "coinLGlow 2s ease-in-out infinite",
-              flexShrink: 0,
-            }}
-          >
-            L
-          </div>
-          <div
-            className="font-display font-black text-4xl tabular-nums"
-            style={{
-              color: "#ffd700",
-              textShadow: "0 0 20px rgba(255,215,0,0.5)",
-            }}
-          >
-            {Number(balance).toLocaleString()}
-          </div>
-        </div>
-        <p className="text-xs font-body text-muted-foreground">
-          Available to spend in tournaments
-        </p>
-      </div>
-
-      {/* ── JazzCash Instructions ── */}
-      <div
-        className="rounded-2xl p-5"
-        style={{
-          background: "rgba(34,204,102,0.06)",
-          border: "1px solid rgba(34,204,102,0.2)",
-        }}
-      >
-        <h3
-          className="font-display font-black text-base uppercase tracking-wider mb-3"
-          style={{ color: "#22cc66" }}
-        >
-          Deposit via JazzCash
-        </h3>
-        <p
-          className="text-xs font-body mb-4"
-          style={{ color: "rgba(255,255,255,0.55)" }}
-        >
-          Send any amount to this JazzCash number, then fill in the form below
-          to submit your deposit request.
-        </p>
-        <button
-          type="button"
-          data-ocid="deposit.jazzcash_copy_button"
-          onClick={copyNumber}
-          className="w-full flex items-center justify-between gap-3 px-5 py-4 rounded-xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
-          style={{
-            background: "rgba(34,204,102,0.1)",
-            border: "1px solid rgba(34,204,102,0.35)",
-          }}
-        >
-          <span
-            className="font-display font-black text-2xl tabular-nums tracking-widest"
-            style={{
-              color: "#22cc66",
-              textShadow: "0 0 16px rgba(34,204,102,0.5)",
-            }}
-          >
-            0324-2646964
-          </span>
-          <Copy
-            className="w-5 h-5 flex-shrink-0"
-            style={{ color: "rgba(34,204,102,0.7)" }}
-          />
-        </button>
-        <p
-          className="text-xs font-body mt-2 text-center"
-          style={{ color: "rgba(34,204,102,0.5)" }}
-        >
-          Tap number to copy
-        </p>
-      </div>
-
-      {/* ── Deposit Request Form ── */}
-      <div
-        className="rounded-2xl p-5"
-        style={{
-          background: "rgba(255,255,255,0.02)",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}
-      >
-        <h3 className="font-display font-black text-base uppercase tracking-wider mb-4 text-foreground">
-          Submit Deposit Request
-        </h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="deposit-amount"
-              className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5"
-              style={{ color: "rgba(255,255,255,0.5)" }}
-            >
-              Amount (PKR)
-            </label>
-            <input
-              id="deposit-amount"
-              data-ocid="deposit.amount_input"
-              type="number"
-              min="1"
-              value={pkrAmount}
-              onChange={(e) => setPkrAmount(e.target.value)}
-              placeholder="Enter amount in PKR"
-              className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200"
-              style={{
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                outline: "none",
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = "rgba(34,204,102,0.5)";
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = "rgba(255,255,255,0.1)";
-              }}
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="deposit-txid"
-              className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5"
-              style={{ color: "rgba(255,255,255,0.5)" }}
-            >
-              JazzCash Transaction ID
-            </label>
-            <input
-              id="deposit-txid"
-              data-ocid="deposit.txid_input"
-              type="text"
-              value={txId}
-              onChange={(e) => setTxId(e.target.value)}
-              placeholder="Enter your JazzCash Transaction ID"
-              className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200"
-              style={{
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                outline: "none",
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = "rgba(34,204,102,0.5)";
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = "rgba(255,255,255,0.1)";
-              }}
-            />
-          </div>
-          <button
-            type="submit"
-            data-ocid="deposit.submit_button"
-            disabled={isSubmitting}
-            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50"
-            style={{
-              background: isSubmitting
-                ? "rgba(34,204,102,0.2)"
-                : "linear-gradient(135deg, rgba(34,204,102,0.9), rgba(0,180,80,0.9))",
-              color: isSubmitting ? "rgba(34,204,102,0.8)" : "#fff",
-              border: "1px solid rgba(34,204,102,0.3)",
-            }}
-          >
-            {isSubmitting ? (
-              <>
-                <svg
-                  className="w-4 h-4 animate-spin"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                  />
-                </svg>
-                Submitting…
-              </>
-            ) : (
-              "Submit Request"
-            )}
-          </button>
-        </form>
-      </div>
-
-      {/* ── My Deposit Requests ── */}
-      <div>
-        <h3 className="font-display font-bold text-sm uppercase tracking-wider text-foreground mb-3">
-          My Deposit Requests
-        </h3>
-        {myRequests.length === 0 ? (
-          <div
-            data-ocid="deposit.request.empty_state"
-            className="rounded-xl py-12 text-center"
-            style={{
-              background: "rgba(255,255,255,0.02)",
-              border: "1px dashed rgba(255,255,255,0.08)",
-            }}
-          >
-            <Wallet
-              className="w-10 h-10 mx-auto mb-3"
-              style={{ color: "rgba(255,255,255,0.15)" }}
-            />
-            <p className="font-body text-muted-foreground text-sm">
-              No deposit requests yet.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {[...myRequests].reverse().map((req, i) => (
-              <div
-                key={req.id}
-                data-ocid={`deposit.request.item.${i + 1}`}
-                className="flex items-start justify-between gap-3 py-3 px-4 rounded-xl"
+              <button
+                type="submit"
+                data-ocid="deposit.withdraw_submit_button"
+                disabled={isWithdrawing}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50"
                 style={{
-                  background: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.06)",
+                  background: isWithdrawing
+                    ? "rgba(34,204,102,0.2)"
+                    : "linear-gradient(135deg, rgba(34,204,102,0.9), rgba(0,180,80,0.9))",
+                  color: "#fff",
+                  border: "1px solid rgba(34,204,102,0.3)",
                 }}
               >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span
-                      className="font-display font-black text-base tabular-nums flex items-center gap-1"
-                      style={{ color: "#ffd700" }}
-                    >
-                      <LegendCoin size={15} />
-                      {Number(req.amount).toLocaleString()}
-                    </span>
-                    {statusBadge(req.status)}
-                  </div>
-                  <p
-                    className="text-xs font-mono truncate max-w-[200px]"
-                    style={{ color: "rgba(255,255,255,0.45)" }}
-                  >
-                    ID: {req.transactionId}
-                  </p>
-                  <p
-                    className="text-xs font-body mt-0.5"
-                    style={{ color: "rgba(255,255,255,0.3)" }}
-                  >
-                    {formatDate(req.submittedAt)}
-                  </p>
-                </div>
-              </div>
-            ))}
+                {isWithdrawing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <ArrowUpRight className="w-4 h-4" />
+                )}
+                {isWithdrawing ? "Submitting…" : "Submit Withdraw Request"}
+              </button>
+            </form>
           </div>
-        )}
-      </div>
-
-      {/* ── Transaction History ── */}
-      <div>
-        <h3 className="font-display font-bold text-sm uppercase tracking-wider text-foreground mb-3">
-          Transaction History
-        </h3>
-        {transactions.length === 0 ? (
-          <div
-            data-ocid="deposit.transaction.empty_state"
-            className="rounded-xl py-12 text-center"
-            style={{
-              background: "rgba(255,255,255,0.02)",
-              border: "1px dashed rgba(255,255,255,0.08)",
-            }}
-          >
-            <Wallet
-              className="w-10 h-10 mx-auto mb-3"
-              style={{ color: "rgba(255,255,255,0.15)" }}
-            />
-            <p className="font-body text-muted-foreground text-sm">
-              No transactions yet.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {[...transactions].reverse().map((tx, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: transactions have no unique ID
-              <TransactionRow key={`tx-${i}`} tx={tx} index={i + 1} />
-            ))}
-          </div>
-        )}
-      </div>
+        </>
+      )}
     </section>
   );
 }
@@ -2386,6 +2476,8 @@ export function DashboardPage() {
     gcTime: 5 * 60 * 1000, // keep in cache 5 min
     refetchOnMount: true,
     refetchOnWindowFocus: true,
+    retry: 3,
+    retryDelay: 1000,
   });
 
   // Force refetch whenever actor becomes ready so data isn't stale on app open
@@ -2395,6 +2487,21 @@ export function DashboardPage() {
       refetchProfile();
     }
   }, [actor, isFetching]);
+
+  // Pending coin shower queue — fires when user returns online after an offline deposit approval or win
+  useEffect(() => {
+    function checkPendingShower() {
+      if (!legendId) return;
+      const key = `lxa_pending_coinshower_${legendId}`;
+      if (localStorage.getItem(key)) {
+        localStorage.removeItem(key);
+        setShowCoinShower(true);
+      }
+    }
+    checkPendingShower(); // on mount
+    window.addEventListener("focus", checkPendingShower);
+    return () => window.removeEventListener("focus", checkPendingShower);
+  }, [legendId]);
 
   const { data: leaderboardRaw = [], isLoading: isLeaderboardLoading } =
     useQuery<LeaderboardEntry[]>({
@@ -2778,7 +2885,7 @@ export function DashboardPage() {
                     <div className="relative" style={{ width: 80, height: 80 }}>
                       {/* Profile image inside frame */}
                       <img
-                        src={DEFAULT_PROFILE_PIC}
+                        src={getProfilePicSrc(selectedProfilePic)}
                         alt="preview"
                         className="w-full h-full rounded-full object-cover"
                         style={{
@@ -3173,7 +3280,10 @@ export function DashboardPage() {
                     }}
                   >
                     {/* Avatar with rank badge overlay */}
-                    <div className="relative flex-shrink-0">
+                    <div
+                      className="relative flex-shrink-0"
+                      style={{ overflow: "visible" }}
+                    >
                       <div
                         className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center"
                         style={{
@@ -3210,6 +3320,13 @@ export function DashboardPage() {
                           }}
                         />
                       </div>
+                      {Number(player.selectedFrame) > 0 && (
+                        <AnimatedFrameOverlay
+                          frameIndex={Number(player.selectedFrame)}
+                          size={40}
+                          isActive={true}
+                        />
+                      )}
                       {rank <= 3 ? (
                         <div
                           className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
@@ -3217,6 +3334,7 @@ export function DashboardPage() {
                             background: `radial-gradient(circle at 35% 35%, ${medalColor}cc, ${medalColor}88)`,
                             border: "1.5px solid rgba(0,0,0,0.5)",
                             boxShadow: `0 0 6px ${medalColor}66`,
+                            zIndex: 10,
                           }}
                         >
                           <Medal
@@ -3232,6 +3350,7 @@ export function DashboardPage() {
                             border: "1px solid rgba(255,255,255,0.15)",
                             color: "rgba(255,255,255,0.5)",
                             fontSize: "9px",
+                            zIndex: 10,
                           }}
                         >
                           {rank}
@@ -3254,8 +3373,8 @@ export function DashboardPage() {
                           </span>
                         )}
                       </div>
-                      <div className="text-xs font-body text-muted-foreground">
-                        {Number(player.wins)} wins · L
+                      <div className="text-xs font-body text-muted-foreground flex items-center gap-0.5">
+                        <span style={{ color: "#22cc66" }}>+</span>
                         {Number(player.totalProfit).toLocaleString()} profit
                       </div>
                     </div>
@@ -3327,7 +3446,10 @@ export function DashboardPage() {
                     }}
                   >
                     {/* Avatar with rank badge overlay */}
-                    <div className="relative flex-shrink-0">
+                    <div
+                      className="relative flex-shrink-0"
+                      style={{ overflow: "visible" }}
+                    >
                       <div
                         className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center"
                         style={{
@@ -3364,6 +3486,13 @@ export function DashboardPage() {
                           }}
                         />
                       </div>
+                      {Number(player.selectedFrame) > 0 && (
+                        <AnimatedFrameOverlay
+                          frameIndex={Number(player.selectedFrame)}
+                          size={40}
+                          isActive={true}
+                        />
+                      )}
                       {rank <= 3 ? (
                         <div
                           className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
@@ -3371,6 +3500,7 @@ export function DashboardPage() {
                             background: `radial-gradient(circle at 35% 35%, ${medalColor}cc, ${medalColor}88)`,
                             border: "1.5px solid rgba(0,0,0,0.5)",
                             boxShadow: `0 0 6px ${medalColor}66`,
+                            zIndex: 10,
                           }}
                         >
                           <Medal
@@ -3386,6 +3516,7 @@ export function DashboardPage() {
                             border: "1px solid rgba(255,255,255,0.15)",
                             color: "rgba(255,255,255,0.5)",
                             fontSize: "9px",
+                            zIndex: 10,
                           }}
                         >
                           {rank}
@@ -3480,7 +3611,10 @@ export function DashboardPage() {
                     }}
                   >
                     {/* Avatar with rank badge overlay */}
-                    <div className="relative flex-shrink-0">
+                    <div
+                      className="relative flex-shrink-0"
+                      style={{ overflow: "visible" }}
+                    >
                       <div
                         className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center"
                         style={{
@@ -3517,6 +3651,13 @@ export function DashboardPage() {
                           }}
                         />
                       </div>
+                      {Number(player.selectedFrame) > 0 && (
+                        <AnimatedFrameOverlay
+                          frameIndex={Number(player.selectedFrame)}
+                          size={40}
+                          isActive={true}
+                        />
+                      )}
                       {rank <= 3 ? (
                         <div
                           className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
@@ -3524,6 +3665,7 @@ export function DashboardPage() {
                             background: `radial-gradient(circle at 35% 35%, ${medalColor}cc, ${medalColor}88)`,
                             border: "1.5px solid rgba(0,0,0,0.5)",
                             boxShadow: `0 0 6px ${medalColor}66`,
+                            zIndex: 10,
                           }}
                         >
                           <Medal
@@ -3539,6 +3681,7 @@ export function DashboardPage() {
                             border: "1px solid rgba(255,255,255,0.15)",
                             color: "rgba(255,255,255,0.5)",
                             fontSize: "9px",
+                            zIndex: 10,
                           }}
                         >
                           {rank}
@@ -3566,8 +3709,11 @@ export function DashboardPage() {
                           className="w-3 h-3 flex-shrink-0"
                           style={{ color: "rgba(0,204,255,0.5)" }}
                         />
+                        <span className="text-xs font-body font-bold">
+                          <AccountAge createdAt={player.createdAt} />
+                        </span>
                         <span className="text-xs font-body text-muted-foreground">
-                          Old Member
+                          old
                         </span>
                       </div>
                     </div>
