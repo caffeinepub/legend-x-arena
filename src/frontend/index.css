@@ -500,6 +500,18 @@
   50%       { box-shadow: 0 4px 32px rgba(255,255,255,0.18), 0 0 0 1px rgba(255,255,255,0.15); }
 }
 
+/* Legend ID glow animation for registration reveal */
+@keyframes legendIdGlow {
+  0%, 100% {
+    box-shadow: 0 0 24px rgba(255,34,0,0.4), 0 0 60px rgba(255,34,0,0.15), inset 0 0 24px rgba(255,34,0,0.05);
+    border-color: rgba(255,34,0,0.6);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(255,34,0,0.7), 0 0 80px rgba(255,34,0,0.3), inset 0 0 32px rgba(255,34,0,0.1);
+    border-color: rgba(255,68,34,1);
+  }
+}
+
 /* Coin L glow pulse -- static coin, only shines */
 @keyframes coinLGlow {
   0%, 100% {

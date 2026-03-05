@@ -25,30 +25,6 @@ export const Tournament = IDL.Record({
   'maxPlayers' : IDL.Nat,
   'prizePool' : IDL.Text,
 });
-export const LeaderboardEntry = IDL.Record({
-  'legendId' : IDL.Text,
-  'totalMatches' : IDL.Nat,
-  'createdAt' : IDL.Int,
-  'wins' : IDL.Nat,
-  'totalProfit' : IDL.Nat,
-  'gameName' : IDL.Text,
-  'selectedProfilePic' : IDL.Nat,
-  'totalDeposited' : IDL.Nat,
-  'selectedFrame' : IDL.Nat,
-});
-export const DepositStatus = IDL.Variant({
-  'pending' : IDL.Null,
-  'approved' : IDL.Null,
-  'rejected' : IDL.Null,
-});
-export const DepositRequest = IDL.Record({
-  'id' : IDL.Text,
-  'status' : DepositStatus,
-  'legendId' : IDL.Text,
-  'submittedAt' : IDL.Int,
-  'amount' : IDL.Nat,
-  'transactionId' : IDL.Text,
-});
 export const Role = IDL.Variant({ 'admin' : IDL.Null, 'user' : IDL.Null });
 export const TransactionType = IDL.Variant({
   'withdraw' : IDL.Null,
@@ -96,15 +72,41 @@ export const UserProfile = IDL.Record({
   'matchHistory' : IDL.Vec(Match),
   'selectedFrame' : IDL.Nat,
 });
+export const LeaderboardEntry = IDL.Record({
+  'legendId' : IDL.Text,
+  'totalMatches' : IDL.Nat,
+  'createdAt' : IDL.Int,
+  'wins' : IDL.Nat,
+  'totalProfit' : IDL.Nat,
+  'gameName' : IDL.Text,
+  'selectedProfilePic' : IDL.Nat,
+  'totalDeposited' : IDL.Nat,
+  'selectedFrame' : IDL.Nat,
+});
+export const DepositStatus = IDL.Variant({
+  'pending' : IDL.Null,
+  'approved' : IDL.Null,
+  'rejected' : IDL.Null,
+});
+export const DepositRequest = IDL.Record({
+  'id' : IDL.Text,
+  'status' : DepositStatus,
+  'legendId' : IDL.Text,
+  'submittedAt' : IDL.Int,
+  'amount' : IDL.Nat,
+  'transactionId' : IDL.Text,
+});
 
 export const idlService = IDL.Service({
-  'addCoins' : IDL.Func([IDL.Text, IDL.Nat], [], []),
-  'approveDepositRequest' : IDL.Func([IDL.Text], [], []),
+  'addCoins' : IDL.Func([IDL.Text, IDL.Text, IDL.Text, IDL.Nat], [], []),
+  'approveDepositRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'authenticate' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], ['query']),
-  'buyShopAvatar' : IDL.Func([IDL.Nat], [], []),
-  'buyShopFrame' : IDL.Func([IDL.Nat], [], []),
+  'buyShopAvatar' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
+  'buyShopFrame' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
   'createTournament' : IDL.Func(
       [
+        IDL.Text,
+        IDL.Text,
         IDL.Text,
         IDL.Text,
         IDL.Text,
@@ -118,37 +120,60 @@ export const idlService = IDL.Service({
       [],
     ),
   'declareMatchResult' : IDL.Func(
-      [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Nat],
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Nat],
       [],
       [],
     ),
-  'deleteTournament' : IDL.Func([IDL.Text], [], []),
+  'deleteTournament' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'getActiveTournaments' : IDL.Func([], [IDL.Vec(Tournament)], ['query']),
+  'getAllUsers' : IDL.Func([IDL.Text], [IDL.Vec(UserProfile)], ['query']),
   'getLeaderboard' : IDL.Func([], [IDL.Vec(LeaderboardEntry)], ['query']),
-  'getMyDepositRequests' : IDL.Func([], [IDL.Vec(DepositRequest)], []),
-  'getPendingDepositRequests' : IDL.Func([], [IDL.Vec(DepositRequest)], []),
+  'getMyDepositRequests' : IDL.Func(
+      [IDL.Text, IDL.Text],
+      [IDL.Vec(DepositRequest)],
+      [],
+    ),
+  'getPendingDepositRequests' : IDL.Func(
+      [IDL.Text, IDL.Text],
+      [IDL.Vec(DepositRequest)],
+      [],
+    ),
   'getTournamentRoom' : IDL.Func(
       [IDL.Text, IDL.Text],
       [IDL.Record({ 'roomPassword' : IDL.Text, 'roomId' : IDL.Text })],
       ['query'],
     ),
-  'getTournaments' : IDL.Func([], [IDL.Vec(Tournament)], ['query']),
+  'getTournaments' : IDL.Func([IDL.Text], [IDL.Vec(Tournament)], ['query']),
   'getUserByLegendId' : IDL.Func([IDL.Text], [UserProfile], ['query']),
-  'joinTournamentById' : IDL.Func([IDL.Text], [], []),
+  'joinTournamentById' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'register' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
       [IDL.Text],
       [],
     ),
-  'rejectDepositRequest' : IDL.Func([IDL.Text], [], []),
-  'setProfileFrame' : IDL.Func([IDL.Nat], [], []),
-  'setProfilePicture' : IDL.Func([IDL.Nat], [], []),
-  'setTournamentRoom' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
-  'submitDepositRequest' : IDL.Func([IDL.Nat, IDL.Text], [], []),
-  'toggleBan' : IDL.Func([IDL.Text], [], []),
-  'updatePlayerInfo' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+  'rejectDepositRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+  'setProfileFrame' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
+  'setProfilePicture' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
+  'setTournamentRoom' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
+  'submitDepositRequest' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Nat, IDL.Text],
+      [],
+      [],
+    ),
+  'toggleBan' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+  'updatePlayerInfo' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
   'updateTournament' : IDL.Func(
       [
+        IDL.Text,
+        IDL.Text,
         IDL.Text,
         IDL.Text,
         IDL.Text,
@@ -184,30 +209,6 @@ export const idlFactory = ({ IDL }) => {
     'roomId' : IDL.Text,
     'maxPlayers' : IDL.Nat,
     'prizePool' : IDL.Text,
-  });
-  const LeaderboardEntry = IDL.Record({
-    'legendId' : IDL.Text,
-    'totalMatches' : IDL.Nat,
-    'createdAt' : IDL.Int,
-    'wins' : IDL.Nat,
-    'totalProfit' : IDL.Nat,
-    'gameName' : IDL.Text,
-    'selectedProfilePic' : IDL.Nat,
-    'totalDeposited' : IDL.Nat,
-    'selectedFrame' : IDL.Nat,
-  });
-  const DepositStatus = IDL.Variant({
-    'pending' : IDL.Null,
-    'approved' : IDL.Null,
-    'rejected' : IDL.Null,
-  });
-  const DepositRequest = IDL.Record({
-    'id' : IDL.Text,
-    'status' : DepositStatus,
-    'legendId' : IDL.Text,
-    'submittedAt' : IDL.Int,
-    'amount' : IDL.Nat,
-    'transactionId' : IDL.Text,
   });
   const Role = IDL.Variant({ 'admin' : IDL.Null, 'user' : IDL.Null });
   const TransactionType = IDL.Variant({
@@ -256,15 +257,41 @@ export const idlFactory = ({ IDL }) => {
     'matchHistory' : IDL.Vec(Match),
     'selectedFrame' : IDL.Nat,
   });
+  const LeaderboardEntry = IDL.Record({
+    'legendId' : IDL.Text,
+    'totalMatches' : IDL.Nat,
+    'createdAt' : IDL.Int,
+    'wins' : IDL.Nat,
+    'totalProfit' : IDL.Nat,
+    'gameName' : IDL.Text,
+    'selectedProfilePic' : IDL.Nat,
+    'totalDeposited' : IDL.Nat,
+    'selectedFrame' : IDL.Nat,
+  });
+  const DepositStatus = IDL.Variant({
+    'pending' : IDL.Null,
+    'approved' : IDL.Null,
+    'rejected' : IDL.Null,
+  });
+  const DepositRequest = IDL.Record({
+    'id' : IDL.Text,
+    'status' : DepositStatus,
+    'legendId' : IDL.Text,
+    'submittedAt' : IDL.Int,
+    'amount' : IDL.Nat,
+    'transactionId' : IDL.Text,
+  });
   
   return IDL.Service({
-    'addCoins' : IDL.Func([IDL.Text, IDL.Nat], [], []),
-    'approveDepositRequest' : IDL.Func([IDL.Text], [], []),
+    'addCoins' : IDL.Func([IDL.Text, IDL.Text, IDL.Text, IDL.Nat], [], []),
+    'approveDepositRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'authenticate' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], ['query']),
-    'buyShopAvatar' : IDL.Func([IDL.Nat], [], []),
-    'buyShopFrame' : IDL.Func([IDL.Nat], [], []),
+    'buyShopAvatar' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
+    'buyShopFrame' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
     'createTournament' : IDL.Func(
         [
+          IDL.Text,
+          IDL.Text,
           IDL.Text,
           IDL.Text,
           IDL.Text,
@@ -278,37 +305,60 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'declareMatchResult' : IDL.Func(
-        [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Nat],
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Nat],
         [],
         [],
       ),
-    'deleteTournament' : IDL.Func([IDL.Text], [], []),
+    'deleteTournament' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'getActiveTournaments' : IDL.Func([], [IDL.Vec(Tournament)], ['query']),
+    'getAllUsers' : IDL.Func([IDL.Text], [IDL.Vec(UserProfile)], ['query']),
     'getLeaderboard' : IDL.Func([], [IDL.Vec(LeaderboardEntry)], ['query']),
-    'getMyDepositRequests' : IDL.Func([], [IDL.Vec(DepositRequest)], []),
-    'getPendingDepositRequests' : IDL.Func([], [IDL.Vec(DepositRequest)], []),
+    'getMyDepositRequests' : IDL.Func(
+        [IDL.Text, IDL.Text],
+        [IDL.Vec(DepositRequest)],
+        [],
+      ),
+    'getPendingDepositRequests' : IDL.Func(
+        [IDL.Text, IDL.Text],
+        [IDL.Vec(DepositRequest)],
+        [],
+      ),
     'getTournamentRoom' : IDL.Func(
         [IDL.Text, IDL.Text],
         [IDL.Record({ 'roomPassword' : IDL.Text, 'roomId' : IDL.Text })],
         ['query'],
       ),
-    'getTournaments' : IDL.Func([], [IDL.Vec(Tournament)], ['query']),
+    'getTournaments' : IDL.Func([IDL.Text], [IDL.Vec(Tournament)], ['query']),
     'getUserByLegendId' : IDL.Func([IDL.Text], [UserProfile], ['query']),
-    'joinTournamentById' : IDL.Func([IDL.Text], [], []),
+    'joinTournamentById' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'register' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
         [IDL.Text],
         [],
       ),
-    'rejectDepositRequest' : IDL.Func([IDL.Text], [], []),
-    'setProfileFrame' : IDL.Func([IDL.Nat], [], []),
-    'setProfilePicture' : IDL.Func([IDL.Nat], [], []),
-    'setTournamentRoom' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
-    'submitDepositRequest' : IDL.Func([IDL.Nat, IDL.Text], [], []),
-    'toggleBan' : IDL.Func([IDL.Text], [], []),
-    'updatePlayerInfo' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+    'rejectDepositRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+    'setProfileFrame' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
+    'setProfilePicture' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
+    'setTournamentRoom' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
+    'submitDepositRequest' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Nat, IDL.Text],
+        [],
+        [],
+      ),
+    'toggleBan' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+    'updatePlayerInfo' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
     'updateTournament' : IDL.Func(
         [
+          IDL.Text,
+          IDL.Text,
           IDL.Text,
           IDL.Text,
           IDL.Text,

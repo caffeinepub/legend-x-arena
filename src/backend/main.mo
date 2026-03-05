@@ -5,9 +5,10 @@ import Text "mo:core/Text";
 import Map "mo:core/Map";
 import Time "mo:core/Time";
 import Order "mo:core/Order";
-import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
+import Migration "migration";
 
+(with migration = Migration.run)
 actor {
   type Role = { #admin; #user };
   type GameMode = { #loneWolf; #csMod; #brMod };
@@ -79,7 +80,7 @@ actor {
   };
 
   var isFirstAdminSet = false;
-  let users = Map.empty<Principal, UserProfile>();
+  let users = Map.empty<Text, UserProfile>();
   let depositRequests = Map.empty<Text, DepositRequest>();
   let tournaments = Map.empty<Text, Tournament>();
   var depositIdCounter = 0;
@@ -96,27 +97,22 @@ actor {
     };
   };
 
-  func assertAdmin(caller : Principal) {
-    func isAdmin(caller : Principal) : Bool {
-      switch (users.get(caller)) {
-        case (null) { false };
-        case (?userProfile) {
-          switch (userProfile.role) {
-            case (#admin) { true };
-            case (#user) { false };
+  func assertAdmin(legendId : Text, passwordHash : Text) {
+    switch (users.get(legendId)) {
+      case (null) { Runtime.trap("Admin not found") };
+      case (?userProfile) {
+        switch (userProfile.role) {
+          case (#admin) {
+            if (not (userProfile.passwordHash == passwordHash)) { Runtime.trap("Incorrect password") };
           };
+          case (#user) { Runtime.trap("Not admin") };
         };
       };
     };
-    if (not isAdmin(caller)) { Runtime.trap("Admin privileges required") };
   };
 
-  func getUserByLegendIdInternal(legendId : Text) : ?(Principal, UserProfile) {
-    users.entries().find(func((_, profile)) { profile.legendId == legendId });
-  };
-
-  func getUserByPrincipalOrTrap(principal : Principal) : UserProfile {
-    switch (users.get(principal)) {
+  func getUserByLegendIdOrTrap(legendId : Text) : UserProfile {
+    switch (users.get(legendId)) {
       case (null) { Runtime.trap("User not found") };
       case (?profile) { profile };
     };
@@ -165,58 +161,66 @@ actor {
       selectedFrame = 0;
     };
 
-    users.add(caller, newUser);
+    users.add(legendId, newUser);
     userIdCounter += 1;
     legendId;
   };
 
-  public shared ({ caller }) func updatePlayerInfo(gameName : Text, gameUID : Text, jazzCashNumber : Text) : async () {
-    let userProfile = getUserByPrincipalOrTrap(caller);
+  public query ({ caller }) func authenticate(legendId : Text, passwordHash : Text) : async Bool {
+    switch (users.get(legendId)) {
+      case (null) { false };
+      case (?profile) { profile.passwordHash == passwordHash and not profile.isBanned };
+    };
+  };
+
+  public query ({ caller }) func getUserByLegendId(legendId : Text) : async UserProfile {
+    switch (users.get(legendId)) {
+      case (null) { Runtime.trap("User not found") };
+      case (?profile) { profile };
+    };
+  };
+
+  public shared ({ caller }) func updatePlayerInfo(
+    legendId : Text,
+    passwordHash : Text,
+    gameName : Text,
+    gameUID : Text,
+    jazzCashNumber : Text,
+  ) : async () {
+    let userProfile = getUserByLegendIdOrTrap(legendId);
+    if (not (userProfile.passwordHash == passwordHash)) { Runtime.trap("Incorrect password") };
     let updatedProfile = {
       userProfile with
       gameName;
       gameUID;
       jazzCashNumber;
     };
-    users.add(caller, updatedProfile);
+    users.add(legendId, updatedProfile);
   };
 
-  public query ({ caller }) func authenticate(legendId : Text, passwordHash : Text) : async Bool {
-    switch (getUserByLegendIdInternal(legendId)) {
-      case (null) { false };
-      case (?(_, profile)) { profile.passwordHash == passwordHash and not profile.isBanned };
-    };
-  };
-
-  public query ({ caller }) func getUserByLegendId(legendId : Text) : async UserProfile {
-    switch (getUserByLegendIdInternal(legendId)) {
+  public shared ({ caller }) func toggleBan(adminLegendId : Text, adminPasswordHash : Text, targetLegendId : Text) : async () {
+    assertAdmin(adminLegendId, adminPasswordHash);
+    switch (users.get(targetLegendId)) {
       case (null) { Runtime.trap("User not found") };
-      case (?(_, profile)) { profile };
-    };
-  };
-
-  public shared ({ caller }) func toggleBan(legendId : Text) : async () {
-    assertAdmin(caller);
-    switch (getUserByLegendIdInternal(legendId)) {
-      case (null) { Runtime.trap("User not found") };
-      case (?(principal, profile)) {
+      case (?profile) {
         let updatedProfile = {
           profile with isBanned = not profile.isBanned;
         };
-        users.add(principal, updatedProfile);
+        users.add(targetLegendId, updatedProfile);
       };
     };
   };
 
-  public shared ({ caller }) func submitDepositRequest(amount : Nat, transactionId : Text) : async () {
-    let userProfile = getUserByPrincipalOrTrap(caller);
+  public shared ({ caller }) func submitDepositRequest(legendId : Text, passwordHash : Text, amount : Nat, transactionId : Text) : async () {
+    let userProfile = getUserByLegendIdOrTrap(legendId);
+    if (not (userProfile.passwordHash == passwordHash)) { Runtime.trap("Incorrect password") };
 
     let depositId = depositIdCounter.toText();
     depositIdCounter += 1;
 
     let newRequest : DepositRequest = {
       id = depositId;
-      legendId = userProfile.legendId;
+      legendId;
       amount;
       transactionId;
       status = #pending;
@@ -226,55 +230,52 @@ actor {
     depositRequests.add(depositId, newRequest);
   };
 
-  public shared ({ caller }) func getMyDepositRequests() : async [DepositRequest] {
-    let userProfile = getUserByPrincipalOrTrap(caller);
+  public shared ({ caller }) func getMyDepositRequests(legendId : Text, passwordHash : Text) : async [DepositRequest] {
+    let userProfile = getUserByLegendIdOrTrap(legendId);
+    if (not (userProfile.passwordHash == passwordHash)) { Runtime.trap("Incorrect password") };
     depositRequests.values().toArray().filter(
       func(r) {
-        r.legendId == userProfile.legendId;
+        r.legendId == legendId;
       }
     );
   };
 
-  public shared ({ caller }) func getPendingDepositRequests() : async [DepositRequest] {
-    assertAdmin(caller);
+  public shared ({ caller }) func getPendingDepositRequests(adminLegendId : Text, adminPasswordHash : Text) : async [DepositRequest] {
+    assertAdmin(adminLegendId, adminPasswordHash);
     depositRequests.values().toArray().filter(
       func(r) { r.status == #pending }
     );
   };
 
-  public shared ({ caller }) func approveDepositRequest(requestId : Text) : async () {
-    assertAdmin(caller);
+  public shared ({ caller }) func approveDepositRequest(adminLegendId : Text, adminPasswordHash : Text, requestId : Text) : async () {
+    assertAdmin(adminLegendId, adminPasswordHash);
     let request = switch (depositRequests.get(requestId)) {
       case (null) { Runtime.trap("Deposit request not found") };
       case (?r) { r };
     };
 
-    let userEntry = getUserByLegendIdInternal(request.legendId);
-    switch (userEntry) {
-      case (null) { Runtime.trap("User not found for deposit") };
-      case (?(userPrincipal, userData)) {
-        depositRequests.add(requestId, { request with status = #approved });
+    let userProfile = getUserByLegendIdOrTrap(request.legendId);
 
-        let newTransaction : Transaction = {
-          txType = #deposit;
-          amount = request.amount;
-          date = Time.now();
-          description = "Deposit Approved";
-        };
+    depositRequests.add(requestId, { request with status = #approved });
 
-        let updatedProfile = {
-          userData with
-          walletBalance = userData.walletBalance + request.amount;
-          transactions = userData.transactions.concat([newTransaction]);
-          totalDeposited = userData.totalDeposited + request.amount;
-        };
-        users.add(userPrincipal, updatedProfile);
-      };
+    let newTransaction : Transaction = {
+      txType = #deposit;
+      amount = request.amount;
+      date = Time.now();
+      description = "Deposit Approved";
     };
+
+    let updatedProfile = {
+      userProfile with
+      walletBalance = userProfile.walletBalance + request.amount;
+      transactions = userProfile.transactions.concat([newTransaction]);
+      totalDeposited = userProfile.totalDeposited + request.amount;
+    };
+    users.add(request.legendId, updatedProfile);
   };
 
-  public shared ({ caller }) func rejectDepositRequest(requestId : Text) : async () {
-    assertAdmin(caller);
+  public shared ({ caller }) func rejectDepositRequest(adminLegendId : Text, adminPasswordHash : Text, requestId : Text) : async () {
+    assertAdmin(adminLegendId, adminPasswordHash);
     let request = switch (depositRequests.get(requestId)) {
       case (null) { Runtime.trap("Deposit request not found") };
       case (?r) { r };
@@ -282,8 +283,9 @@ actor {
     depositRequests.add(requestId, { request with status = #rejected });
   };
 
-  public shared ({ caller }) func setProfilePicture(picIndex : Nat) : async () {
-    let userProfile = getUserByPrincipalOrTrap(caller);
+  public shared ({ caller }) func setProfilePicture(legendId : Text, passwordHash : Text, picIndex : Nat) : async () {
+    let userProfile = getUserByLegendIdOrTrap(legendId);
+    if (not (userProfile.passwordHash == passwordHash)) { Runtime.trap("Incorrect password") };
 
     let minDeposit = switch (picIndex) {
       case (0) { 0 };
@@ -301,10 +303,12 @@ actor {
     };
 
     let updatedProfile = { userProfile with selectedProfilePic = picIndex };
-    users.add(caller, updatedProfile);
+    users.add(legendId, updatedProfile);
   };
 
   public shared ({ caller }) func createTournament(
+    adminLegendId : Text,
+    adminPasswordHash : Text,
     title : Text,
     category : Text,
     mode : Text,
@@ -314,7 +318,7 @@ actor {
     imageUrl : Text,
     returningCoins : Nat,
   ) : async Text {
-    assertAdmin(caller);
+    assertAdmin(adminLegendId, adminPasswordHash);
 
     let tournamentId = tournamentIdCounter.toText();
     tournamentIdCounter += 1;
@@ -342,6 +346,8 @@ actor {
   };
 
   public shared ({ caller }) func updateTournament(
+    adminLegendId : Text,
+    adminPasswordHash : Text,
     id : Text,
     title : Text,
     category : Text,
@@ -353,7 +359,7 @@ actor {
     isActive : Bool,
     returningCoins : Nat,
   ) : async () {
-    assertAdmin(caller);
+    assertAdmin(adminLegendId, adminPasswordHash);
 
     let tournament = switch (tournaments.get(id)) {
       case (null) { Runtime.trap("Tournament not found") };
@@ -381,8 +387,8 @@ actor {
     tournaments.add(id, updatedTournament);
   };
 
-  public shared ({ caller }) func deleteTournament(id : Text) : async () {
-    assertAdmin(caller);
+  public shared ({ caller }) func deleteTournament(adminLegendId : Text, adminPasswordHash : Text, id : Text) : async () {
+    assertAdmin(adminLegendId, adminPasswordHash);
 
     switch (tournaments.get(id)) {
       case (null) { Runtime.trap("Tournament not found") };
@@ -392,9 +398,12 @@ actor {
     };
   };
 
-  public query ({ caller }) func getTournaments() : async [Tournament] {
-    assertAdmin(caller);
-    tournaments.values().toArray();
+  public query ({ caller }) func getTournaments(adminLegendId : Text) : async [Tournament] {
+    let adminProfile = getUserByLegendIdOrTrap(adminLegendId);
+    switch (adminProfile.role) {
+      case (#admin) { tournaments.values().toArray() };
+      case (#user) { Runtime.trap("Not admin") };
+    };
   };
 
   public query ({ caller }) func getActiveTournaments() : async [Tournament] {
@@ -404,11 +413,13 @@ actor {
   };
 
   public shared ({ caller }) func setTournamentRoom(
+    adminLegendId : Text,
+    adminPasswordHash : Text,
     tournamentId : Text,
     roomId : Text,
     roomPassword : Text,
   ) : async () {
-    assertAdmin(caller);
+    assertAdmin(adminLegendId, adminPasswordHash);
 
     switch (tournaments.get(tournamentId)) {
       case (null) { Runtime.trap("Tournament not found") };
@@ -419,7 +430,7 @@ actor {
     };
   };
 
-  public shared ({ caller }) func joinTournamentById(tournamentId : Text) : async () {
+  public shared ({ caller }) func joinTournamentById(legendId : Text, passwordHash : Text, tournamentId : Text) : async () {
     switch (tournaments.get(tournamentId)) {
       case (null) { Runtime.trap("Tournament not found") };
       case (?tournament) {
@@ -430,7 +441,10 @@ actor {
           Runtime.trap("Tournament is full");
         };
 
-        let userProfile = getUserByPrincipalOrTrap(caller);
+        let userProfile = getUserByLegendIdOrTrap(legendId);
+        if (not (userProfile.passwordHash == passwordHash)) {
+          Runtime.trap("Incorrect password");
+        };
 
         if (userProfile.isBanned) {
           Runtime.trap("Banned users cannot join tournaments");
@@ -441,7 +455,7 @@ actor {
         };
 
         if (
-          tournament.joinedPlayers.any(func(pid) { pid == userProfile.legendId })
+          tournament.joinedPlayers.any(func(pid) { pid == legendId })
         ) {
           Runtime.trap("Already joined this tournament");
         };
@@ -454,7 +468,7 @@ actor {
           date = Time.now();
         }]);
 
-        users.add(caller, {
+        users.add(legendId, {
           userProfile with
           walletBalance = userProfile.walletBalance - tournament.entryFee;
           matchHistory = updatedMatchHistory;
@@ -463,7 +477,7 @@ actor {
         let updatedTournament = {
           tournament with
           currentPlayers = tournament.currentPlayers + 1;
-          joinedPlayers = tournament.joinedPlayers.concat([userProfile.legendId]);
+          joinedPlayers = tournament.joinedPlayers.concat([legendId]);
         };
         tournaments.add(tournamentId, updatedTournament);
       };
@@ -521,122 +535,112 @@ actor {
   };
 
   public shared ({ caller }) func declareMatchResult(
+    adminLegendId : Text,
+    adminPasswordHash : Text,
     tournamentId : Text,
     winnerLegendId : Text,
     loserLegendId : Text,
     winnerCoins : Nat,
     loserCoins : Nat,
   ) : async () {
-    assertAdmin(caller);
+    assertAdmin(adminLegendId, adminPasswordHash);
 
-    let winnerEntry = users.entries().find(
-      func((_, p)) { p.legendId == winnerLegendId }
+    let winnerProfile = getUserByLegendIdOrTrap(winnerLegendId);
+    let loserProfile = getUserByLegendIdOrTrap(loserLegendId);
+
+    let winnerTx = {
+      txType = #deposit;
+      amount = winnerCoins;
+      date = Time.now();
+      description = "Match Win Prize";
+    };
+
+    let winnerMatchIndex = winnerProfile.matchHistory.findIndex(
+      func(m) { m.matchId == tournamentId }
     );
 
-    let loserEntry = users.entries().find(
-      func((_, p)) { p.legendId == loserLegendId }
-    );
-
-    switch (winnerEntry, loserEntry) {
-      case (?(winnerPrincipal, winnerProfile), ?(loserPrincipal, loserProfile)) {
-        let winnerTx = {
-          txType = #deposit;
-          amount = winnerCoins;
+    let winnerMatchHistory = switch (winnerMatchIndex) {
+      case (?idx) {
+        let updatedMatch = {
+          winnerProfile.matchHistory[idx] with result = #win
+        };
+        Array.tabulate(winnerProfile.matchHistory.size(), func(i) { if (i == idx) { updatedMatch } else {
+          winnerProfile.matchHistory[i];
+        } });
+      };
+      case (null) {
+        winnerProfile.matchHistory.concat([{
+          matchId = tournamentId;
+          mode = #loneWolf;
+          result = #win;
+          coinsWagered = 0;
           date = Time.now();
-          description = "Match Win Prize";
-        };
+        }]);
+      };
+    };
 
-        let winnerMatchIndex = winnerProfile.matchHistory.findIndex(
-          func(m) { m.matchId == tournamentId }
-        );
+    users.add(
+      winnerLegendId,
+      {
+        winnerProfile with
+        walletBalance = winnerProfile.walletBalance + winnerCoins;
+        transactions = winnerProfile.transactions.concat([winnerTx]);
+        matchHistory = winnerMatchHistory;
+        totalProfit = winnerProfile.totalProfit + winnerCoins;
+      },
+    );
 
-        let winnerMatchHistory = switch (winnerMatchIndex) {
-          case (?idx) {
-            let updatedMatch = {
-              winnerProfile.matchHistory[idx] with result = #win
-            };
-            Array.tabulate(winnerProfile.matchHistory.size(), func(i) { if (i == idx) { updatedMatch } else {
-              winnerProfile.matchHistory[i];
-            } });
+    if (loserCoins > 0) {
+      let loserTx = {
+        txType = #deposit;
+        amount = loserCoins;
+        date = Time.now();
+        description = "Match Return Coins";
+      };
+
+      let loserMatchIndex = loserProfile.matchHistory.findIndex(
+        func(m) { m.matchId == tournamentId }
+      );
+
+      let loserMatchHistory = switch (loserMatchIndex) {
+        case (?idx) {
+          let updatedMatch = {
+            loserProfile.matchHistory[idx] with result = #loss
           };
-          case (null) {
-            winnerProfile.matchHistory.concat([{
-              matchId = tournamentId;
-              mode = #loneWolf;
-              result = #win;
-              coinsWagered = 0;
-              date = Time.now();
-            }]);
-          };
+          Array.tabulate(loserProfile.matchHistory.size(), func(i) { if (i == idx) {
+            updatedMatch;
+          } else {
+            loserProfile.matchHistory[i];
+          } });
         };
-
-        users.add(
-          winnerPrincipal,
-          {
-            winnerProfile with
-            walletBalance = winnerProfile.walletBalance + winnerCoins;
-            transactions = winnerProfile.transactions.concat([winnerTx]);
-            matchHistory = winnerMatchHistory;
-            totalProfit = winnerProfile.totalProfit + winnerCoins;
-          },
-        );
-
-        if (loserCoins > 0) {
-          let loserTx = {
-            txType = #deposit;
-            amount = loserCoins;
+        case (null) {
+          loserProfile.matchHistory.concat([{
+            matchId = tournamentId;
+            mode = #loneWolf;
+            result = #loss;
+            coinsWagered = 0;
             date = Time.now();
-            description = "Match Return Coins";
-          };
-
-          let loserMatchIndex = loserProfile.matchHistory.findIndex(
-            func(m) { m.matchId == tournamentId }
-          );
-
-          let loserMatchHistory = switch (loserMatchIndex) {
-            case (?idx) {
-              let updatedMatch = {
-                loserProfile.matchHistory[idx] with result = #loss
-              };
-              Array.tabulate(loserProfile.matchHistory.size(), func(i) { if (i == idx) {
-                updatedMatch;
-              } else {
-                loserProfile.matchHistory[i];
-              } });
-            };
-            case (null) {
-              loserProfile.matchHistory.concat([{
-                matchId = tournamentId;
-                mode = #loneWolf;
-                result = #loss;
-                coinsWagered = 0;
-                date = Time.now();
-              }]);
-            };
-          };
-
-          users.add(
-            loserPrincipal,
-            {
-              loserProfile with
-              walletBalance = loserProfile.walletBalance + loserCoins;
-              transactions = loserProfile.transactions.concat([loserTx]);
-              matchHistory = loserMatchHistory;
-            },
-          );
+          }]);
         };
       };
-      case (_) {
-        Runtime.trap("Winner or loser not found for match result");
-      };
+
+      users.add(
+        loserLegendId,
+        {
+          loserProfile with
+          walletBalance = loserProfile.walletBalance + loserCoins;
+          transactions = loserProfile.transactions.concat([loserTx]);
+          matchHistory = loserMatchHistory;
+        },
+      );
     };
   };
 
-  public shared ({ caller }) func addCoins(legendId : Text, amount : Nat) : async () {
-    assertAdmin(caller);
-    switch (getUserByLegendIdInternal(legendId)) {
+  public shared ({ caller }) func addCoins(adminLegendId : Text, adminPasswordHash : Text, targetLegendId : Text, amount : Nat) : async () {
+    assertAdmin(adminLegendId, adminPasswordHash);
+    switch (users.get(targetLegendId)) {
       case (null) { Runtime.trap("User not found") };
-      case (?(principal, profile)) {
+      case (?profile) {
         let newTransaction : Transaction = {
           txType = #deposit; amount; date = Time.now(); description = "Admin Bonus Coins";
         };
@@ -644,7 +648,7 @@ actor {
           profile with walletBalance = profile.walletBalance + amount;
           transactions = profile.transactions.concat([newTransaction]);
         };
-        users.add(principal, updatedProfile);
+        users.add(targetLegendId, updatedProfile);
       };
     };
   };
@@ -653,7 +657,7 @@ actor {
     value >= start and value <= end
   };
 
-  public shared ({ caller }) func buyShopAvatar(avatarIndex : Nat) : async () {
+  public shared ({ caller }) func buyShopAvatar(legendId : Text, passwordHash : Text, avatarIndex : Nat) : async () {
     if (not isValidRange(avatarIndex, 10, 19)) {
       Runtime.trap("Invalid avatar index");
     };
@@ -672,7 +676,8 @@ actor {
       case (_) { Runtime.trap("Invalid avatar index") };
     };
 
-    let userProfile = getUserByPrincipalOrTrap(caller);
+    let userProfile = getUserByLegendIdOrTrap(legendId);
+    if (not (userProfile.passwordHash == passwordHash)) { Runtime.trap("Incorrect password") };
 
     if (userProfile.purchasedShopAvatars.any(func(v) { v == avatarIndex })) {
       Runtime.trap("Avatar already purchased");
@@ -699,34 +704,17 @@ actor {
       selectedProfilePic = avatarIndex;
     };
 
-    users.add(caller, updatedProfile);
+    users.add(legendId, updatedProfile);
   };
 
-  public shared ({ caller }) func buyShopFrame(frameIndex : Nat) : async () {
-    if (not isValidRange(frameIndex, 20, 34)) {
+  public shared ({ caller }) func buyShopFrame(legendId : Text, passwordHash : Text, frameIndex : Nat) : async () {
+    if (not isValidRange(frameIndex, 20, 24)) {
       Runtime.trap("Invalid frame index");
     };
 
-    let price = switch (frameIndex) {
-      case (20) { 100 };
-      case (21) { 150 };
-      case (22) { 200 };
-      case (23) { 200 };
-      case (24) { 250 };
-      case (25) { 300 };
-      case (26) { 300 };
-      case (27) { 350 };
-      case (28) { 400 };
-      case (29) { 450 };
-      case (30) { 500 };
-      case (31) { 600 };
-      case (32) { 700 };
-      case (33) { 800 };
-      case (34) { 1000 };
-      case (_) { Runtime.trap("Invalid frame index") };
-    };
-
-    let userProfile = getUserByPrincipalOrTrap(caller);
+    let price = 200;
+    let userProfile = getUserByLegendIdOrTrap(legendId);
+    if (not (userProfile.passwordHash == passwordHash)) { Runtime.trap("Incorrect password") };
 
     if (userProfile.purchasedFrames.any(func(v) { v == frameIndex })) {
       Runtime.trap("Frame already purchased");
@@ -753,26 +741,35 @@ actor {
       selectedFrame = frameIndex;
     };
 
-    users.add(caller, updatedProfile);
+    users.add(legendId, updatedProfile);
   };
 
-  public shared ({ caller }) func setProfileFrame(frameIndex : Nat) : async () {
-    let userProfile = getUserByPrincipalOrTrap(caller);
+  public shared ({ caller }) func setProfileFrame(legendId : Text, passwordHash : Text, frameIndex : Nat) : async () {
+    let userProfile = getUserByLegendIdOrTrap(legendId);
+    if (not (userProfile.passwordHash == passwordHash)) { Runtime.trap("Incorrect password") };
 
     if (frameIndex == 0) {
       let updatedProfile = {
         userProfile with selectedFrame = 0;
       };
-      users.add(caller, updatedProfile);
+      users.add(legendId, updatedProfile);
     } else if (
       userProfile.purchasedFrames.any(func(v) { v == frameIndex })
     ) {
       let updatedProfile = {
         userProfile with selectedFrame = frameIndex;
       };
-      users.add(caller, updatedProfile);
+      users.add(legendId, updatedProfile);
     } else {
       Runtime.trap("Frame not purchased");
+    };
+  };
+
+  public query ({ caller }) func getAllUsers(adminLegendId : Text) : async [UserProfile] {
+    let adminProfile = getUserByLegendIdOrTrap(adminLegendId);
+    switch (adminProfile.role) {
+      case (#admin) { users.values().toArray() };
+      case (#user) { Runtime.trap("Not admin") };
     };
   };
 };

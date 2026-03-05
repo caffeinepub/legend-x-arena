@@ -92,41 +92,67 @@ export interface UserProfile {
   'selectedFrame' : bigint,
 }
 export interface _SERVICE {
-  'addCoins' : ActorMethod<[string, bigint], undefined>,
-  'approveDepositRequest' : ActorMethod<[string], undefined>,
+  'addCoins' : ActorMethod<[string, string, string, bigint], undefined>,
+  'approveDepositRequest' : ActorMethod<[string, string, string], undefined>,
   'authenticate' : ActorMethod<[string, string], boolean>,
-  'buyShopAvatar' : ActorMethod<[bigint], undefined>,
-  'buyShopFrame' : ActorMethod<[bigint], undefined>,
+  'buyShopAvatar' : ActorMethod<[string, string, bigint], undefined>,
+  'buyShopFrame' : ActorMethod<[string, string, bigint], undefined>,
   'createTournament' : ActorMethod<
-    [string, string, string, bigint, string, bigint, string, bigint],
+    [
+      string,
+      string,
+      string,
+      string,
+      string,
+      bigint,
+      string,
+      bigint,
+      string,
+      bigint,
+    ],
     string
   >,
   'declareMatchResult' : ActorMethod<
-    [string, string, string, bigint, bigint],
+    [string, string, string, string, string, bigint, bigint],
     undefined
   >,
-  'deleteTournament' : ActorMethod<[string], undefined>,
+  'deleteTournament' : ActorMethod<[string, string, string], undefined>,
   'getActiveTournaments' : ActorMethod<[], Array<Tournament>>,
+  'getAllUsers' : ActorMethod<[string], Array<UserProfile>>,
   'getLeaderboard' : ActorMethod<[], Array<LeaderboardEntry>>,
-  'getMyDepositRequests' : ActorMethod<[], Array<DepositRequest>>,
-  'getPendingDepositRequests' : ActorMethod<[], Array<DepositRequest>>,
+  'getMyDepositRequests' : ActorMethod<[string, string], Array<DepositRequest>>,
+  'getPendingDepositRequests' : ActorMethod<
+    [string, string],
+    Array<DepositRequest>
+  >,
   'getTournamentRoom' : ActorMethod<
     [string, string],
     { 'roomPassword' : string, 'roomId' : string }
   >,
-  'getTournaments' : ActorMethod<[], Array<Tournament>>,
+  'getTournaments' : ActorMethod<[string], Array<Tournament>>,
   'getUserByLegendId' : ActorMethod<[string], UserProfile>,
-  'joinTournamentById' : ActorMethod<[string], undefined>,
+  'joinTournamentById' : ActorMethod<[string, string, string], undefined>,
   'register' : ActorMethod<[string, string, string, string], string>,
-  'rejectDepositRequest' : ActorMethod<[string], undefined>,
-  'setProfileFrame' : ActorMethod<[bigint], undefined>,
-  'setProfilePicture' : ActorMethod<[bigint], undefined>,
-  'setTournamentRoom' : ActorMethod<[string, string, string], undefined>,
-  'submitDepositRequest' : ActorMethod<[bigint, string], undefined>,
-  'toggleBan' : ActorMethod<[string], undefined>,
-  'updatePlayerInfo' : ActorMethod<[string, string, string], undefined>,
+  'rejectDepositRequest' : ActorMethod<[string, string, string], undefined>,
+  'setProfileFrame' : ActorMethod<[string, string, bigint], undefined>,
+  'setProfilePicture' : ActorMethod<[string, string, bigint], undefined>,
+  'setTournamentRoom' : ActorMethod<
+    [string, string, string, string, string],
+    undefined
+  >,
+  'submitDepositRequest' : ActorMethod<
+    [string, string, bigint, string],
+    undefined
+  >,
+  'toggleBan' : ActorMethod<[string, string, string], undefined>,
+  'updatePlayerInfo' : ActorMethod<
+    [string, string, string, string, string],
+    undefined
+  >,
   'updateTournament' : ActorMethod<
     [
+      string,
+      string,
       string,
       string,
       string,

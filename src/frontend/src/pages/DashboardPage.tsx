@@ -386,10 +386,15 @@ function DepositTab({
     queryKey: ["myDepositRequests"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getMyDepositRequests();
+      const { legendId: lid, passwordHash: ph } = useAuthStore.getState();
+      if (!lid || !ph) return [];
+      return actor.getMyDepositRequests(lid, ph);
     },
     enabled: !!actor && !isFetching,
   });
+
+  const { legendId: depositLegendId, passwordHash: depositPasswordHash } =
+    useAuthStore.getState();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -402,10 +407,15 @@ function DepositTab({
       toast.error("Enter your JazzCash Transaction ID");
       return;
     }
-    if (!actor) return;
+    if (!actor || !depositLegendId || !depositPasswordHash) return;
     setIsSubmitting(true);
     try {
-      await actor.submitDepositRequest(BigInt(amount), txId.trim());
+      await actor.submitDepositRequest(
+        depositLegendId,
+        depositPasswordHash,
+        BigInt(amount),
+        txId.trim(),
+      );
       toast.success("Request submitted! Admin will approve shortly.");
       setPkrAmount("");
       setTxId("");
@@ -641,6 +651,20 @@ function DepositTab({
               Send any amount to this JazzCash number, then fill in the form
               below to submit your deposit request.
             </p>
+            <div className="flex items-center justify-between mb-2">
+              <span
+                className="text-xs font-body"
+                style={{ color: "rgba(255,215,0,0.5)" }}
+              >
+                JazzCash Holder Name
+              </span>
+              <span
+                className="text-xs font-display font-bold"
+                style={{ color: "rgba(255,215,0,0.85)" }}
+              >
+                Muhammed Qasim
+              </span>
+            </div>
             <button
               type="button"
               data-ocid="deposit.jazzcash_copy_button"
@@ -819,42 +843,45 @@ function DepositTab({
               </div>
             ) : (
               <div className="space-y-2">
-                {[...myRequests].reverse().map((req, i) => (
-                  <div
-                    key={req.id}
-                    data-ocid={`deposit.request.item.${i + 1}`}
-                    className="flex items-start justify-between gap-3 py-3 px-4 rounded-xl"
-                    style={{
-                      background: "rgba(255,215,0,0.03)",
-                      border: "1px solid rgba(255,215,0,0.1)",
-                    }}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span
-                          className="font-display font-black text-base tabular-nums flex items-center gap-1"
-                          style={{ color: "#ffd700" }}
+                {[...myRequests]
+                  .sort((a, b) => Number(b.submittedAt) - Number(a.submittedAt))
+                  .slice(0, 3)
+                  .map((req, i) => (
+                    <div
+                      key={req.id}
+                      data-ocid={`deposit.request.item.${i + 1}`}
+                      className="flex items-start justify-between gap-3 py-3 px-4 rounded-xl"
+                      style={{
+                        background: "rgba(255,215,0,0.03)",
+                        border: "1px solid rgba(255,215,0,0.1)",
+                      }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span
+                            className="font-display font-black text-base tabular-nums flex items-center gap-1"
+                            style={{ color: "#ffd700" }}
+                          >
+                            <LegendCoin size={15} />
+                            {Number(req.amount).toLocaleString()}
+                          </span>
+                          {statusBadge(req.status)}
+                        </div>
+                        <p
+                          className="text-xs font-mono truncate max-w-[200px]"
+                          style={{ color: "rgba(255,255,255,0.45)" }}
                         >
-                          <LegendCoin size={15} />
-                          {Number(req.amount).toLocaleString()}
-                        </span>
-                        {statusBadge(req.status)}
+                          ID: {req.transactionId}
+                        </p>
+                        <p
+                          className="text-xs font-body mt-0.5"
+                          style={{ color: "rgba(255,255,255,0.3)" }}
+                        >
+                          {formatDate(req.submittedAt)}
+                        </p>
                       </div>
-                      <p
-                        className="text-xs font-mono truncate max-w-[200px]"
-                        style={{ color: "rgba(255,255,255,0.45)" }}
-                      >
-                        ID: {req.transactionId}
-                      </p>
-                      <p
-                        className="text-xs font-body mt-0.5"
-                        style={{ color: "rgba(255,255,255,0.3)" }}
-                      >
-                        {formatDate(req.submittedAt)}
-                      </p>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             )}
           </div>
@@ -886,10 +913,13 @@ function DepositTab({
               </div>
             ) : (
               <div className="space-y-2">
-                {[...transactions].reverse().map((tx, i) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: transactions have no unique ID
-                  <TransactionRow key={`tx-${i}`} tx={tx} index={i + 1} />
-                ))}
+                {[...transactions]
+                  .reverse()
+                  .slice(0, 5)
+                  .map((tx, i) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: transactions have no unique ID
+                    <TransactionRow key={`tx-${i}`} tx={tx} index={i + 1} />
+                  ))}
               </div>
             )}
           </div>
@@ -1463,9 +1493,14 @@ function PlayerInfoCard({
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!actor) return;
+    const { legendId: infoLegendId, passwordHash: infoPasswordHash } =
+      useAuthStore.getState();
+    if (!infoLegendId || !infoPasswordHash) return;
     setIsSaving(true);
     try {
       await actor.updatePlayerInfo(
+        infoLegendId,
+        infoPasswordHash,
         editGameName.trim(),
         editGameUID.trim(),
         editJazzCash.trim(),
@@ -2287,6 +2322,8 @@ function PlayTab({
   onJoin,
   joinedMatchIds,
   allMatches,
+  selectedProfilePic,
+  selectedFrame,
 }: {
   legendId: string | null;
   gameName: string | null;
@@ -2297,6 +2334,8 @@ function PlayTab({
   onJoin: (t: Tournament) => void;
   joinedMatchIds: Set<string>;
   allMatches: Match[];
+  selectedProfilePic: number;
+  selectedFrame: number;
 }) {
   const [showMyMatches, setShowMyMatches] = useState(false);
 
@@ -2337,38 +2376,60 @@ function PlayTab({
             background: "linear-gradient(90deg, #ff2200, #ffd700 50%, #0066ff)",
           }}
         />
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <p
-              className="text-xs font-body uppercase tracking-[0.3em] mb-0.5"
-              style={{ color: "rgba(255,255,255,0.4)" }}
+        <div className="flex items-center justify-between gap-3">
+          {/* Left: avatar + frame + welcome text */}
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Profile avatar with frame */}
+            <div
+              className="relative flex-shrink-0"
+              style={{ width: 40, height: 40 }}
             >
-              Commander Online
-            </p>
-            <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="font-display font-black text-xl text-foreground">
+              <img
+                src={getProfilePicSrc(selectedProfilePic)}
+                alt="Profile"
+                className="w-10 h-10 rounded-full object-cover"
+                style={{ border: "2px solid rgba(255,255,255,0.15)" }}
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
+              />
+              {selectedFrame > 0 && (
+                <AnimatedFrameOverlay
+                  frameIndex={selectedFrame}
+                  size={40}
+                  isActive={true}
+                />
+              )}
+            </div>
+            {/* Welcome text */}
+            <div className="min-w-0">
+              <p
+                className="text-xs font-body uppercase tracking-[0.3em] mb-0.5"
+                style={{ color: "rgba(255,255,255,0.4)" }}
+              >
+                Commander Online
+              </p>
+              <h2 className="font-display font-black text-lg text-foreground leading-tight truncate">
                 Welcome,{" "}
                 <span style={{ color: "#ff4422" }}>{gameName || legendId}</span>
               </h2>
-              <button
-                type="button"
-                data-ocid="play.my_matches_button"
-                onClick={() => setShowMyMatches(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-80 flex-shrink-0"
-                style={{
-                  background: "rgba(255,180,0,0.1)",
-                  border: "1px solid rgba(255,180,0,0.3)",
-                  color: "#ffb400",
-                }}
-              >
-                <ClipboardList className="w-3.5 h-3.5" />
-                My Matches
-              </button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <WalletDisplay balance={balance} />
-          </div>
+          {/* Right: My Matches button */}
+          <button
+            type="button"
+            data-ocid="play.my_matches_button"
+            onClick={() => setShowMyMatches(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-80 flex-shrink-0"
+            style={{
+              background: "rgba(255,180,0,0.1)",
+              border: "1px solid rgba(255,180,0,0.3)",
+              color: "#ffb400",
+            }}
+          >
+            <ClipboardList className="w-3.5 h-3.5" />
+            My Matches
+          </button>
         </div>
       </div>
 
@@ -2476,8 +2537,8 @@ export function DashboardPage() {
     gcTime: 5 * 60 * 1000, // keep in cache 5 min
     refetchOnMount: true,
     refetchOnWindowFocus: true,
-    retry: 3,
-    retryDelay: 1000,
+    retry: 5,
+    retryDelay: 2000,
   });
 
   // Force refetch whenever actor becomes ready so data isn't stale on app open
@@ -2531,8 +2592,15 @@ export function DashboardPage() {
         return;
       }
       setJoiningTournamentId(tournament.id);
+      const { legendId: joinLid, passwordHash: joinPh } =
+        useAuthStore.getState();
+      if (!joinLid || !joinPh) {
+        toast.error("Session expired. Please log in again.");
+        setJoiningTournamentId(null);
+        return;
+      }
       try {
-        await actor.joinTournamentById(tournament.id);
+        await actor.joinTournamentById(joinLid, joinPh, tournament.id);
         await refetchProfile();
         queryClient.invalidateQueries({ queryKey: ["activeTournaments"] });
         setShowCoinShower(true);
@@ -2592,6 +2660,9 @@ export function DashboardPage() {
   const [avatarModalTab, setAvatarModalTab] = useState<"logo" | "frames">(
     "logo",
   );
+  const [shopSection, setShopSection] = useState<"avatars" | "frames">(
+    "avatars",
+  );
 
   const selectedFrame = Number(profile?.selectedFrame ?? BigInt(0));
 
@@ -2603,9 +2674,11 @@ export function DashboardPage() {
 
   async function handleSelectFrame(frameIndex: number) {
     if (!actor) return;
+    const { legendId: sfLid, passwordHash: sfPh } = useAuthStore.getState();
+    if (!sfLid || !sfPh) return;
     setSelectingFrame(frameIndex);
     try {
-      await actor.setProfileFrame(BigInt(frameIndex));
+      await actor.setProfileFrame(sfLid, sfPh, BigInt(frameIndex));
       await refetchProfile();
       queryClient.invalidateQueries({ queryKey: ["userProfile", legendId] });
       toast.success(frameIndex === 0 ? "Frame removed!" : "Frame equipped!");
@@ -2619,9 +2692,11 @@ export function DashboardPage() {
 
   async function handleSelectAvatar(picIndex: number) {
     if (!actor) return;
+    const { legendId: saLid, passwordHash: saPh } = useAuthStore.getState();
+    if (!saLid || !saPh) return;
     setSelectingPic(picIndex);
     try {
-      await actor.setProfilePicture(BigInt(picIndex));
+      await actor.setProfilePicture(saLid, saPh, BigInt(picIndex));
       await refetchProfile();
       queryClient.invalidateQueries({ queryKey: ["userProfile", legendId] });
       toast.success("Profile picture updated!");
@@ -2653,259 +2728,119 @@ export function DashboardPage() {
     shop: (
       <section className="animate-tab-in px-4 py-6" aria-label="Avatar Shop">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-5">
           <h2 className="font-display font-black text-xl uppercase tracking-wider text-foreground mb-1 flex items-center gap-2">
             <ShoppingBag className="w-5 h-5" style={{ color: "#ffd700" }} />
-            Avatar Shop
+            Shop
           </h2>
           <p className="text-xs font-body text-muted-foreground">
-            Spend Legend Coins to unlock exclusive avatars
+            Spend Legend Coins to unlock exclusive avatars &amp; frames
           </p>
         </div>
 
-        {/* Avatar Grid */}
-        <div className="grid grid-cols-2 gap-3">
-          {SHOP_AVATARS.map((avatar, i) => {
-            const isOwned = (profile?.purchasedShopAvatars ?? [])
-              .map(Number)
-              .includes(avatar.index);
-            const canAfford = Number(balance) >= avatar.price;
-            const isActive = selectedProfilePic === avatar.index;
-
-            return (
-              <div
-                key={avatar.index}
-                data-ocid={`shop.avatar_item.${i + 1}`}
-                className="rounded-2xl overflow-hidden flex flex-col"
-                style={{
-                  background: isOwned
-                    ? "rgba(34,204,102,0.04)"
-                    : "rgba(13,13,26,0.95)",
-                  border: isOwned
-                    ? `1px solid ${avatar.glowColor}55`
-                    : "1px solid rgba(255,255,255,0.08)",
-                  boxShadow: isOwned
-                    ? `0 4px 24px ${avatar.glowColor}22`
-                    : "0 4px 24px rgba(0,0,0,0.3)",
-                }}
-              >
-                {/* Avatar image */}
-                <div
-                  className="relative flex items-center justify-center"
-                  style={{ height: 120, background: "rgba(255,255,255,0.03)" }}
-                >
-                  <img
-                    src={avatar.src}
-                    alt={avatar.name}
-                    className="w-24 h-24 object-cover rounded-full"
-                    style={{
-                      border: `2px solid ${avatar.glowColor}88`,
-                      boxShadow: `0 0 16px ${avatar.glowColor}55`,
-                    }}
-                  />
-                  {isOwned && (
-                    <div className="absolute top-2 right-2">
-                      <span
-                        className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
-                        style={{
-                          background: "rgba(34,204,102,0.85)",
-                          color: "#fff",
-                        }}
-                      >
-                        OWNED
-                      </span>
-                    </div>
-                  )}
-                  {isActive && (
-                    <div className="absolute top-2 left-2">
-                      <span
-                        className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
-                        style={{
-                          background: "#ffd700",
-                          color: "#000",
-                        }}
-                      >
-                        ACTIVE
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Card body */}
-                <div className="p-3 flex flex-col gap-2">
-                  <div>
-                    <p
-                      className="font-display font-black text-sm text-foreground"
-                      style={{ color: avatar.glowColor }}
-                    >
-                      {avatar.name}
-                    </p>
-                  </div>
-
-                  {/* Price */}
-                  <div
-                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg"
-                    style={{
-                      background: "rgba(255,215,0,0.06)",
-                      border: "1px solid rgba(255,215,0,0.15)",
-                    }}
-                  >
-                    <LegendCoin size={14} />
-                    <span
-                      className="font-display font-black text-sm tabular-nums"
-                      style={{ color: "#ffd700" }}
-                    >
-                      {avatar.price.toLocaleString()}
-                    </span>
-                  </div>
-
-                  {/* Action button */}
-                  {isOwned ? (
-                    <button
-                      type="button"
-                      data-ocid={`shop.avatar_select_button.${i + 1}`}
-                      onClick={async () => {
-                        if (!actor) return;
-                        try {
-                          await actor.setProfilePicture(BigInt(avatar.index));
-                          await refetchProfile();
-                          toast.success(
-                            `${avatar.name} set as profile picture!`,
-                          );
-                        } catch (err) {
-                          console.error(err);
-                        }
-                      }}
-                      disabled={isActive}
-                      className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-80 disabled:opacity-50"
-                      style={{
-                        background: isActive
-                          ? "rgba(255,215,0,0.1)"
-                          : "linear-gradient(135deg, rgba(34,204,102,0.85), rgba(0,160,70,0.85))",
-                        border: isActive
-                          ? "1px solid rgba(255,215,0,0.3)"
-                          : "none",
-                        color: isActive ? "#ffd700" : "#fff",
-                      }}
-                    >
-                      {isActive ? "Active" : "Equip"}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      data-ocid={`shop.avatar_buy_button.${i + 1}`}
-                      disabled={!canAfford || selectingPic === avatar.index}
-                      onClick={async () => {
-                        if (!actor) return;
-                        setSelectingPic(avatar.index);
-                        try {
-                          await actor.buyShopAvatar(BigInt(avatar.index));
-                          await refetchProfile();
-                          queryClient.invalidateQueries({
-                            queryKey: ["userProfile", legendId],
-                          });
-                          toast.success(
-                            `${avatar.name} unlocked and equipped!`,
-                          );
-                        } catch (err) {
-                          console.error(err);
-                          toast.error("Purchase failed. Please try again.");
-                        } finally {
-                          setSelectingPic(null);
-                        }
-                      }}
-                      className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1"
-                      style={{
-                        background: canAfford
-                          ? `linear-gradient(135deg, ${avatar.glowColor}cc, ${avatar.glowColor}88)`
-                          : "rgba(255,255,255,0.05)",
-                        border: canAfford
-                          ? "none"
-                          : "1px solid rgba(255,255,255,0.1)",
-                        color: canAfford ? "#fff" : "rgba(255,255,255,0.35)",
-                      }}
-                    >
-                      {selectingPic === avatar.index ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : null}
-                      {canAfford ? "BUY" : "Insufficient Coins"}
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+        {/* ── Shop Section Toggle (Avatars / Frames) ── */}
+        <div
+          className="flex gap-0 rounded-2xl overflow-hidden mb-6"
+          style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          <button
+            type="button"
+            data-ocid="shop.avatars_tab"
+            onClick={() => setShopSection("avatars")}
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 font-display font-black text-sm uppercase tracking-wider transition-all duration-200"
+            style={
+              shopSection === "avatars"
+                ? {
+                    background:
+                      "linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,153,0,0.12))",
+                    color: "#ffd700",
+                    borderRight: "1px solid rgba(255,255,255,0.08)",
+                    boxShadow: "inset 0 -2px 0 #ffd700",
+                  }
+                : {
+                    background: "rgba(255,215,0,0.03)",
+                    color: "rgba(255,215,0,0.4)",
+                    borderRight: "1px solid rgba(255,255,255,0.08)",
+                  }
+            }
+          >
+            <User className="w-4 h-4" />
+            Avatars
+          </button>
+          <button
+            type="button"
+            data-ocid="shop.frames_tab"
+            onClick={() => setShopSection("frames")}
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 font-display font-black text-sm uppercase tracking-wider transition-all duration-200"
+            style={
+              shopSection === "frames"
+                ? {
+                    background:
+                      "linear-gradient(135deg, rgba(204,136,255,0.18), rgba(150,60,220,0.12))",
+                    color: "#cc88ff",
+                    boxShadow: "inset 0 -2px 0 #cc88ff",
+                  }
+                : {
+                    background: "rgba(204,136,255,0.03)",
+                    color: "rgba(204,136,255,0.4)",
+                  }
+            }
+          >
+            <ImageIcon className="w-4 h-4" />
+            Frames
+          </button>
         </div>
 
-        {/* ── Frames Section ── */}
-        <div className="mt-8">
-          <h3 className="font-display font-black text-base uppercase tracking-wider mb-1 flex items-center gap-2">
-            <ImageIcon className="w-5 h-5" style={{ color: "#cc88ff" }} />
-            <span style={{ color: "#cc88ff" }}>Profile Frames</span>
-          </h3>
-          <p className="text-xs font-body text-muted-foreground mb-4">
-            Equip frames to style your profile picture
-          </p>
+        {/* ── AVATARS SECTION ── */}
+        {shopSection === "avatars" && (
           <div className="grid grid-cols-2 gap-3">
-            {SHOP_FRAMES.map((frame, i) => {
-              const isOwned = (profile?.purchasedFrames ?? [])
+            {SHOP_AVATARS.map((avatar, i) => {
+              const isOwned = (profile?.purchasedShopAvatars ?? [])
                 .map(Number)
-                .includes(frame.index);
-              const isActive = selectedFrame === frame.index;
-              const canAfford = Number(balance) >= frame.price;
-              const isLoading = selectingFrame === frame.index;
-              const FrameComp = frame.Component;
+                .includes(avatar.index);
+              const canAfford = Number(balance) >= avatar.price;
+              const isActive = selectedProfilePic === avatar.index;
 
               return (
                 <div
-                  key={frame.index}
-                  data-ocid={`shop.frame_item.${i + 1}`}
-                  className="rounded-2xl overflow-visible flex flex-col"
+                  key={avatar.index}
+                  data-ocid={`shop.avatar_item.${i + 1}`}
+                  className="rounded-2xl overflow-hidden flex flex-col"
                   style={{
                     background: isOwned
-                      ? "rgba(204,136,255,0.04)"
+                      ? "rgba(34,204,102,0.04)"
                       : "rgba(13,13,26,0.95)",
                     border: isOwned
-                      ? `1px solid ${frame.color}55`
+                      ? `1px solid ${avatar.glowColor}55`
                       : "1px solid rgba(255,255,255,0.08)",
                     boxShadow: isOwned
-                      ? `0 4px 24px ${frame.color}22`
+                      ? `0 4px 24px ${avatar.glowColor}22`
                       : "0 4px 24px rgba(0,0,0,0.3)",
                   }}
                 >
-                  {/* Frame preview -- animated SVG frame around profile pic */}
+                  {/* Avatar image */}
                   <div
                     className="relative flex items-center justify-center"
                     style={{
-                      height: 140,
-                      background: "transparent",
+                      height: 120,
+                      background: "rgba(255,255,255,0.03)",
                     }}
                   >
-                    {/* Transparent background area -- no clipping so animation overflows */}
-                    <div className="relative" style={{ width: 80, height: 80 }}>
-                      {/* Profile image inside frame */}
-                      <img
-                        src={getProfilePicSrc(selectedProfilePic)}
-                        alt="preview"
-                        className="w-full h-full rounded-full object-cover"
-                        style={{
-                          border: "2px solid rgba(255,255,255,0.15)",
-                          filter: isOwned ? "none" : "brightness(0.65)",
-                        }}
-                      />
-                      {/* Animated frame SVG overlay -- no overflow:hidden on parent */}
-                      <FrameComp
-                        size={80}
-                        isPreview={!isOwned}
-                        isActive={isActive}
-                      />
-                    </div>
+                    <img
+                      src={avatar.src}
+                      alt={avatar.name}
+                      className="w-24 h-24 object-cover rounded-full"
+                      style={{
+                        border: `2px solid ${avatar.glowColor}88`,
+                        boxShadow: `0 0 16px ${avatar.glowColor}55`,
+                      }}
+                    />
                     {isOwned && (
                       <div className="absolute top-2 right-2">
                         <span
                           className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
                           style={{
-                            background: "rgba(204,136,255,0.85)",
+                            background: "rgba(34,204,102,0.85)",
                             color: "#fff",
                           }}
                         >
@@ -2917,7 +2852,10 @@ export function DashboardPage() {
                       <div className="absolute top-2 left-2">
                         <span
                           className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
-                          style={{ background: "#ffd700", color: "#000" }}
+                          style={{
+                            background: "#ffd700",
+                            color: "#000",
+                          }}
                         >
                           ACTIVE
                         </span>
@@ -2927,18 +2865,16 @@ export function DashboardPage() {
 
                   {/* Card body */}
                   <div className="p-3 flex flex-col gap-2">
-                    <p
-                      className="font-display font-black text-sm"
-                      style={{ color: frame.color }}
-                    >
-                      {frame.name}
-                    </p>
-                    <p
-                      className="text-xs font-body"
-                      style={{ color: "rgba(255,255,255,0.35)" }}
-                    >
-                      {frame.description}
-                    </p>
+                    <div>
+                      <p
+                        className="font-display font-black text-sm text-foreground"
+                        style={{ color: avatar.glowColor }}
+                      >
+                        {avatar.name}
+                      </p>
+                    </div>
+
+                    {/* Price */}
                     <div
                       className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg"
                       style={{
@@ -2951,63 +2887,83 @@ export function DashboardPage() {
                         className="font-display font-black text-sm tabular-nums"
                         style={{ color: "#ffd700" }}
                       >
-                        {frame.price.toLocaleString()}
+                        {avatar.price.toLocaleString()}
                       </span>
                     </div>
 
+                    {/* Action button */}
                     {isOwned ? (
                       <button
                         type="button"
-                        data-ocid={`shop.frame_select_button.${i + 1}`}
+                        data-ocid={`shop.avatar_select_button.${i + 1}`}
                         onClick={async () => {
-                          if (isActive) return;
-                          await handleSelectFrame(frame.index);
+                          if (!actor) return;
+                          const { legendId: eqLid, passwordHash: eqPh } =
+                            useAuthStore.getState();
+                          if (!eqLid || !eqPh) return;
+                          try {
+                            await actor.setProfilePicture(
+                              eqLid,
+                              eqPh,
+                              BigInt(avatar.index),
+                            );
+                            await refetchProfile();
+                            toast.success(
+                              `${avatar.name} set as profile picture!`,
+                            );
+                          } catch (err) {
+                            console.error(err);
+                          }
                         }}
-                        disabled={isActive || isLoading}
+                        disabled={isActive}
                         className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-80 disabled:opacity-50"
                         style={{
                           background: isActive
                             ? "rgba(255,215,0,0.1)"
-                            : "linear-gradient(135deg, rgba(204,136,255,0.85), rgba(150,60,220,0.85))",
+                            : "linear-gradient(135deg, rgba(34,204,102,0.85), rgba(0,160,70,0.85))",
                           border: isActive
                             ? "1px solid rgba(255,215,0,0.3)"
                             : "none",
                           color: isActive ? "#ffd700" : "#fff",
                         }}
                       >
-                        {isLoading ? (
-                          <Loader2 className="w-3 h-3 animate-spin inline mr-1" />
-                        ) : null}
                         {isActive ? "Active" : "Equip"}
                       </button>
                     ) : (
                       <button
                         type="button"
-                        data-ocid={`shop.frame_buy_button.${i + 1}`}
-                        disabled={!canAfford || isLoading}
+                        data-ocid={`shop.avatar_buy_button.${i + 1}`}
+                        disabled={!canAfford || selectingPic === avatar.index}
                         onClick={async () => {
                           if (!actor) return;
-                          setSelectingFrame(frame.index);
+                          const { legendId: buyLid, passwordHash: buyPh } =
+                            useAuthStore.getState();
+                          if (!buyLid || !buyPh) return;
+                          setSelectingPic(avatar.index);
                           try {
-                            await actor.buyShopFrame(BigInt(frame.index));
+                            await actor.buyShopAvatar(
+                              buyLid,
+                              buyPh,
+                              BigInt(avatar.index),
+                            );
                             await refetchProfile();
                             queryClient.invalidateQueries({
                               queryKey: ["userProfile", legendId],
                             });
                             toast.success(
-                              `${frame.name} frame unlocked and equipped!`,
+                              `${avatar.name} unlocked and equipped!`,
                             );
                           } catch (err) {
                             console.error(err);
                             toast.error("Purchase failed. Please try again.");
                           } finally {
-                            setSelectingFrame(null);
+                            setSelectingPic(null);
                           }
                         }}
                         className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1"
                         style={{
                           background: canAfford
-                            ? `linear-gradient(135deg, ${frame.color}cc, ${frame.color}88)`
+                            ? `linear-gradient(135deg, ${avatar.glowColor}cc, ${avatar.glowColor}88)`
                             : "rgba(255,255,255,0.05)",
                           border: canAfford
                             ? "none"
@@ -3015,7 +2971,7 @@ export function DashboardPage() {
                           color: canAfford ? "#fff" : "rgba(255,255,255,0.35)",
                         }}
                       >
-                        {isLoading ? (
+                        {selectingPic === avatar.index ? (
                           <Loader2 className="w-3 h-3 animate-spin" />
                         ) : null}
                         {canAfford ? "BUY" : "Insufficient Coins"}
@@ -3026,7 +2982,208 @@ export function DashboardPage() {
               );
             })}
           </div>
-        </div>
+        )}
+
+        {/* ── FRAMES SECTION ── */}
+        {shopSection === "frames" && (
+          <div>
+            <p className="text-xs font-body text-muted-foreground mb-4">
+              Equip animated frames to style your profile picture
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {SHOP_FRAMES.map((frame, i) => {
+                const isOwned = (profile?.purchasedFrames ?? [])
+                  .map(Number)
+                  .includes(frame.index);
+                const isActive = selectedFrame === frame.index;
+                const canAfford = Number(balance) >= frame.price;
+                const isLoading = selectingFrame === frame.index;
+                const FrameComp = frame.Component;
+
+                return (
+                  <div
+                    key={frame.index}
+                    data-ocid={`shop.frame_item.${i + 1}`}
+                    className="rounded-2xl overflow-visible flex flex-col"
+                    style={{
+                      background: isOwned
+                        ? "rgba(204,136,255,0.04)"
+                        : "rgba(13,13,26,0.95)",
+                      border: isOwned
+                        ? `1px solid ${frame.color}55`
+                        : "1px solid rgba(255,255,255,0.08)",
+                      boxShadow: isOwned
+                        ? `0 4px 24px ${frame.color}22`
+                        : "0 4px 24px rgba(0,0,0,0.3)",
+                    }}
+                  >
+                    {/* Frame preview -- animated SVG frame around profile pic */}
+                    <div
+                      className="relative flex items-center justify-center"
+                      style={{
+                        height: 140,
+                        background: "transparent",
+                      }}
+                    >
+                      {/* Transparent background area -- no clipping so animation overflows */}
+                      <div
+                        className="relative"
+                        style={{ width: 80, height: 80 }}
+                      >
+                        {/* Profile image inside frame */}
+                        <img
+                          src={getProfilePicSrc(selectedProfilePic)}
+                          alt="preview"
+                          className="w-full h-full rounded-full object-cover"
+                          style={{
+                            border: "2px solid rgba(255,255,255,0.15)",
+                            filter: isOwned ? "none" : "brightness(0.65)",
+                          }}
+                        />
+                        {/* Animated frame SVG overlay -- no overflow:hidden on parent */}
+                        <FrameComp
+                          size={80}
+                          isPreview={!isOwned}
+                          isActive={isActive}
+                        />
+                      </div>
+                      {isOwned && (
+                        <div className="absolute top-2 right-2">
+                          <span
+                            className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
+                            style={{
+                              background: "rgba(204,136,255,0.85)",
+                              color: "#fff",
+                            }}
+                          >
+                            OWNED
+                          </span>
+                        </div>
+                      )}
+                      {isActive && (
+                        <div className="absolute top-2 left-2">
+                          <span
+                            className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
+                            style={{ background: "#ffd700", color: "#000" }}
+                          >
+                            ACTIVE
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Card body */}
+                    <div className="p-3 flex flex-col gap-2">
+                      <p
+                        className="font-display font-black text-sm"
+                        style={{ color: frame.color }}
+                      >
+                        {frame.name}
+                      </p>
+                      <p
+                        className="text-xs font-body"
+                        style={{ color: "rgba(255,255,255,0.35)" }}
+                      >
+                        {frame.description}
+                      </p>
+                      <div
+                        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg"
+                        style={{
+                          background: "rgba(255,215,0,0.06)",
+                          border: "1px solid rgba(255,215,0,0.15)",
+                        }}
+                      >
+                        <LegendCoin size={14} />
+                        <span
+                          className="font-display font-black text-sm tabular-nums"
+                          style={{ color: "#ffd700" }}
+                        >
+                          {frame.price.toLocaleString()}
+                        </span>
+                      </div>
+
+                      {isOwned ? (
+                        <button
+                          type="button"
+                          data-ocid={`shop.frame_select_button.${i + 1}`}
+                          onClick={async () => {
+                            if (isActive) return;
+                            await handleSelectFrame(frame.index);
+                          }}
+                          disabled={isActive || isLoading}
+                          className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-80 disabled:opacity-50"
+                          style={{
+                            background: isActive
+                              ? "rgba(255,215,0,0.1)"
+                              : "linear-gradient(135deg, rgba(204,136,255,0.85), rgba(150,60,220,0.85))",
+                            border: isActive
+                              ? "1px solid rgba(255,215,0,0.3)"
+                              : "none",
+                            color: isActive ? "#ffd700" : "#fff",
+                          }}
+                        >
+                          {isLoading ? (
+                            <Loader2 className="w-3 h-3 animate-spin inline mr-1" />
+                          ) : null}
+                          {isActive ? "Active" : "Equip"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          data-ocid={`shop.frame_buy_button.${i + 1}`}
+                          disabled={!canAfford || isLoading}
+                          onClick={async () => {
+                            if (!actor) return;
+                            const { legendId: bfLid, passwordHash: bfPh } =
+                              useAuthStore.getState();
+                            if (!bfLid || !bfPh) return;
+                            setSelectingFrame(frame.index);
+                            try {
+                              await actor.buyShopFrame(
+                                bfLid,
+                                bfPh,
+                                BigInt(frame.index),
+                              );
+                              await refetchProfile();
+                              queryClient.invalidateQueries({
+                                queryKey: ["userProfile", legendId],
+                              });
+                              toast.success(
+                                `${frame.name} frame unlocked and equipped!`,
+                              );
+                            } catch (err) {
+                              console.error(err);
+                              toast.error("Purchase failed. Please try again.");
+                            } finally {
+                              setSelectingFrame(null);
+                            }
+                          }}
+                          className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                          style={{
+                            background: canAfford
+                              ? `linear-gradient(135deg, ${frame.color}cc, ${frame.color}88)`
+                              : "rgba(255,255,255,0.05)",
+                            border: canAfford
+                              ? "none"
+                              : "1px solid rgba(255,255,255,0.1)",
+                            color: canAfford
+                              ? "#fff"
+                              : "rgba(255,255,255,0.35)",
+                          }}
+                        >
+                          {isLoading ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : null}
+                          {canAfford ? "BUY" : "Insufficient Coins"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </section>
     ),
 
@@ -3765,6 +3922,8 @@ export function DashboardPage() {
         onJoin={handleJoinTournament}
         joinedMatchIds={joinedMatchIds}
         allMatches={allMatches}
+        selectedProfilePic={selectedProfilePic}
+        selectedFrame={selectedFrame}
       />
     ),
 
@@ -4534,6 +4693,7 @@ export function DashboardPage() {
       {showWelcomeModal && legendId && (
         <FirstLoginModal
           legendId={legendId}
+          passwordHash={useAuthStore.getState().passwordHash}
           actor={actor}
           onClose={() => {
             localStorage.setItem(`lxa_welcome_shown_${legendId}`, "1");
@@ -4740,37 +4900,117 @@ export function DashboardPage() {
                     );
                   })()}
 
-                  {/* Deposit Tier Avatars */}
-                  {AVATAR_TIERS.map((tier, i) => {
-                    const isUnlocked = totalDeposited >= tier.required;
-                    const isSelected = selectedProfilePic === tier.index;
-                    const isLoading = selectingPic === tier.index;
+                  {/* Deposit Tier Avatars -- OWNED first, then locked */}
+                  {/* Owned deposit tiers */}
+                  {AVATAR_TIERS.filter((t) => totalDeposited >= t.required).map(
+                    (tier, i) => {
+                      const isSelected = selectedProfilePic === tier.index;
+                      const isLoading = selectingPic === tier.index;
+                      return (
+                        <button
+                          key={tier.index}
+                          type="button"
+                          data-ocid={`avatar_collection.logo_item.${i + 2}`}
+                          disabled={isLoading}
+                          onClick={() =>
+                            !isSelected && handleSelectAvatar(tier.index)
+                          }
+                          className="flex flex-col items-center gap-2 p-3 rounded-2xl transition-all duration-200"
+                          style={{
+                            background: isSelected
+                              ? "rgba(255,215,0,0.08)"
+                              : "rgba(255,255,255,0.02)",
+                            border: isSelected
+                              ? "1px solid rgba(255,215,0,0.4)"
+                              : "1px solid rgba(255,255,255,0.07)",
+                            cursor: isSelected ? "default" : "pointer",
+                          }}
+                        >
+                          <div
+                            className="relative"
+                            style={{ width: 64, height: 64 }}
+                          >
+                            <div
+                              style={{
+                                position: "absolute",
+                                inset: isSelected ? -3 : -2,
+                                borderRadius: "50%",
+                                border: isSelected
+                                  ? "2px solid #ffd700"
+                                  : `2px solid ${tier.glowColor}55`,
+                                boxShadow: isSelected
+                                  ? "0 0 12px #ffd70066"
+                                  : "none",
+                                zIndex: 2,
+                              }}
+                            />
+                            <img
+                              src={tier.src}
+                              alt={tier.label}
+                              className="w-full h-full rounded-full object-cover"
+                            />
+                            {isLoading && (
+                              <div
+                                className="absolute inset-0 rounded-full flex items-center justify-center"
+                                style={{ background: "rgba(0,0,0,0.6)" }}
+                              >
+                                <Loader2
+                                  className="w-4 h-4 animate-spin"
+                                  style={{ color: "#ffd700" }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                          <span
+                            className="font-display font-black uppercase text-center"
+                            style={{
+                              fontSize: "9px",
+                              letterSpacing: "0.1em",
+                              color: isSelected ? "#ffd700" : tier.glowColor,
+                            }}
+                          >
+                            {tier.label}
+                          </span>
+                          <span
+                            className="font-body text-xs text-center"
+                            style={{
+                              color: "rgba(34,204,102,0.7)",
+                              lineHeight: 1.2,
+                            }}
+                          >
+                            ✓ Unlocked
+                          </span>
+                        </button>
+                      );
+                    },
+                  )}
+
+                  {/* Owned shop avatars */}
+                  {SHOP_AVATARS.filter((av) =>
+                    (profile?.purchasedShopAvatars ?? [])
+                      .map(Number)
+                      .includes(av.index),
+                  ).map((avatar, i) => {
+                    const isSelected = selectedProfilePic === avatar.index;
+                    const isLoading = selectingPic === avatar.index;
                     return (
                       <button
-                        key={tier.index}
+                        key={avatar.index}
                         type="button"
-                        data-ocid={`avatar_collection.logo_item.${i + 2}`}
-                        disabled={!isUnlocked || isLoading}
+                        data-ocid={`avatar_collection.logo_item.${i + 8}`}
+                        disabled={isLoading}
                         onClick={() =>
-                          isUnlocked &&
-                          !isSelected &&
-                          handleSelectAvatar(tier.index)
+                          !isSelected && handleSelectAvatar(avatar.index)
                         }
                         className="flex flex-col items-center gap-2 p-3 rounded-2xl transition-all duration-200"
                         style={{
                           background: isSelected
                             ? "rgba(255,215,0,0.08)"
-                            : "rgba(255,255,255,0.02)",
+                            : "rgba(34,204,102,0.04)",
                           border: isSelected
                             ? "1px solid rgba(255,215,0,0.4)"
-                            : "1px solid rgba(255,255,255,0.07)",
-                          cursor:
-                            isUnlocked && !isSelected
-                              ? "pointer"
-                              : isSelected
-                                ? "default"
-                                : "not-allowed",
-                          opacity: isUnlocked ? 1 : 0.6,
+                            : `1px solid ${avatar.glowColor}33`,
+                          cursor: isSelected ? "default" : "pointer",
                         }}
                       >
                         <div
@@ -4784,7 +5024,7 @@ export function DashboardPage() {
                               borderRadius: "50%",
                               border: isSelected
                                 ? "2px solid #ffd700"
-                                : `2px solid ${tier.glowColor}55`,
+                                : `2px solid ${avatar.glowColor}55`,
                               boxShadow: isSelected
                                 ? "0 0 12px #ffd70066"
                                 : "none",
@@ -4792,26 +5032,10 @@ export function DashboardPage() {
                             }}
                           />
                           <img
-                            src={tier.src}
-                            alt={tier.label}
+                            src={avatar.src}
+                            alt={avatar.name}
                             className="w-full h-full rounded-full object-cover"
-                            style={{
-                              filter: isUnlocked
-                                ? "none"
-                                : "grayscale(80%) brightness(0.4)",
-                            }}
                           />
-                          {!isUnlocked && (
-                            <div
-                              className="absolute inset-0 rounded-full flex items-center justify-center"
-                              style={{ background: "rgba(0,0,0,0.55)" }}
-                            >
-                              <Lock
-                                className="w-4 h-4"
-                                style={{ color: "rgba(255,255,255,0.5)" }}
-                              />
-                            </div>
-                          )}
                           {isLoading && (
                             <div
                               className="absolute inset-0 rounded-full flex items-center justify-center"
@@ -4828,163 +5052,141 @@ export function DashboardPage() {
                           className="font-display font-black uppercase text-center"
                           style={{
                             fontSize: "9px",
-                            letterSpacing: "0.1em",
-                            color: isSelected
-                              ? "#ffd700"
-                              : isUnlocked
-                                ? tier.glowColor
-                                : "rgba(255,255,255,0.3)",
+                            letterSpacing: "0.08em",
+                            color: isSelected ? "#ffd700" : avatar.glowColor,
                           }}
                         >
-                          {tier.label}
+                          {avatar.name}
                         </span>
                         <span
-                          className="font-body text-xs text-center"
-                          style={{
-                            color: isUnlocked
-                              ? "rgba(34,204,102,0.7)"
-                              : "rgba(255,68,34,0.8)",
-                            lineHeight: 1.2,
-                          }}
+                          className="font-body text-xs"
+                          style={{ color: "rgba(34,204,102,0.7)" }}
                         >
-                          {isUnlocked ? "✓ Unlocked" : `L${tier.required}`}
+                          ✓ Owned
                         </span>
                       </button>
                     );
                   })}
 
-                  {/* Shop Avatars */}
-                  {SHOP_AVATARS.map((avatar, i) => {
-                    const isOwned = (profile?.purchasedShopAvatars ?? [])
-                      .map(Number)
-                      .includes(avatar.index);
-                    const isSelected = selectedProfilePic === avatar.index;
-                    const isLoading = selectingPic === avatar.index;
-                    return (
-                      <div
-                        key={avatar.index}
-                        data-ocid={`avatar_collection.logo_item.${i + 8}`}
-                        className="flex flex-col items-center gap-2 p-3 rounded-2xl transition-all duration-200"
-                        style={{
-                          background: isSelected
-                            ? "rgba(255,215,0,0.08)"
-                            : isOwned
-                              ? "rgba(34,204,102,0.04)"
-                              : "rgba(255,255,255,0.02)",
-                          border: isSelected
-                            ? "1px solid rgba(255,215,0,0.4)"
-                            : isOwned
-                              ? `1px solid ${avatar.glowColor}33`
-                              : "1px solid rgba(255,255,255,0.07)",
-                        }}
-                      >
-                        <button
-                          type="button"
-                          disabled={!isOwned || isLoading}
-                          onClick={() =>
-                            isOwned &&
-                            !isSelected &&
-                            handleSelectAvatar(avatar.index)
-                          }
+                  {/* Locked deposit tiers (not yet unlocked) */}
+                  {AVATAR_TIERS.filter((t) => totalDeposited < t.required).map(
+                    (tier, _i) => {
+                      return (
+                        <div
+                          key={tier.index}
+                          className="flex flex-col items-center gap-2 p-3 rounded-2xl"
                           style={{
-                            background: "none",
-                            border: "none",
-                            padding: 0,
-                            cursor:
-                              isOwned && !isSelected
-                                ? "pointer"
-                                : isSelected
-                                  ? "default"
-                                  : "default",
-                            opacity: isOwned ? 1 : 0.7,
+                            background: "rgba(255,255,255,0.02)",
+                            border: "1px solid rgba(255,255,255,0.07)",
+                            opacity: 0.6,
                           }}
                         >
                           <div
                             className="relative"
                             style={{ width: 64, height: 64 }}
                           >
-                            <div
-                              style={{
-                                position: "absolute",
-                                inset: isSelected ? -3 : -2,
-                                borderRadius: "50%",
-                                border: isSelected
-                                  ? "2px solid #ffd700"
-                                  : `2px solid ${avatar.glowColor}55`,
-                                boxShadow: isSelected
-                                  ? "0 0 12px #ffd70066"
-                                  : "none",
-                                zIndex: 2,
-                              }}
-                            />
                             <img
-                              src={avatar.src}
-                              alt={avatar.name}
+                              src={tier.src}
+                              alt={tier.label}
                               className="w-full h-full rounded-full object-cover"
                               style={{
-                                filter: isOwned
-                                  ? "none"
-                                  : "grayscale(60%) brightness(0.5)",
+                                filter: "grayscale(80%) brightness(0.4)",
                               }}
                             />
-                            {isLoading && (
-                              <div
-                                className="absolute inset-0 rounded-full flex items-center justify-center"
-                                style={{ background: "rgba(0,0,0,0.6)" }}
-                              >
-                                <Loader2
-                                  className="w-4 h-4 animate-spin"
-                                  style={{ color: "#ffd700" }}
-                                />
-                              </div>
-                            )}
+                            <div
+                              className="absolute inset-0 rounded-full flex items-center justify-center"
+                              style={{ background: "rgba(0,0,0,0.55)" }}
+                            >
+                              <Lock
+                                className="w-4 h-4"
+                                style={{ color: "rgba(255,255,255,0.5)" }}
+                              />
+                            </div>
                           </div>
-                        </button>
+                          <span
+                            className="font-display font-black uppercase text-center"
+                            style={{
+                              fontSize: "9px",
+                              letterSpacing: "0.1em",
+                              color: "rgba(255,255,255,0.3)",
+                            }}
+                          >
+                            {tier.label}
+                          </span>
+                          <span
+                            className="font-body text-xs text-center"
+                            style={{
+                              color: "rgba(255,68,34,0.8)",
+                              lineHeight: 1.2,
+                            }}
+                          >
+                            L{tier.required}
+                          </span>
+                        </div>
+                      );
+                    },
+                  )}
+
+                  {/* Unowned shop avatars */}
+                  {SHOP_AVATARS.filter(
+                    (av) =>
+                      !(profile?.purchasedShopAvatars ?? [])
+                        .map(Number)
+                        .includes(av.index),
+                  ).map((avatar, i) => {
+                    return (
+                      <div
+                        key={avatar.index}
+                        data-ocid={`avatar_collection.logo_item.${i + 18}`}
+                        className="flex flex-col items-center gap-2 p-3 rounded-2xl transition-all duration-200"
+                        style={{
+                          background: "rgba(255,255,255,0.02)",
+                          border: "1px solid rgba(255,255,255,0.07)",
+                          opacity: 0.7,
+                        }}
+                      >
+                        <div
+                          className="relative"
+                          style={{ width: 64, height: 64 }}
+                        >
+                          <img
+                            src={avatar.src}
+                            alt={avatar.name}
+                            className="w-full h-full rounded-full object-cover"
+                            style={{ filter: "grayscale(60%) brightness(0.5)" }}
+                          />
+                        </div>
                         <span
                           className="font-display font-black uppercase text-center"
                           style={{
                             fontSize: "9px",
                             letterSpacing: "0.08em",
-                            color: isSelected
-                              ? "#ffd700"
-                              : isOwned
-                                ? avatar.glowColor
-                                : "rgba(255,255,255,0.3)",
+                            color: "rgba(255,255,255,0.3)",
                           }}
                         >
                           {avatar.name}
                         </span>
-                        {isOwned ? (
-                          <span
-                            className="font-body text-xs"
-                            style={{ color: "rgba(34,204,102,0.7)" }}
-                          >
-                            ✓ Owned
-                          </span>
-                        ) : (
-                          /* Not owned -- route to store */
-                          <button
-                            type="button"
-                            data-ocid={`avatar_collection.goto_store_button.${i + 1}`}
-                            onClick={() => {
-                              setShowAvatarModal(false);
-                              setActiveTab("shop");
-                            }}
-                            className="font-display font-black uppercase transition-all hover:opacity-80"
-                            style={{
-                              fontSize: "8px",
-                              letterSpacing: "0.08em",
-                              background: "rgba(255,215,0,0.12)",
-                              border: "1px solid rgba(255,215,0,0.3)",
-                              color: "#ffd700",
-                              borderRadius: "6px",
-                              padding: "2px 6px",
-                              cursor: "pointer",
-                            }}
-                          >
-                            Go to Store
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          data-ocid={`avatar_collection.goto_store_button.${i + 1}`}
+                          onClick={() => {
+                            setShowAvatarModal(false);
+                            setActiveTab("shop");
+                          }}
+                          className="font-display font-black uppercase transition-all hover:opacity-80"
+                          style={{
+                            fontSize: "8px",
+                            letterSpacing: "0.08em",
+                            background: "rgba(255,215,0,0.12)",
+                            border: "1px solid rgba(255,215,0,0.3)",
+                            color: "#ffd700",
+                            borderRadius: "6px",
+                            padding: "2px 6px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Go to Store
+                        </button>
                       </div>
                     );
                   })}
@@ -5049,10 +5251,12 @@ export function DashboardPage() {
                     </span>
                   </button>
 
-                  {SHOP_FRAMES.map((frame, i) => {
-                    const isOwned = (profile?.purchasedFrames ?? [])
+                  {/* Owned frames first */}
+                  {SHOP_FRAMES.filter((f) =>
+                    (profile?.purchasedFrames ?? [])
                       .map(Number)
-                      .includes(frame.index);
+                      .includes(f.index),
+                  ).map((frame, i) => {
                     const isActive = selectedFrame === frame.index;
                     const isLoading = selectingFrame === frame.index;
                     const FrameComp = frame.Component;
@@ -5064,17 +5268,12 @@ export function DashboardPage() {
                         style={{
                           background: isActive
                             ? "rgba(204,136,255,0.08)"
-                            : isOwned
-                              ? "rgba(34,204,102,0.04)"
-                              : "rgba(255,255,255,0.02)",
+                            : "rgba(34,204,102,0.04)",
                           border: isActive
                             ? "1px solid rgba(204,136,255,0.4)"
-                            : isOwned
-                              ? `1px solid ${frame.color}33`
-                              : "1px solid rgba(255,255,255,0.07)",
+                            : `1px solid ${frame.color}33`,
                         }}
                       >
-                        {/* Animated frame preview with profile pic inside */}
                         <div
                           className="relative flex items-center justify-center"
                           style={{ width: 64, height: 64 }}
@@ -5083,16 +5282,10 @@ export function DashboardPage() {
                             src={DEFAULT_PROFILE_PIC}
                             alt="preview"
                             className="w-full h-full rounded-full object-cover"
-                            style={{
-                              filter: isOwned
-                                ? "none"
-                                : "brightness(0.5) grayscale(40%)",
-                            }}
                           />
-                          {/* Animated SVG frame -- no overflow clipping */}
                           <FrameComp
                             size={64}
-                            isPreview={!isOwned}
+                            isPreview={false}
                             isActive={isActive}
                           />
                           {isActive && (
@@ -5114,64 +5307,105 @@ export function DashboardPage() {
                           style={{
                             fontSize: "9px",
                             letterSpacing: "0.08em",
-                            color: isActive
-                              ? "#cc88ff"
-                              : isOwned
-                                ? frame.color
-                                : "rgba(255,255,255,0.35)",
+                            color: isActive ? "#cc88ff" : frame.color,
                           }}
                         >
                           {frame.name}
                         </span>
-                        {isOwned ? (
-                          <button
-                            type="button"
-                            data-ocid={`avatar_collection.frame_equip_button.${i + 1}`}
-                            onClick={() =>
-                              !isActive && handleSelectFrame(frame.index)
-                            }
-                            disabled={isActive || isLoading}
-                            className="w-full py-1 rounded-lg font-display font-bold uppercase transition-all hover:opacity-80 disabled:opacity-50 flex items-center justify-center gap-1"
-                            style={{
-                              fontSize: "9px",
-                              background: isActive
-                                ? "rgba(255,215,0,0.1)"
-                                : "rgba(204,136,255,0.8)",
-                              border: isActive
-                                ? "1px solid rgba(255,215,0,0.3)"
-                                : "none",
-                              color: isActive ? "#ffd700" : "#fff",
-                            }}
-                          >
-                            {isLoading ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : null}
-                            {isActive ? "Active" : "Equip"}
-                          </button>
-                        ) : (
-                          /* Not owned -- route to store */
-                          <button
-                            type="button"
-                            data-ocid={`avatar_collection.frame_goto_store_button.${i + 1}`}
-                            onClick={() => {
-                              setShowAvatarModal(false);
-                              setActiveTab("shop");
-                            }}
-                            className="font-display font-black uppercase transition-all hover:opacity-80"
-                            style={{
-                              fontSize: "8px",
-                              letterSpacing: "0.08em",
-                              background: "rgba(204,136,255,0.12)",
-                              border: "1px solid rgba(204,136,255,0.3)",
-                              color: "#cc88ff",
-                              borderRadius: "6px",
-                              padding: "2px 6px",
-                              cursor: "pointer",
-                            }}
-                          >
-                            Go to Store
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          data-ocid={`avatar_collection.frame_equip_button.${i + 1}`}
+                          onClick={() =>
+                            !isActive && handleSelectFrame(frame.index)
+                          }
+                          disabled={isActive || isLoading}
+                          className="w-full py-1 rounded-lg font-display font-bold uppercase transition-all hover:opacity-80 disabled:opacity-50 flex items-center justify-center gap-1"
+                          style={{
+                            fontSize: "9px",
+                            background: isActive
+                              ? "rgba(255,215,0,0.1)"
+                              : "rgba(204,136,255,0.8)",
+                            border: isActive
+                              ? "1px solid rgba(255,215,0,0.3)"
+                              : "none",
+                            color: isActive ? "#ffd700" : "#fff",
+                          }}
+                        >
+                          {isLoading ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : null}
+                          {isActive ? "Active" : "Equip"}
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  {/* Unowned frames */}
+                  {SHOP_FRAMES.filter(
+                    (f) =>
+                      !(profile?.purchasedFrames ?? [])
+                        .map(Number)
+                        .includes(f.index),
+                  ).map((frame, i) => {
+                    const FrameComp = frame.Component;
+                    return (
+                      <div
+                        key={frame.index}
+                        data-ocid={`avatar_collection.frame_item.${i + 6}`}
+                        className="flex flex-col items-center gap-2 p-3 rounded-2xl"
+                        style={{
+                          background: "rgba(255,255,255,0.02)",
+                          border: "1px solid rgba(255,255,255,0.07)",
+                          opacity: 0.7,
+                        }}
+                      >
+                        <div
+                          className="relative flex items-center justify-center"
+                          style={{ width: 64, height: 64 }}
+                        >
+                          <img
+                            src={DEFAULT_PROFILE_PIC}
+                            alt="preview"
+                            className="w-full h-full rounded-full object-cover"
+                            style={{ filter: "brightness(0.5) grayscale(40%)" }}
+                          />
+                          <FrameComp
+                            size={64}
+                            isPreview={true}
+                            isActive={false}
+                          />
+                        </div>
+                        <span
+                          className="font-display font-black uppercase text-center"
+                          style={{
+                            fontSize: "9px",
+                            letterSpacing: "0.08em",
+                            color: "rgba(255,255,255,0.35)",
+                          }}
+                        >
+                          {frame.name}
+                        </span>
+                        <button
+                          type="button"
+                          data-ocid={`avatar_collection.frame_goto_store_button.${i + 1}`}
+                          onClick={() => {
+                            setShowAvatarModal(false);
+                            setActiveTab("shop");
+                          }}
+                          className="font-display font-black uppercase transition-all hover:opacity-80"
+                          style={{
+                            fontSize: "8px",
+                            letterSpacing: "0.08em",
+                            background: "rgba(204,136,255,0.12)",
+                            border: "1px solid rgba(204,136,255,0.3)",
+                            color: "#cc88ff",
+                            borderRadius: "6px",
+                            padding: "2px 6px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Go to Store
+                        </button>
                       </div>
                     );
                   })}

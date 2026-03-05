@@ -99,32 +99,33 @@ export enum TransactionType {
     deposit = "deposit"
 }
 export interface backendInterface {
-    addCoins(legendId: string, amount: bigint): Promise<void>;
-    approveDepositRequest(requestId: string): Promise<void>;
+    addCoins(adminLegendId: string, adminPasswordHash: string, targetLegendId: string, amount: bigint): Promise<void>;
+    approveDepositRequest(adminLegendId: string, adminPasswordHash: string, requestId: string): Promise<void>;
     authenticate(legendId: string, passwordHash: string): Promise<boolean>;
-    buyShopAvatar(avatarIndex: bigint): Promise<void>;
-    buyShopFrame(frameIndex: bigint): Promise<void>;
-    createTournament(title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, returningCoins: bigint): Promise<string>;
-    declareMatchResult(tournamentId: string, winnerLegendId: string, loserLegendId: string, winnerCoins: bigint, loserCoins: bigint): Promise<void>;
-    deleteTournament(id: string): Promise<void>;
+    buyShopAvatar(legendId: string, passwordHash: string, avatarIndex: bigint): Promise<void>;
+    buyShopFrame(legendId: string, passwordHash: string, frameIndex: bigint): Promise<void>;
+    createTournament(adminLegendId: string, adminPasswordHash: string, title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, returningCoins: bigint): Promise<string>;
+    declareMatchResult(adminLegendId: string, adminPasswordHash: string, tournamentId: string, winnerLegendId: string, loserLegendId: string, winnerCoins: bigint, loserCoins: bigint): Promise<void>;
+    deleteTournament(adminLegendId: string, adminPasswordHash: string, id: string): Promise<void>;
     getActiveTournaments(): Promise<Array<Tournament>>;
+    getAllUsers(adminLegendId: string): Promise<Array<UserProfile>>;
     getLeaderboard(): Promise<Array<LeaderboardEntry>>;
-    getMyDepositRequests(): Promise<Array<DepositRequest>>;
-    getPendingDepositRequests(): Promise<Array<DepositRequest>>;
+    getMyDepositRequests(legendId: string, passwordHash: string): Promise<Array<DepositRequest>>;
+    getPendingDepositRequests(adminLegendId: string, adminPasswordHash: string): Promise<Array<DepositRequest>>;
     getTournamentRoom(tournamentId: string, legendId: string): Promise<{
         roomPassword: string;
         roomId: string;
     }>;
-    getTournaments(): Promise<Array<Tournament>>;
+    getTournaments(adminLegendId: string): Promise<Array<Tournament>>;
     getUserByLegendId(legendId: string): Promise<UserProfile>;
-    joinTournamentById(tournamentId: string): Promise<void>;
+    joinTournamentById(legendId: string, passwordHash: string, tournamentId: string): Promise<void>;
     register(passwordHash: string, jazzCash: string, uid: string, ignName: string): Promise<string>;
-    rejectDepositRequest(requestId: string): Promise<void>;
-    setProfileFrame(frameIndex: bigint): Promise<void>;
-    setProfilePicture(picIndex: bigint): Promise<void>;
-    setTournamentRoom(tournamentId: string, roomId: string, roomPassword: string): Promise<void>;
-    submitDepositRequest(amount: bigint, transactionId: string): Promise<void>;
-    toggleBan(legendId: string): Promise<void>;
-    updatePlayerInfo(gameName: string, gameUID: string, jazzCashNumber: string): Promise<void>;
-    updateTournament(id: string, title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, isActive: boolean, returningCoins: bigint): Promise<void>;
+    rejectDepositRequest(adminLegendId: string, adminPasswordHash: string, requestId: string): Promise<void>;
+    setProfileFrame(legendId: string, passwordHash: string, frameIndex: bigint): Promise<void>;
+    setProfilePicture(legendId: string, passwordHash: string, picIndex: bigint): Promise<void>;
+    setTournamentRoom(adminLegendId: string, adminPasswordHash: string, tournamentId: string, roomId: string, roomPassword: string): Promise<void>;
+    submitDepositRequest(legendId: string, passwordHash: string, amount: bigint, transactionId: string): Promise<void>;
+    toggleBan(adminLegendId: string, adminPasswordHash: string, targetLegendId: string): Promise<void>;
+    updatePlayerInfo(legendId: string, passwordHash: string, gameName: string, gameUID: string, jazzCashNumber: string): Promise<void>;
+    updateTournament(adminLegendId: string, adminPasswordHash: string, id: string, title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, isActive: boolean, returningCoins: bigint): Promise<void>;
 }

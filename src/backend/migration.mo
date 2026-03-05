@@ -1,6 +1,7 @@
 import Map "mo:core/Map";
-import Nat "mo:core/Nat";
 import Principal "mo:core/Principal";
+import Text "mo:core/Text";
+import Nat "mo:core/Nat";
 
 module {
   type Role = { #admin; #user };
@@ -8,7 +9,7 @@ module {
   type Result = { #win; #loss; #draw };
   type TransactionType = { #deposit; #withdraw };
 
-  type OldUserProfile = {
+  type UserProfile = {
     legendId : Text;
     passwordHash : Text;
     role : Role;
@@ -23,6 +24,9 @@ module {
     gameName : Text;
     gameUID : Text;
     totalProfit : Nat;
+    purchasedShopAvatars : [Nat];
+    purchasedFrames : [Nat];
+    selectedFrame : Nat;
   };
 
   type Match = {
@@ -70,54 +74,31 @@ module {
   };
 
   type OldActor = {
-    users : Map.Map<Principal, OldUserProfile>;
+    isFirstAdminSet : Bool;
+    users : Map.Map<Principal, UserProfile>;
     depositRequests : Map.Map<Text, DepositRequest>;
     tournaments : Map.Map<Text, Tournament>;
-    isFirstAdminSet : Bool;
     depositIdCounter : Nat;
     tournamentIdCounter : Nat;
     userIdCounter : Nat;
-  };
-
-  type NewUserProfile = {
-    legendId : Text;
-    passwordHash : Text;
-    role : Role;
-    walletBalance : Nat;
-    isBanned : Bool;
-    createdAt : Int;
-    matchHistory : [Match];
-    transactions : [Transaction];
-    totalDeposited : Nat;
-    selectedProfilePic : Nat;
-    jazzCashNumber : Text;
-    gameName : Text;
-    gameUID : Text;
-    totalProfit : Nat;
-    purchasedShopAvatars : [Nat];
-    purchasedFrames : [Nat];
-    selectedFrame : Nat;
   };
 
   type NewActor = {
-    users : Map.Map<Principal, NewUserProfile>;
+    isFirstAdminSet : Bool;
+    users : Map.Map<Text, UserProfile>;
     depositRequests : Map.Map<Text, DepositRequest>;
     tournaments : Map.Map<Text, Tournament>;
-    isFirstAdminSet : Bool;
     depositIdCounter : Nat;
     tournamentIdCounter : Nat;
     userIdCounter : Nat;
   };
 
+  // Migration function called by the main actor via with-clause
   public func run(old : OldActor) : NewActor {
-    let newUsers = old.users.map<Principal, OldUserProfile, NewUserProfile>(
-      func(_p, oldProfile) {
-        {
-          oldProfile with
-          purchasedShopAvatars = [];
-          purchasedFrames = [];
-          selectedFrame = 0;
-        };
+    let newUsers = Map.empty<Text, UserProfile>();
+    old.users.entries().forEach(
+      func((_principal, profile)) {
+        newUsers.add(profile.legendId, profile);
       }
     );
     { old with users = newUsers };

@@ -5,8 +5,14 @@ interface AuthState {
   legendId: string | null;
   role: "admin" | "user" | null;
   gameName: string | null;
+  passwordHash: string | null;
   isLoggedIn: boolean;
-  login: (legendId: string, role: string, gameName?: string) => void;
+  login: (
+    legendId: string,
+    role: string,
+    gameName?: string,
+    passwordHash?: string,
+  ) => void;
   logout: () => void;
 }
 
@@ -16,12 +22,19 @@ export const useAuthStore = create<AuthState>()(
       legendId: null,
       role: null,
       gameName: null,
+      passwordHash: null,
       isLoggedIn: false,
-      login: (legendId: string, role: string, gameName?: string) =>
+      login: (
+        legendId: string,
+        role: string,
+        gameName?: string,
+        passwordHash?: string,
+      ) =>
         set({
           legendId,
           role: role === "admin" ? "admin" : "user",
           gameName: gameName ?? null,
+          passwordHash: passwordHash ?? null,
           isLoggedIn: true,
         }),
       logout: () =>
@@ -29,6 +42,7 @@ export const useAuthStore = create<AuthState>()(
           legendId: null,
           role: null,
           gameName: null,
+          passwordHash: null,
           isLoggedIn: false,
         }),
     }),

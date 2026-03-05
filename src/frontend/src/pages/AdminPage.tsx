@@ -86,9 +86,12 @@ function UserCard({
       return;
     }
     if (!actor) return;
+    const { legendId: adminLid, passwordHash: adminPh } =
+      useAuthStore.getState();
+    if (!adminLid || !adminPh) return;
     setIsAddingCoins(true);
     try {
-      await actor.addCoins(profile.legendId, BigInt(amount));
+      await actor.addCoins(adminLid, adminPh, profile.legendId, BigInt(amount));
       toast.success(
         `L${amount.toLocaleString()} coins added to ${profile.legendId}!`,
       );
@@ -568,7 +571,9 @@ function MatchManagementSection() {
     queryKey: ["allTournaments"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getTournaments();
+      const { legendId: adminLid } = useAuthStore.getState();
+      if (!adminLid) return [];
+      return actor.getTournaments(adminLid);
     },
     enabled: !!actor && !isFetching,
   });
@@ -605,6 +610,9 @@ function MatchManagementSection() {
 
   async function handleDeclareResult(tournamentId: string) {
     if (!actor) return;
+    const { legendId: adminLid, passwordHash: adminPh } =
+      useAuthStore.getState();
+    if (!adminLid || !adminPh) return;
     const winnerCoins = Math.max(0, Math.floor(Number(winnerCoinsInput)));
     const loserCoins = Math.max(0, Math.floor(Number(loserCoinsInput)));
     if (!winnerIdInput.trim() || !loserIdInput.trim()) {
@@ -614,6 +622,8 @@ function MatchManagementSection() {
     setIsDeclaring(true);
     try {
       await actor.declareMatchResult(
+        adminLid,
+        adminPh,
         tournamentId,
         winnerIdInput.trim(),
         loserIdInput.trim(),
@@ -641,9 +651,14 @@ function MatchManagementSection() {
 
   async function handleSaveRoom(tournamentId: string) {
     if (!actor) return;
+    const { legendId: adminLid, passwordHash: adminPh } =
+      useAuthStore.getState();
+    if (!adminLid || !adminPh) return;
     setIsSavingRoom(true);
     try {
       await actor.setTournamentRoom(
+        adminLid,
+        adminPh,
         tournamentId,
         roomIdInput.trim(),
         roomPasswordInput.trim(),
@@ -708,10 +723,15 @@ function MatchManagementSection() {
       return;
     }
 
+    const { legendId: adminLid, passwordHash: adminPh } =
+      useAuthStore.getState();
+    if (!adminLid || !adminPh) return;
     setIsSaving(true);
     try {
       if (editingId) {
         await actor.updateTournament(
+          adminLid,
+          adminPh,
           editingId,
           title,
           category,
@@ -726,6 +746,8 @@ function MatchManagementSection() {
         toast.success("Match updated successfully!");
       } else {
         await actor.createTournament(
+          adminLid,
+          adminPh,
           title,
           category,
           mode,
@@ -752,9 +774,12 @@ function MatchManagementSection() {
   async function handleDelete(t: Tournament) {
     if (!actor) return;
     if (!confirm(`Delete "${t.title}"? This cannot be undone.`)) return;
+    const { legendId: adminLid, passwordHash: adminPh } =
+      useAuthStore.getState();
+    if (!adminLid || !adminPh) return;
     setDeletingId(t.id);
     try {
-      await actor.deleteTournament(t.id);
+      await actor.deleteTournament(adminLid, adminPh, t.id);
       toast.success(`"${t.title}" deleted`);
       queryClient.invalidateQueries({ queryKey: ["allTournaments"] });
       queryClient.invalidateQueries({ queryKey: ["activeTournaments"] });
@@ -769,9 +794,14 @@ function MatchManagementSection() {
 
   async function handleToggleActive(t: Tournament) {
     if (!actor) return;
+    const { legendId: adminLid, passwordHash: adminPh } =
+      useAuthStore.getState();
+    if (!adminLid || !adminPh) return;
     setTogglingId(t.id);
     try {
       await actor.updateTournament(
+        adminLid,
+        adminPh,
         t.id,
         t.title,
         t.category,
@@ -1847,16 +1877,22 @@ function PendingDepositsSection() {
     queryKey: ["pendingDeposits"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getPendingDepositRequests();
+      const { legendId: adminLid, passwordHash: adminPh } =
+        useAuthStore.getState();
+      if (!adminLid || !adminPh) return [];
+      return actor.getPendingDepositRequests(adminLid, adminPh);
     },
     enabled: !!actor && !isFetching,
   });
 
   async function handleApprove(req: DepositRequest) {
     if (!actor) return;
+    const { legendId: adminLid, passwordHash: adminPh } =
+      useAuthStore.getState();
+    if (!adminLid || !adminPh) return;
     setLoadingId(req.id);
     try {
-      await actor.approveDepositRequest(req.id);
+      await actor.approveDepositRequest(adminLid, adminPh, req.id);
       // Queue coin shower animation for this user on their next app open/focus
       localStorage.setItem(`lxa_pending_coinshower_${req.legendId}`, "1");
       toast.success(
@@ -1874,9 +1910,12 @@ function PendingDepositsSection() {
 
   async function handleReject(req: DepositRequest) {
     if (!actor) return;
+    const { legendId: adminLid, passwordHash: adminPh } =
+      useAuthStore.getState();
+    if (!adminLid || !adminPh) return;
     setLoadingId(req.id);
     try {
-      await actor.rejectDepositRequest(req.id);
+      await actor.rejectDepositRequest(adminLid, adminPh, req.id);
       toast.success("Deposit request rejected");
       queryClient.invalidateQueries({ queryKey: ["pendingDeposits"] });
       await refetchDeposits();
@@ -2109,7 +2148,10 @@ export function AdminPage() {
   const toggleBanMutation = useMutation({
     mutationFn: async (targetLegendId: string) => {
       if (!actor) throw new Error("Actor not ready");
-      await actor.toggleBan(targetLegendId);
+      const { legendId: adminLid, passwordHash: adminPh } =
+        useAuthStore.getState();
+      if (!adminLid || !adminPh) throw new Error("Not authenticated");
+      await actor.toggleBan(adminLid, adminPh, targetLegendId);
     },
     onSuccess: () => {
       toast.success("Ban status updated");

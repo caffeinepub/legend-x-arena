@@ -3,9 +3,15 @@ import { useEffect, useRef, useState } from "react";
 /* ─── Types ────────────────────────────────────────────── */
 interface FirstLoginModalProps {
   legendId: string;
+  passwordHash?: string | null;
   onClose: () => void;
   actor?: {
-    addCoins: (legendId: string, amount: bigint) => Promise<void>;
+    addCoins: (
+      adminLegendId: string,
+      adminPasswordHash: string,
+      targetLegendId: string,
+      amount: bigint,
+    ) => Promise<void>;
   } | null;
 }
 
@@ -321,6 +327,7 @@ function RouletteWheel({ rotation }: { rotation: number }) {
 /* ─── Main Modal ─────────────────────────────────────── */
 export function FirstLoginModal({
   legendId,
+  passwordHash,
   onClose,
   actor,
 }: FirstLoginModalProps) {
@@ -367,11 +374,11 @@ export function FirstLoginModal({
   }
 
   async function handleCollect() {
-    if (actor && legendId && wonAmount) {
+    if (actor && legendId && passwordHash && wonAmount) {
       const coins = Number.parseInt(wonAmount.split(" ")[0], 10);
       if (!Number.isNaN(coins) && coins > 0) {
         try {
-          await actor.addCoins(legendId, BigInt(coins));
+          await actor.addCoins(legendId, passwordHash, legendId, BigInt(coins));
         } catch {
           // silently ignore if actor unavailable or permission denied
         }
