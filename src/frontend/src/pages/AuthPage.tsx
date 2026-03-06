@@ -27,25 +27,43 @@ export function AuthPage() {
   const [assignedId, setAssignedId] = useState<string | null>(null);
   const [pendingNav, setPendingNav] = useState(false);
   const [nextLegendId, setNextLegendId] = useState<string | null>(null);
+  const [isFetchingNextId, setIsFetchingNextId] = useState(false);
   const registerBtnRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
   const { actor } = useActor();
   const login = useAuthStore((s) => s.login);
 
-  // Fetch next Legend ID when register tab is active
+  // Device session lock — check stored active device ID
+  const storedDeviceId = localStorage.getItem("lxa_active_device_id");
+  const [loginIdValue, setLoginIdValue] = useState("");
+  const showDeviceWarning =
+    storedDeviceId &&
+    loginIdValue.trim() !== "" &&
+    loginIdValue.trim() !== storedDeviceId;
+
+  // Fetch next Legend ID when register tab is active, with 10s polling
   useEffect(() => {
     if (activeTab !== "register" || !actor) return;
     let cancelled = false;
-    actor
-      .getNextLegendId()
-      .then((id) => {
+
+    async function fetchNextId() {
+      if (!actor) return;
+      setIsFetchingNextId(true);
+      try {
+        const id = await actor.getNextLegendId();
         if (!cancelled) setNextLegendId(id);
-      })
-      .catch(() => {
+      } catch {
         /* silently ignore */
-      });
+      } finally {
+        if (!cancelled) setIsFetchingNextId(false);
+      }
+    }
+
+    fetchNextId();
+    const interval = setInterval(fetchNextId, 10_000);
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
   }, [activeTab, actor]);
 
@@ -83,6 +101,8 @@ export function AuthPage() {
       }
       const roleStr = profile.role === Role.admin ? "admin" : "user";
       login(profile.legendId, roleStr, profile.gameName, hash);
+      // Store active device ID so only one account can be active per device
+      localStorage.setItem("lxa_active_device_id", profile.legendId);
       toast.success("Welcome back, Commander!");
       navigate({ to: "/dashboard" });
     } catch (err) {
@@ -107,6 +127,15 @@ export function AuthPage() {
     }
     setIsSubmitting(true);
     try {
+      // Refresh next ID preview just before submitting to avoid stale display
+      if (actor) {
+        try {
+          const freshId = await actor.getNextLegendId();
+          setNextLegendId(freshId);
+        } catch {
+          /* ignore — proceed with registration */
+        }
+      }
       const hash = await hashPassword(data.password);
       const assignedLegendId = await actor.register(
         hash,
@@ -123,6 +152,8 @@ export function AuthPage() {
       const profile = await actor.getUserByLegendId(assignedLegendId);
       const roleStr = profile.role === Role.admin ? "admin" : "user";
       login(profile.legendId, roleStr, profile.gameName, hash);
+      // Store active device ID for single-device session lock
+      localStorage.setItem("lxa_active_device_id", assignedLegendId);
       // Show the assigned Legend ID to the user before navigating
       setAssignedId(assignedLegendId);
       setPendingNav(true);
@@ -286,8 +317,41 @@ export function AuthPage() {
                         }}
                         {...loginForm.register("legendId", {
                           required: "Legend ID is required",
+                          onChange: (e) => setLoginIdValue(e.target.value),
                         })}
                       />
+                      {/* Device warning — one account per device */}
+                      {showDeviceWarning && (
+                        <div
+                          data-ocid="auth.device_warning"
+                          className="mt-2 px-3 py-2 rounded-lg text-xs font-body flex items-start gap-2"
+                          style={{
+                            background: "rgba(255,170,0,0.08)",
+                            border: "1px solid rgba(255,170,0,0.3)",
+                            color: "#ffaa00",
+                          }}
+                        >
+                          <span className="flex-shrink-0">⚠</span>
+                          <div className="flex-1">
+                            <span>
+                              Account <strong>{storedDeviceId}</strong> is
+                              active on this device.
+                            </span>{" "}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                localStorage.removeItem("lxa_active_device_id");
+                                setLoginIdValue("");
+                                loginForm.setValue("legendId", "");
+                              }}
+                              className="underline ml-1 transition-opacity hover:opacity-80"
+                              style={{ color: "#ffcc44" }}
+                            >
+                              Switch Account
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       {loginForm.formState.errors.legendId && (
                         <p
                           data-ocid="auth.error_state"
@@ -444,23 +508,36 @@ export function AuthPage() {
                             Your unique Legend ID will be assigned automatically
                             when you join.
                           </span>
-                          {nextLegendId && (
-                            <span className="flex items-center gap-2 mt-0.5">
-                              <span style={{ color: "rgba(100,180,255,0.8)" }}>
-                                Your Legend ID will be:
-                              </span>
-                              <span
-                                className="font-display font-black text-sm tracking-widest"
-                                style={{
-                                  color: "#ff2200",
-                                  textShadow:
-                                    "0 0 8px rgba(255,34,0,0.9), 0 0 16px rgba(255,34,0,0.5), 0 0 24px rgba(255,34,0,0.3)",
-                                }}
-                              >
-                                {nextLegendId}
-                              </span>
+                          <span className="flex items-center gap-2 mt-0.5">
+                            <span style={{ color: "rgba(100,180,255,0.8)" }}>
+                              Your Legend ID will be:
                             </span>
-                          )}
+                            {isFetchingNextId && !nextLegendId ? (
+                              <Loader2
+                                className="w-3 h-3 animate-spin"
+                                style={{ color: "#ff2200" }}
+                              />
+                            ) : nextLegendId ? (
+                              <span className="flex items-center gap-1">
+                                {isFetchingNextId && (
+                                  <Loader2
+                                    className="w-3 h-3 animate-spin"
+                                    style={{ color: "rgba(255,34,0,0.6)" }}
+                                  />
+                                )}
+                                <span
+                                  className="font-display font-black text-sm tracking-widest"
+                                  style={{
+                                    color: "#ff2200",
+                                    textShadow:
+                                      "0 0 8px rgba(255,34,0,0.9), 0 0 16px rgba(255,34,0,0.5), 0 0 24px rgba(255,34,0,0.3)",
+                                  }}
+                                >
+                                  {nextLegendId}
+                                </span>
+                              </span>
+                            ) : null}
+                          </span>
                         </div>
                       </div>
 

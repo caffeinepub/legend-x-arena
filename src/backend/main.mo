@@ -7,9 +7,9 @@ import Iter "mo:core/Iter";
 import Time "mo:core/Time";
 import Runtime "mo:core/Runtime";
 import Order "mo:core/Order";
-import Migration "migration";
 
-(with migration = Migration.run)
+
+
 actor {
   type Role = { #admin; #user };
   type GameMode = { #loneWolf; #csMod; #brMod };

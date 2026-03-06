@@ -1,50 +1,44 @@
 # Legend X Arena
 
 ## Current State
-- Full-stack Free Fire tournament platform with ICP/Motoko backend
-- 5-tab dashboard: Shop, Ranking, Play (center), Deposit, Profile
-- Admin panel with user lookup, match management, deposit/withdraw management
-- Shop with 10 avatars + 5 animated frames
-- Roulette spin (first login only) -- currently gives 5 coins
-- Profile picture system with deposit tiers + shop purchases
-- My Matches section in Play tab showing joined tournaments
-- Avatar upload in Admin Panel (image URL stored as base64 in backend)
-- `setProfilePicture` backend function does not allow re-equipping shop avatars already purchased (bug)
-- Roulette still shows values 5/10/15/20 -- needs update to 10/15/20/30 but all pay 10
-- Admin panel shop avatar upload exists but has UX issues on mobile
+
+Full-stack Free Fire esports tournament app with:
+- Auto-assigned Legend ID system (0001, 0002...)
+- Role-based access: first registered user = admin
+- Shop with avatars + 5 animated frames
+- Leaderboard (Global/Prime/Oldest)
+- Deposit/Withdraw with JazzCash
+- Custom admin-uploaded shop avatars stored on backend
+- PWA manifest configured
 
 ## Requested Changes (Diff)
 
 ### Add
-1. **Profile section: ID Search / Player Lookup** -- New section in Profile tab (not Admin panel) that lets admin search a Legend ID and see player data inline. Only shown when logged-in user is admin. This avoids issues with Admin panel refreshing when searching.
-2. **Admin Panel: Add Avatar Upload via file input** -- Admin panel Store section must have a clearly visible "+ Upload Avatar" button that works on both PC and mobile (file input, no URL required). Mobile must be able to pick from gallery.
-3. **Roulette: Change coin values** -- Wheel segments show 10, 15, 20, 30. Odds: ~85% pay 10, ~12% pay 10 still (so effectively everyone gets 10), small chance 15 or 20, very rare 30. All users get exactly 10 most of the time. Update wheel display to show 10/15/20/30.
-4. **Roulette: One-time per registration only** -- Roulette should appear ONLY on first registration (not every login, not on app re-open). Controlled by backend flag, not just localStorage.
+- Registration form: live-fetch `getNextLegendId()` every time register tab is shown and just before submit, so the previewed ID is always the latest (not a stale cached one from earlier).
+- Backend: `getNextLegendId()` must be called fresh right before register to confirm no race condition; if assigned ID ends up taken, increment and retry.
+- Session lock: store current Legend ID in `localStorage` on login/register. If a different user tries to log in on same device/browser, warn them that another account is active. Admin can override by clearing session.
+- PWA: add `screenshots` array to manifest and ensure `display_override: ["standalone", "window-controls-overlay"]` so Chrome's "Install App" prompt appears in the address bar AND the 3-dot side menu.
 
 ### Modify
-1. **My Matches: Auto-remove after result declared** -- When admin declares a match result (win or loss), that match must disappear from the player's "My Matches" section. Only active/pending joined matches show there.
-2. **Roulette: Improve spin animation** -- Glow effect on roulette wheel, prettier spin (neon glow, smoother animation, more visual appeal).
-3. **Roulette: Award 10 coins (not 5)** -- All players get 10 coins from roulette on registration. Segments show 10/15/20/30 but actual payout is weighted heavily toward 10.
-4. **Backend: `register` gives 10 coins** -- Change starting wallet balance from 5 to 10 (roulette gives 10 as the reward, wallet starts at 0 or keep at some base).
-5. **Backend: Add `hasClaimedRouletteReward` field** -- Track per-user whether they claimed the roulette reward so it never reappears.
-6. **Backend: `claimRouletteReward` function** -- New function that marks user as claimed and adds coins, can only be called once per account.
-7. **Admin Panel store upload** -- Fix mobile gallery pick issue; the file input must accept image/*, trigger native gallery on mobile.
+- **Admin access leak fix**: `isFirstAdminSet` is already `stable var` — the real bug is frontend `authStore` role check. After login, confirm role from backend profile, never trust localStorage role for admin gating. The `beforeLoad` route guard must re-read from backend, not from potentially-stale localStorage role.
+- **Legend ID uniqueness**: Backend `register()` already checks — but frontend must not cache `nextLegendId` stale. On register tab open AND on form submit, always call `getNextLegendId()` fresh. Show loading spinner in the ID preview while fetching.
+- **Mobile vs PC leaderboard inconsistency**: `getProfilePicSrc` is called without `customShopAvatars` in most leaderboard rows (lines 4530, 4699, 4867). Fix: pass `customShopAvatars` to every `getProfilePicSrc` call site across the entire DashboardPage.
+- **Custom avatars not showing in collections**: In the pencil modal (avatar collection picker), custom shop avatars from backend are not displayed. Fix: include `customShopAvatars` in the "Logo" tab of the pencil collection modal, and in `getProfilePicSrc` calls in the pencil modal and profile header.
+- **PWA install from browser side panel**: Update manifest.json to add `display_override`, proper icon sizes (192 and 512 with separate `maskable` and `any` purpose entries), and ensure service worker is registered. In LandingPage, detect `beforeinstallprompt` event and also listen on `appinstalled`. Show a persistent install button that works from any browser menu.
 
 ### Remove
-- Nothing removed
+- Nothing removed.
 
 ## Implementation Plan
 
-### Backend
-1. Add `hasClaimedRouletteReward: Bool` field to `UserProfile`
-2. Add `claimRouletteReward(legendId, passwordHash, amount)` function -- validates not already claimed, adds coins, sets flag
-3. Registration: set `walletBalance = 0` and `hasClaimedRouletteReward = false`
-4. Add `getUserHasClaimedRoulette(legendId) : async Bool` query for frontend to check
+1. **Frontend: Registration Legend ID preview** — On register tab open AND right before submit, call `actor.getNextLegendId()` fresh. Add a small loading state. Do not cache the ID for more than a few seconds.
 
-### Frontend
-1. **Profile tab -- Admin Lookup section**: When logged-in user is admin, show a search box at top of Profile tab (new collapsible section "Player Lookup"). Enter Legend ID, press search, show player card inline with game name, coins, game UID, JazzCash, deposit total, ban status. No extra refreshes triggered.
-2. **My Matches**: Filter out matches where a result has been declared (i.e., match.result is `#win` or `#loss` -- only show matches where result is still `#loss` AND the tournament is still active). After declareMatchResult, the match record is updated to `#win` or `#loss` -- use this to hide from My Matches.
-3. **Roulette flow**: Check `hasClaimedRouletteReward` from backend on login. If false AND first-time user (just registered), show roulette. Use `claimRouletteReward` API when collecting. Store nothing in localStorage for this -- rely on backend flag.
-4. **Roulette wheel UI**: Update segments to 10/15/20/30. Add neon glow to wheel border, add spinning glow trail animation. Make segments vibrant and premium. 
-5. **Admin Panel store upload button**: Change to `<input type="file" accept="image/*" capture="environment">` -- this triggers native gallery/camera on mobile. Must be clearly visible "+ Upload Avatar" button.
-6. **Declare result + My Matches auto-remove**: After declareMatchResult succeeds, invalidate the joined matches query so My Matches updates immediately for that user.
+2. **Frontend: Fix all `getProfilePicSrc` calls** — Pass `customShopAvatars` as second argument to every call of `getProfilePicSrc` in DashboardPage (leaderboard rows at ~4530, ~4699, ~4867, profile header at ~2911, ~4110, ~5072, ~6593, pencil modal, shop preview).
+
+3. **Frontend: Custom avatars in pencil collection modal** — In the "Logo" tab of the avatar collection popup (pencil icon), render `customShopAvatars` from backend. Mark as owned if in `purchasedShopAvatars`. If not owned, show "Go to Store".
+
+4. **Frontend: Admin role gating** — On dashboard load, fetch fresh user profile from backend and confirm role is `#admin` before showing admin panel link. Do not rely solely on localStorage role.
+
+5. **Frontend: Session lock (one ID per device)** — On login/register success, store `legendId` in `localStorage["lxa_active_id"]`. On Auth page load, if `lxa_active_id` exists and user tries to register a new account or login with a DIFFERENT id, show a warning modal: "Another account (XXXX) is active on this device. Log out first or continue?" with "Switch Account" (clears storage) and "Cancel" buttons.
+
+6. **Manifest: PWA install improvements** — Add `display_override: ["standalone", "minimal-ui"]`, add both 192x192 (any) and 512x512 (maskable) icon entries, add `screenshots` with at least one entry, and ensure `prefer_related_applications: false`.

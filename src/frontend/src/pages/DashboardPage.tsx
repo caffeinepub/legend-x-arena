@@ -2835,6 +2835,7 @@ function PlayTab({
   allMatches,
   selectedProfilePic,
   selectedFrame,
+  customShopAvatars,
 }: {
   legendId: string | null;
   gameName: string | null;
@@ -2846,6 +2847,7 @@ function PlayTab({
   allMatches: Match[];
   selectedProfilePic: number;
   selectedFrame: number;
+  customShopAvatars: CustomShopAvatar[];
 }) {
   const [showMyMatches, setShowMyMatches] = useState(false);
 
@@ -2908,7 +2910,7 @@ function PlayTab({
               style={{ width: 40, height: 40 }}
             >
               <img
-                src={getProfilePicSrc(selectedProfilePic)}
+                src={getProfilePicSrc(selectedProfilePic, customShopAvatars)}
                 alt="Profile"
                 className="w-10 h-10 rounded-full object-cover"
                 style={{ border: "2px solid rgba(255,255,255,0.15)" }}
@@ -3030,8 +3032,9 @@ function PlayTab({
 /* ─── Main Dashboard ───────────────────────────────────────── */
 export function DashboardPage() {
   const navigate = useNavigate();
-  const { legendId, role } = useAuthStore();
+  const { legendId, role, passwordHash } = useAuthStore();
   const logout = useAuthStore((s) => s.logout);
+  const login = useAuthStore((s) => s.login);
   const { actor, isFetching } = useActor();
   const queryClient = useQueryClient();
 
@@ -3070,6 +3073,21 @@ export function DashboardPage() {
     }
   }, [actor, isFetching]);
 
+  // BUG 2 FIX: Sync role from backend profile to prevent stale admin access via localStorage
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional -- only run when profile data changes
+  useEffect(() => {
+    if (!profile || !legendId || !passwordHash) return;
+    const backendRole = profile.role === Role.admin ? "admin" : "user";
+    if (backendRole !== role) {
+      // Role in localStorage doesn't match backend — sync from backend
+      login(legendId, backendRole, profile.gameName, passwordHash);
+      // If demoted from admin, redirect away from admin panel
+      if (backendRole === "user" && window.location.pathname === "/admin") {
+        navigate({ to: "/dashboard" });
+      }
+    }
+  }, [profile?.role]);
+
   // Show welcome modal only if user has NOT claimed roulette reward (backend-controlled, one-time)
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional -- run once when profile is first loaded
   useEffect(() => {
@@ -3105,6 +3123,8 @@ export function DashboardPage() {
     });
 
   const handleLogout = useCallback(() => {
+    // Clear device session lock on logout
+    localStorage.removeItem("lxa_active_device_id");
     logout();
     navigate({ to: "/" });
   }, [logout, navigate]);
@@ -4107,7 +4127,10 @@ export function DashboardPage() {
                       >
                         {/* Profile image inside frame */}
                         <img
-                          src={getProfilePicSrc(selectedProfilePic)}
+                          src={getProfilePicSrc(
+                            selectedProfilePic,
+                            customShopAvatars,
+                          )}
                           alt="preview"
                           className="w-full h-full rounded-full object-cover"
                           style={{
@@ -4529,6 +4552,7 @@ export function DashboardPage() {
                         <img
                           src={getProfilePicSrc(
                             Number(player.selectedProfilePic),
+                            customShopAvatars,
                           )}
                           alt={player.gameName || "Player"}
                           className="w-full h-full object-cover"
@@ -4698,6 +4722,7 @@ export function DashboardPage() {
                         <img
                           src={getProfilePicSrc(
                             Number(player.selectedProfilePic),
+                            customShopAvatars,
                           )}
                           alt={player.gameName || "Player"}
                           className="w-full h-full object-cover"
@@ -4866,6 +4891,7 @@ export function DashboardPage() {
                         <img
                           src={getProfilePicSrc(
                             Number(player.selectedProfilePic),
+                            customShopAvatars,
                           )}
                           alt={player.gameName || "Player"}
                           className="w-full h-full object-cover"
@@ -5007,6 +5033,7 @@ export function DashboardPage() {
         allMatches={allMatches}
         selectedProfilePic={selectedProfilePic}
         selectedFrame={selectedFrame}
+        customShopAvatars={customShopAvatars}
       />
     ),
 
@@ -5069,7 +5096,7 @@ export function DashboardPage() {
             />
             {!profileImgError ? (
               <img
-                src={getProfilePicSrc(selectedProfilePic)}
+                src={getProfilePicSrc(selectedProfilePic, customShopAvatars)}
                 alt="Profile avatar"
                 className="w-full h-full rounded-full object-cover"
                 style={{
@@ -6292,6 +6319,159 @@ export function DashboardPage() {
                       </div>
                     );
                   })}
+
+                  {/* Owned custom admin-uploaded avatars (index 30+) */}
+                  {customShopAvatars
+                    .filter((av) =>
+                      (profile?.purchasedShopAvatars ?? [])
+                        .map(Number)
+                        .includes(Number(av.index)),
+                    )
+                    .map((avatar, i) => {
+                      const isSelected = selectedProfilePic === avatar.index;
+                      const isLoading = selectingPic === avatar.index;
+                      return (
+                        <button
+                          key={`custom-owned-${avatar.index}`}
+                          type="button"
+                          data-ocid={`avatar_collection.logo_item.${i + 28}`}
+                          disabled={isLoading}
+                          onClick={() =>
+                            !isSelected && handleSelectAvatar(avatar.index)
+                          }
+                          className="flex flex-col items-center gap-2 p-3 rounded-2xl transition-all duration-200"
+                          style={{
+                            background: isSelected
+                              ? "rgba(255,215,0,0.08)"
+                              : "rgba(180,80,255,0.04)",
+                            border: isSelected
+                              ? "1px solid rgba(255,215,0,0.4)"
+                              : "1px solid rgba(180,80,255,0.3)",
+                            cursor: isSelected ? "default" : "pointer",
+                          }}
+                        >
+                          <div
+                            className="relative"
+                            style={{ width: 64, height: 64 }}
+                          >
+                            <div
+                              style={{
+                                position: "absolute",
+                                inset: isSelected ? -3 : -2,
+                                borderRadius: "50%",
+                                border: isSelected
+                                  ? "2px solid #ffd700"
+                                  : "2px solid rgba(180,80,255,0.55)",
+                                boxShadow: isSelected
+                                  ? "0 0 12px #ffd70066"
+                                  : "none",
+                                zIndex: 2,
+                              }}
+                            />
+                            <img
+                              src={avatar.src}
+                              alt={avatar.name}
+                              className="w-full h-full rounded-full object-cover"
+                            />
+                            {isLoading && (
+                              <div
+                                className="absolute inset-0 rounded-full flex items-center justify-center"
+                                style={{ background: "rgba(0,0,0,0.6)" }}
+                              >
+                                <Loader2
+                                  className="w-4 h-4 animate-spin"
+                                  style={{ color: "#ffd700" }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                          <span
+                            className="font-display font-black uppercase text-center"
+                            style={{
+                              fontSize: "9px",
+                              letterSpacing: "0.08em",
+                              color: isSelected ? "#ffd700" : "#cc88ff",
+                            }}
+                          >
+                            {avatar.name}
+                          </span>
+                          <span
+                            className="font-body text-xs"
+                            style={{ color: "rgba(34,204,102,0.7)" }}
+                          >
+                            ✓ Owned
+                          </span>
+                        </button>
+                      );
+                    })}
+
+                  {/* Unowned custom admin-uploaded avatars (index 30+) */}
+                  {customShopAvatars
+                    .filter(
+                      (av) =>
+                        !(profile?.purchasedShopAvatars ?? [])
+                          .map(Number)
+                          .includes(Number(av.index)),
+                    )
+                    .map((avatar, i) => {
+                      return (
+                        <div
+                          key={`custom-unowned-${avatar.index}`}
+                          data-ocid={`avatar_collection.logo_item.${i + 38}`}
+                          className="flex flex-col items-center gap-2 p-3 rounded-2xl transition-all duration-200"
+                          style={{
+                            background: "rgba(255,255,255,0.02)",
+                            border: "1px solid rgba(255,255,255,0.07)",
+                            opacity: 0.7,
+                          }}
+                        >
+                          <div
+                            className="relative"
+                            style={{ width: 64, height: 64 }}
+                          >
+                            <img
+                              src={avatar.src}
+                              alt={avatar.name}
+                              className="w-full h-full rounded-full object-cover"
+                              style={{
+                                filter: "grayscale(60%) brightness(0.5)",
+                              }}
+                            />
+                          </div>
+                          <span
+                            className="font-display font-black uppercase text-center"
+                            style={{
+                              fontSize: "9px",
+                              letterSpacing: "0.08em",
+                              color: "rgba(255,255,255,0.3)",
+                            }}
+                          >
+                            {avatar.name}
+                          </span>
+                          <button
+                            type="button"
+                            data-ocid={`avatar_collection.goto_store_button.${i + 11}`}
+                            onClick={() => {
+                              setShowAvatarModal(false);
+                              setActiveTab("shop");
+                            }}
+                            className="font-display font-black uppercase transition-all hover:opacity-80"
+                            style={{
+                              fontSize: "8px",
+                              letterSpacing: "0.08em",
+                              background: "rgba(255,215,0,0.12)",
+                              border: "1px solid rgba(255,215,0,0.3)",
+                              color: "#ffd700",
+                              borderRadius: "6px",
+                              padding: "2px 6px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Go to Store
+                          </button>
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
             )}
@@ -6590,7 +6770,10 @@ export function DashboardPage() {
               >
                 {!profileImgError ? (
                   <img
-                    src={getProfilePicSrc(selectedProfilePic)}
+                    src={getProfilePicSrc(
+                      selectedProfilePic,
+                      customShopAvatars,
+                    )}
                     alt="Profile"
                     className="rounded-full object-cover w-full h-full"
                     style={{
