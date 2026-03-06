@@ -72,11 +72,13 @@ export function AuthPage() {
       const ok = await actor.authenticate(data.legendId.trim(), hash);
       if (!ok) {
         toast.error("Invalid Legend ID or password.");
+        setIsSubmitting(false);
         return;
       }
       const profile = await actor.getUserByLegendId(data.legendId.trim());
       if (profile.isBanned) {
         toast.error("This account has been banned.");
+        setIsSubmitting(false);
         return;
       }
       const roleStr = profile.role === Role.admin ? "admin" : "user";
@@ -85,7 +87,7 @@ export function AuthPage() {
       navigate({ to: "/dashboard" });
     } catch (err) {
       console.error(err);
-      toast.error("Login failed. Please try again.");
+      toast.error("Backend not ready, please wait and retry.");
     } finally {
       setIsSubmitting(false);
     }
@@ -284,7 +286,6 @@ export function AuthPage() {
                         }}
                         {...loginForm.register("legendId", {
                           required: "Legend ID is required",
-                          minLength: { value: 3, message: "Min 3 characters" },
                         })}
                       />
                       {loginForm.formState.errors.legendId && (

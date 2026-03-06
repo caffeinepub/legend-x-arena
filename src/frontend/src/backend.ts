@@ -106,6 +106,12 @@ export interface LeaderboardEntry {
     totalDeposited: bigint;
     selectedFrame: bigint;
 }
+export interface CustomShopAvatar {
+    src: string;
+    name: string;
+    index: bigint;
+    price: bigint;
+}
 export interface DepositRequest {
     id: string;
     status: DepositStatus;
@@ -182,16 +188,19 @@ export enum TransactionType {
 }
 export interface backendInterface {
     addCoins(adminLegendId: string, adminPasswordHash: string, targetLegendId: string, amount: bigint): Promise<void>;
+    addCustomShopAvatar(adminLegendId: string, adminPasswordHash: string, name: string, price: bigint, src: string): Promise<bigint>;
     approveDepositRequest(adminLegendId: string, adminPasswordHash: string, requestId: string): Promise<void>;
     authenticate(legendId: string, passwordHash: string): Promise<boolean>;
     buyShopAvatar(legendId: string, passwordHash: string, avatarIndex: bigint): Promise<void>;
     buyShopFrame(legendId: string, passwordHash: string, frameIndex: bigint): Promise<void>;
     createTournament(adminLegendId: string, adminPasswordHash: string, title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, returningCoins: bigint): Promise<string>;
     declareMatchResult(adminLegendId: string, adminPasswordHash: string, tournamentId: string, winnerLegendId: string, loserLegendId: string, winnerCoins: bigint, loserCoins: bigint): Promise<void>;
+    deleteCustomShopAvatar(adminLegendId: string, adminPasswordHash: string, avatarIndex: bigint): Promise<void>;
     deleteTournament(adminLegendId: string, adminPasswordHash: string, id: string): Promise<void>;
     deleteUser(adminLegendId: string, adminPasswordHash: string, targetLegendId: string): Promise<void>;
     getActiveTournaments(): Promise<Array<Tournament>>;
     getAllUsers(adminLegendId: string): Promise<Array<UserProfile>>;
+    getCustomShopAvatars(): Promise<Array<CustomShopAvatar>>;
     getLeaderboard(): Promise<Array<LeaderboardEntry>>;
     getMyDepositRequests(legendId: string, passwordHash: string): Promise<Array<DepositRequest>>;
     getNextLegendId(): Promise<string>;
@@ -205,6 +214,7 @@ export interface backendInterface {
     joinTournamentById(legendId: string, passwordHash: string, tournamentId: string): Promise<void>;
     register(passwordHash: string, jazzCash: string, uid: string, ignName: string): Promise<string>;
     rejectDepositRequest(adminLegendId: string, adminPasswordHash: string, requestId: string): Promise<void>;
+    resetUsersWithDepositTierAvatar(adminLegendId: string, adminPasswordHash: string, tierIndex: bigint): Promise<void>;
     setProfileFrame(legendId: string, passwordHash: string, frameIndex: bigint): Promise<void>;
     setProfilePicture(legendId: string, passwordHash: string, picIndex: bigint): Promise<void>;
     setTournamentRoom(adminLegendId: string, adminPasswordHash: string, tournamentId: string, roomId: string, roomPassword: string): Promise<void>;
@@ -227,6 +237,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.addCoins(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
+    async addCustomShopAvatar(arg0: string, arg1: string, arg2: string, arg3: bigint, arg4: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addCustomShopAvatar(arg0, arg1, arg2, arg3, arg4);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addCustomShopAvatar(arg0, arg1, arg2, arg3, arg4);
             return result;
         }
     }
@@ -314,6 +338,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async deleteCustomShopAvatar(arg0: string, arg1: string, arg2: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteCustomShopAvatar(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteCustomShopAvatar(arg0, arg1, arg2);
+            return result;
+        }
+    }
     async deleteTournament(arg0: string, arg1: string, arg2: string): Promise<void> {
         if (this.processError) {
             try {
@@ -368,6 +406,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.getAllUsers(arg0);
             return from_candid_vec_n1(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getCustomShopAvatars(): Promise<Array<CustomShopAvatar>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getCustomShopAvatars();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getCustomShopAvatars();
+            return result;
         }
     }
     async getLeaderboard(): Promise<Array<LeaderboardEntry>> {
@@ -510,6 +562,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.rejectDepositRequest(arg0, arg1, arg2);
+            return result;
+        }
+    }
+    async resetUsersWithDepositTierAvatar(arg0: string, arg1: string, arg2: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.resetUsersWithDepositTierAvatar(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.resetUsersWithDepositTierAvatar(arg0, arg1, arg2);
             return result;
         }
     }

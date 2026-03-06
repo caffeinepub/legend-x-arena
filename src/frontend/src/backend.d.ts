@@ -24,6 +24,12 @@ export interface LeaderboardEntry {
     totalDeposited: bigint;
     selectedFrame: bigint;
 }
+export interface CustomShopAvatar {
+    src: string;
+    name: string;
+    index: bigint;
+    price: bigint;
+}
 export interface DepositRequest {
     id: string;
     status: DepositStatus;
@@ -100,16 +106,19 @@ export enum TransactionType {
 }
 export interface backendInterface {
     addCoins(adminLegendId: string, adminPasswordHash: string, targetLegendId: string, amount: bigint): Promise<void>;
+    addCustomShopAvatar(adminLegendId: string, adminPasswordHash: string, name: string, price: bigint, src: string): Promise<bigint>;
     approveDepositRequest(adminLegendId: string, adminPasswordHash: string, requestId: string): Promise<void>;
     authenticate(legendId: string, passwordHash: string): Promise<boolean>;
     buyShopAvatar(legendId: string, passwordHash: string, avatarIndex: bigint): Promise<void>;
     buyShopFrame(legendId: string, passwordHash: string, frameIndex: bigint): Promise<void>;
     createTournament(adminLegendId: string, adminPasswordHash: string, title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, returningCoins: bigint): Promise<string>;
     declareMatchResult(adminLegendId: string, adminPasswordHash: string, tournamentId: string, winnerLegendId: string, loserLegendId: string, winnerCoins: bigint, loserCoins: bigint): Promise<void>;
+    deleteCustomShopAvatar(adminLegendId: string, adminPasswordHash: string, avatarIndex: bigint): Promise<void>;
     deleteTournament(adminLegendId: string, adminPasswordHash: string, id: string): Promise<void>;
     deleteUser(adminLegendId: string, adminPasswordHash: string, targetLegendId: string): Promise<void>;
     getActiveTournaments(): Promise<Array<Tournament>>;
     getAllUsers(adminLegendId: string): Promise<Array<UserProfile>>;
+    getCustomShopAvatars(): Promise<Array<CustomShopAvatar>>;
     getLeaderboard(): Promise<Array<LeaderboardEntry>>;
     getMyDepositRequests(legendId: string, passwordHash: string): Promise<Array<DepositRequest>>;
     getNextLegendId(): Promise<string>;
@@ -123,6 +132,7 @@ export interface backendInterface {
     joinTournamentById(legendId: string, passwordHash: string, tournamentId: string): Promise<void>;
     register(passwordHash: string, jazzCash: string, uid: string, ignName: string): Promise<string>;
     rejectDepositRequest(adminLegendId: string, adminPasswordHash: string, requestId: string): Promise<void>;
+    resetUsersWithDepositTierAvatar(adminLegendId: string, adminPasswordHash: string, tierIndex: bigint): Promise<void>;
     setProfileFrame(legendId: string, passwordHash: string, frameIndex: bigint): Promise<void>;
     setProfilePicture(legendId: string, passwordHash: string, picIndex: bigint): Promise<void>;
     setTournamentRoom(adminLegendId: string, adminPasswordHash: string, tournamentId: string, roomId: string, roomPassword: string): Promise<void>;

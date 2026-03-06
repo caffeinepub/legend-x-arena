@@ -6,14 +6,22 @@ import Map "mo:core/Map";
 import Time "mo:core/Time";
 import Order "mo:core/Order";
 import Runtime "mo:core/Runtime";
-import Migration "migration";
 
-(with migration = Migration.run)
+
+
 actor {
   type Role = { #admin; #user };
   type GameMode = { #loneWolf; #csMod; #brMod };
   type Result = { #win; #loss; #draw };
   type TransactionType = { #deposit; #withdraw };
+  type DepositStatus = { #pending; #approved; #rejected };
+
+  type CustomShopAvatar = {
+    index : Nat;
+    name : Text;
+    price : Nat;
+    src : Text;
+  };
 
   type UserProfile = {
     legendId : Text;
@@ -50,8 +58,6 @@ actor {
     description : Text;
   };
 
-  type DepositStatus = { #pending; #approved; #rejected };
-
   type DepositRequest = {
     id : Text;
     legendId : Text;
@@ -79,6 +85,18 @@ actor {
     returningCoins : Nat;
   };
 
+  type LeaderboardEntry = {
+    legendId : Text;
+    wins : Nat;
+    totalDeposited : Nat;
+    createdAt : Int;
+    totalMatches : Nat;
+    totalProfit : Nat;
+    gameName : Text;
+    selectedProfilePic : Nat;
+    selectedFrame : Nat;
+  };
+
   stable var isFirstAdminSet = false;
   stable var users = Map.empty<Text, UserProfile>();
   stable var depositRequests = Map.empty<Text, DepositRequest>();
@@ -86,6 +104,9 @@ actor {
   stable var depositIdCounter = 0;
   stable var tournamentIdCounter = 0;
   stable var userIdCounter = 1;
+
+  stable var customShopAvatars = Map.empty<Nat, CustomShopAvatar>();
+  stable var customAvatarIndexCounter = 30; // Start at 30
 
   module UserProfile {
     public func compare(a : UserProfile, b : UserProfile) : Order.Order {
@@ -377,19 +398,34 @@ actor {
     let userProfile = getUserByLegendIdOrTrap(legendId);
     if (not (userProfile.passwordHash == passwordHash)) { Runtime.trap("Incorrect password") };
 
-    let minDeposit = switch (picIndex) {
-      case (0) { 0 };
-      case (1) { 50 };
-      case (2) { 100 };
-      case (3) { 200 };
-      case (4) { 500 };
-      case (5) { 800 };
-      case (6) { 1000 };
-      case (_) { Runtime.trap("Invalid profile picture index") };
-    };
-
-    if (userProfile.totalDeposited < minDeposit) {
-      Runtime.trap("Insufficient total deposits to unlock this profile picture");
+    switch (picIndex) {
+      case (0) { // Default avatar, always allowed
+        let updatedProfile = { userProfile with selectedProfilePic = 0 };
+        users.add(legendId, updatedProfile);
+        return ();
+      };
+      case (1) { if (userProfile.totalDeposited < 50) { Runtime.trap("Insufficient total deposits to unlock this avatar (50 coins required)"); } };
+      case (2) { if (userProfile.totalDeposited < 100) { Runtime.trap("Insufficient total deposits to unlock this avatar (100 coins required)"); } };
+      case (3) { if (userProfile.totalDeposited < 200) { Runtime.trap("Insufficient total deposits to unlock this avatar (200 coins required)"); } };
+      case (4) { if (userProfile.totalDeposited < 500) { Runtime.trap("Insufficient total deposits to unlock this avatar (500 coins required)"); } };
+      case (5) { if (userProfile.totalDeposited < 800) { Runtime.trap("Insufficient total deposits to unlock this avatar (800 coins required)"); } };
+      case (6) { if (userProfile.totalDeposited < 1000) { Runtime.trap("Insufficient total deposits to unlock this avatar (1000 coins required)"); } };
+      case (_) {
+        if (picIndex >= 10 and picIndex <= 19) { // Shop avatars
+          if (not userProfile.purchasedShopAvatars.any(func(v) { v == picIndex })) {
+            Runtime.trap("You must purchase this shop avatar before using it");
+          };
+        } else if (picIndex >= 30 and picIndex <= 1000) { // Custom avatars
+          if (not userProfile.purchasedShopAvatars.any(func(v) { v == picIndex })) {
+            switch (customShopAvatars.get(picIndex)) {
+              case (null) { Runtime.trap("This custom avatar does not exist") };
+              case (?_) {};
+            };
+          };
+        } else {
+          Runtime.trap("Invalid profile picture index. Please choose a valid avatar.");
+        };
+      };
     };
 
     let updatedProfile = { userProfile with selectedProfilePic = picIndex };
@@ -587,18 +623,6 @@ actor {
         { roomId = tournament.roomId; roomPassword = tournament.roomPassword };
       };
     };
-  };
-
-  type LeaderboardEntry = {
-    legendId : Text;
-    wins : Nat;
-    totalDeposited : Nat;
-    createdAt : Int;
-    totalMatches : Nat;
-    totalProfit : Nat;
-    gameName : Text;
-    selectedProfilePic : Nat;
-    selectedFrame : Nat;
   };
 
   public query ({ caller }) func getLeaderboard() : async [LeaderboardEntry] {
@@ -861,5 +885,84 @@ actor {
       case (#admin) { users.values().toArray() };
       case (#user) { Runtime.trap("Not admin") };
     };
+  };
+
+  // ADMIN: Add Custom Shop Avatar
+  public shared ({ caller }) func addCustomShopAvatar(
+    adminLegendId : Text,
+    adminPasswordHash : Text,
+    name : Text,
+    price : Nat,
+    src : Text,
+  ) : async Nat {
+    assertAdmin(adminLegendId, adminPasswordHash);
+
+    let newAvatar : CustomShopAvatar = {
+      index = customAvatarIndexCounter;
+      name;
+      price;
+      src;
+    };
+    customShopAvatars.add(customAvatarIndexCounter, newAvatar);
+    customAvatarIndexCounter += 1;
+    newAvatar.index;
+  };
+
+  // ADMIN: Delete Custom Shop Avatar
+  public shared ({ caller }) func deleteCustomShopAvatar(
+    adminLegendId : Text,
+    adminPasswordHash : Text,
+    avatarIndex : Nat,
+  ) : async () {
+    assertAdmin(adminLegendId, adminPasswordHash);
+    if (not isValidRange(avatarIndex, 30, 1000)) {
+      Runtime.trap("Invalid custom avatar index");
+    };
+    switch (customShopAvatars.get(avatarIndex)) {
+      case (null) { Runtime.trap("Custom avatar not found") };
+      case (?_) {
+        customShopAvatars.remove(avatarIndex);
+
+        // Reset users who have this avatar equipped to default (0)
+        let newUsers = users.map<Text, UserProfile, UserProfile>(
+          func(_id, profile) {
+            if (profile.selectedProfilePic == avatarIndex) {
+              { profile with selectedProfilePic = 0 };
+            } else {
+              profile;
+            };
+          }
+        );
+        users := newUsers;
+      };
+    };
+  };
+
+  // ADMIN: Reset Users with Deposit Tier Avatars
+  public shared ({ caller }) func resetUsersWithDepositTierAvatar(
+    adminLegendId : Text,
+    adminPasswordHash : Text,
+    tierIndex : Nat,
+  ) : async () {
+    assertAdmin(adminLegendId, adminPasswordHash);
+    if (not isValidRange(tierIndex, 1, 6)) {
+      Runtime.trap("Invalid deposit tier avatar index");
+    };
+
+    let newUsers = users.map<Text, UserProfile, UserProfile>(
+      func(_id, profile) {
+        if (profile.selectedProfilePic == tierIndex) {
+          { profile with selectedProfilePic = 0 };
+        } else {
+          profile;
+        };
+      }
+    );
+    users := newUsers;
+  };
+
+  // Query: Get all Custom Shop Avatars
+  public query ({ caller }) func getCustomShopAvatars() : async [CustomShopAvatar] {
+    customShopAvatars.values().toArray();
   };
 };

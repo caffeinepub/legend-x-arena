@@ -72,6 +72,12 @@ export const UserProfile = IDL.Record({
   'matchHistory' : IDL.Vec(Match),
   'selectedFrame' : IDL.Nat,
 });
+export const CustomShopAvatar = IDL.Record({
+  'src' : IDL.Text,
+  'name' : IDL.Text,
+  'index' : IDL.Nat,
+  'price' : IDL.Nat,
+});
 export const LeaderboardEntry = IDL.Record({
   'legendId' : IDL.Text,
   'totalMatches' : IDL.Nat,
@@ -99,6 +105,11 @@ export const DepositRequest = IDL.Record({
 
 export const idlService = IDL.Service({
   'addCoins' : IDL.Func([IDL.Text, IDL.Text, IDL.Text, IDL.Nat], [], []),
+  'addCustomShopAvatar' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Text],
+      [IDL.Nat],
+      [],
+    ),
   'approveDepositRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'authenticate' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], ['query']),
   'buyShopAvatar' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
@@ -124,10 +135,12 @@ export const idlService = IDL.Service({
       [],
       [],
     ),
+  'deleteCustomShopAvatar' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
   'deleteTournament' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'deleteUser' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'getActiveTournaments' : IDL.Func([], [IDL.Vec(Tournament)], ['query']),
   'getAllUsers' : IDL.Func([IDL.Text], [IDL.Vec(UserProfile)], ['query']),
+  'getCustomShopAvatars' : IDL.Func([], [IDL.Vec(CustomShopAvatar)], ['query']),
   'getLeaderboard' : IDL.Func([], [IDL.Vec(LeaderboardEntry)], ['query']),
   'getMyDepositRequests' : IDL.Func(
       [IDL.Text, IDL.Text],
@@ -154,6 +167,11 @@ export const idlService = IDL.Service({
       [],
     ),
   'rejectDepositRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+  'resetUsersWithDepositTierAvatar' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Nat],
+      [],
+      [],
+    ),
   'setProfileFrame' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
   'setProfilePicture' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
   'setTournamentRoom' : IDL.Func(
@@ -259,6 +277,12 @@ export const idlFactory = ({ IDL }) => {
     'matchHistory' : IDL.Vec(Match),
     'selectedFrame' : IDL.Nat,
   });
+  const CustomShopAvatar = IDL.Record({
+    'src' : IDL.Text,
+    'name' : IDL.Text,
+    'index' : IDL.Nat,
+    'price' : IDL.Nat,
+  });
   const LeaderboardEntry = IDL.Record({
     'legendId' : IDL.Text,
     'totalMatches' : IDL.Nat,
@@ -286,6 +310,11 @@ export const idlFactory = ({ IDL }) => {
   
   return IDL.Service({
     'addCoins' : IDL.Func([IDL.Text, IDL.Text, IDL.Text, IDL.Nat], [], []),
+    'addCustomShopAvatar' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
     'approveDepositRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'authenticate' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], ['query']),
     'buyShopAvatar' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
@@ -311,10 +340,16 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
+    'deleteCustomShopAvatar' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
     'deleteTournament' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'deleteUser' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'getActiveTournaments' : IDL.Func([], [IDL.Vec(Tournament)], ['query']),
     'getAllUsers' : IDL.Func([IDL.Text], [IDL.Vec(UserProfile)], ['query']),
+    'getCustomShopAvatars' : IDL.Func(
+        [],
+        [IDL.Vec(CustomShopAvatar)],
+        ['query'],
+      ),
     'getLeaderboard' : IDL.Func([], [IDL.Vec(LeaderboardEntry)], ['query']),
     'getMyDepositRequests' : IDL.Func(
         [IDL.Text, IDL.Text],
@@ -341,6 +376,11 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'rejectDepositRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+    'resetUsersWithDepositTierAvatar' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Nat],
+        [],
+        [],
+      ),
     'setProfileFrame' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
     'setProfilePicture' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
     'setTournamentRoom' : IDL.Func(

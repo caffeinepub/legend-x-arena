@@ -40,6 +40,7 @@ import {
   Lock,
   LogOut,
   Medal,
+  RefreshCcw,
   Shield,
   ShoppingBag,
   Star,
@@ -79,17 +80,11 @@ function LegendCoin({ size = 16 }: { size?: number }) {
         border: `${Math.max(1, Math.round(size * 0.07))}px solid #ffa500`,
         boxShadow:
           "inset 0 2px 4px rgba(255,255,200,0.8), inset 0 -2px 4px rgba(0,0,0,0.4), 0 0 6px rgba(255,215,0,0.5)",
-        fontSize: size * 0.45,
-        fontFamily: "Mona Sans, sans-serif",
-        fontWeight: 900,
-        color: "#3d2200",
         flexShrink: 0,
         verticalAlign: "middle",
         lineHeight: 1,
       }}
-    >
-      L
-    </span>
+    />
   );
 }
 
@@ -277,13 +272,30 @@ function FrameOverlay({
   );
 }
 
+/* ─── Custom shop avatar type ───────────────────────────────── */
+type CustomShopAvatar = {
+  index: number;
+  name: string;
+  price: number;
+  src: string;
+};
+
 /* ─── Get profile pic src by index ──────────────────────────── */
-function getProfilePicSrc(picIndex: number): string {
+function getProfilePicSrc(
+  picIndex: number,
+  customAvatars?: CustomShopAvatar[],
+): string {
   if (picIndex === 0) return DEFAULT_PROFILE_PIC;
   const tier = AVATAR_TIERS.find((t) => t.index === picIndex);
   if (tier) return tier.src;
   const shop = SHOP_AVATARS.find((s) => s.index === picIndex);
-  return shop?.src ?? DEFAULT_PROFILE_PIC;
+  if (shop) return shop.src;
+  // Check custom avatars (index 30+)
+  if (customAvatars) {
+    const custom = customAvatars.find((c) => c.index === picIndex);
+    if (custom) return custom.src;
+  }
+  return DEFAULT_PROFILE_PIC;
 }
 
 /* ─── helpers ─────────────────────────────────────────────── */
@@ -663,21 +675,10 @@ function DepositTab({
                   border: "3px solid #ffa500",
                   boxShadow:
                     "inset 0 3px 6px rgba(255,255,200,0.8), inset 0 -3px 6px rgba(0,0,0,0.4)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 22,
-                  fontFamily: "Mona Sans, sans-serif",
-                  fontWeight: 900,
-                  color: "#3d2200",
-                  textShadow:
-                    "0 1px 2px rgba(255,255,180,0.9), 0 0 6px rgba(255,200,0,0.7)",
                   animation: "coinLGlow 2s ease-in-out infinite",
                   flexShrink: 0,
                 }}
-              >
-                L
-              </div>
+              />
               <div
                 className="font-display font-black text-4xl tabular-nums"
                 style={{
@@ -1035,22 +1036,14 @@ function DepositTab({
                   height: 44,
                   borderRadius: "50%",
                   background:
-                    "radial-gradient(circle at 35% 30%, #aaffcc, #22cc66 40%, #008833 80%, #006622)",
-                  border: "3px solid #22cc66",
+                    "radial-gradient(circle at 35% 30%, #fff7aa, #ffd700 40%, #b8860b 80%, #8b6914)",
+                  border: "3px solid #ffa500",
                   boxShadow:
-                    "inset 0 3px 6px rgba(100,255,180,0.5), inset 0 -3px 6px rgba(0,0,0,0.4)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 22,
-                  fontFamily: "Mona Sans, sans-serif",
-                  fontWeight: 900,
-                  color: "#003311",
+                    "inset 0 3px 6px rgba(255,255,200,0.8), inset 0 -3px 6px rgba(0,0,0,0.4)",
+                  animation: "coinLGlow 2s ease-in-out infinite",
                   flexShrink: 0,
                 }}
-              >
-                L
-              </div>
+              />
               <div
                 className="font-display font-black text-4xl tabular-nums"
                 style={{
@@ -1133,6 +1126,27 @@ function DepositTab({
                 >
                   Minimum: 100 · Multiples of 10 only
                 </p>
+                {/* Real-time validation warnings */}
+                {Number(withdrawAmount) > 0 &&
+                  Number(withdrawAmount) > Number(balance) && (
+                    <p
+                      className="text-xs font-body mt-1.5 flex items-center gap-1"
+                      style={{ color: "#ff4422" }}
+                    >
+                      ⚠ Insufficient balance. You only have{" "}
+                      {Number(balance).toLocaleString()} coins.
+                    </p>
+                  )}
+                {Number(withdrawAmount) > 0 &&
+                  Number(withdrawAmount) < 100 &&
+                  Number(withdrawAmount) <= Number(balance) && (
+                    <p
+                      className="text-xs font-body mt-1.5 flex items-center gap-1"
+                      style={{ color: "#ffaa00" }}
+                    >
+                      ⚠ Minimum withdrawal is 100 coins.
+                    </p>
+                  )}
               </div>
               <div>
                 <label
@@ -1204,7 +1218,12 @@ function DepositTab({
               <button
                 type="submit"
                 data-ocid="deposit.withdraw_submit_button"
-                disabled={isWithdrawing}
+                disabled={
+                  isWithdrawing ||
+                  (Number(withdrawAmount) > 0 &&
+                    Number(withdrawAmount) > Number(balance)) ||
+                  (Number(withdrawAmount) > 0 && Number(withdrawAmount) < 100)
+                }
                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50"
                 style={{
                   background: isWithdrawing
@@ -1286,6 +1305,21 @@ function ViewDetailsModal({
       return actor.getTournamentRoom(tournament.id, legendId);
     },
     enabled: !!actor && !!legendId,
+  });
+
+  // Fetch joined player profiles in parallel
+  const joinedIds: string[] = tournament.joinedPlayers ?? [];
+  const { data: joinedProfiles = [] } = useQuery({
+    queryKey: ["joinedPlayers", tournament.id],
+    queryFn: async () => {
+      if (!actor || joinedIds.length === 0) return [];
+      const results = await Promise.all(
+        joinedIds.map((id) => actor.getUserByLegendId(id).catch(() => null)),
+      );
+      return results.filter(Boolean) as UserProfile[];
+    },
+    enabled: !!actor && joinedIds.length > 0,
+    staleTime: 30_000,
   });
 
   function copyToClipboard(text: string, label: string) {
@@ -1505,6 +1539,70 @@ function ViewDetailsModal({
               </div>
             </div>
           )}
+
+          {/* Joined Players */}
+          <div
+            className="rounded-xl p-3"
+            style={{
+              background: "rgba(0,153,255,0.04)",
+              border: "1px solid rgba(0,153,255,0.15)",
+            }}
+          >
+            <p
+              className="text-xs font-display font-bold uppercase tracking-[0.15em] mb-2 flex items-center gap-1.5"
+              style={{ color: "rgba(0,153,255,0.8)" }}
+            >
+              <User className="w-3.5 h-3.5" />
+              Joined Players
+              <span
+                className="ml-auto font-mono text-xs px-1.5 py-0.5 rounded"
+                style={{ background: "rgba(0,153,255,0.15)", color: "#0099ff" }}
+              >
+                {joinedIds.length} / {Number(tournament.maxPlayers)}
+              </span>
+            </p>
+            {joinedIds.length === 0 ? (
+              <p
+                className="text-xs font-body text-center py-2"
+                style={{ color: "rgba(255,255,255,0.3)" }}
+              >
+                No players joined yet
+              </p>
+            ) : (
+              <div
+                className="space-y-1 max-h-32 overflow-y-auto"
+                style={{ scrollbarWidth: "none" }}
+              >
+                {joinedIds.map((jid, idx) => {
+                  const jp = joinedProfiles.find((p) => p.legendId === jid);
+                  return (
+                    <div
+                      // biome-ignore lint/suspicious/noArrayIndexKey: stable index
+                      key={idx}
+                      className="flex items-center gap-2 px-2 py-1 rounded-lg"
+                      style={{ background: "rgba(255,255,255,0.04)" }}
+                    >
+                      <span
+                        className="font-mono text-xs px-1.5 py-0.5 rounded flex-shrink-0"
+                        style={{
+                          background: "rgba(0,153,255,0.15)",
+                          color: "#0099ff",
+                        }}
+                      >
+                        {jid}
+                      </span>
+                      <span
+                        className="font-display font-bold text-xs truncate"
+                        style={{ color: "rgba(255,255,255,0.7)" }}
+                      >
+                        {jp?.gameName || "Loading…"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {/* Entry / Profit / Returning recap */}
           <div className="grid grid-cols-3 gap-2 pt-1">
@@ -2472,7 +2570,6 @@ function PlayTab({
   isFetchingActor,
   joiningTournamentId,
   onJoin,
-  joinedMatchIds,
   allMatches,
   selectedProfilePic,
   selectedFrame,
@@ -2484,7 +2581,6 @@ function PlayTab({
   isFetchingActor: boolean;
   joiningTournamentId: string | null;
   onJoin: (t: Tournament) => void;
-  joinedMatchIds: Set<string>;
   allMatches: Match[];
   selectedProfilePic: number;
   selectedFrame: number;
@@ -2501,11 +2597,21 @@ function PlayTab({
     refetchInterval: 30_000, // refresh every 30s
   });
 
+  // Filter to only pending (not yet declared) matches that are still in active tournaments
+  const activeTournamentIds = new Set(activeTournaments.map((t) => t.id));
+  const pendingMatches = allMatches.filter(
+    (m) => m.result === Result.loss && activeTournamentIds.has(m.matchId),
+  );
+  // Override joinedMatchIds to only count pending matches for the JOIN/View Details toggle
+  const pendingJoinedMatchIds = new Set<string>(
+    pendingMatches.map((m) => m.matchId),
+  );
+
   return (
     <section className="animate-tab-in" aria-label="Active matches">
       {showMyMatches && (
         <MyMatchesModal
-          allMatches={allMatches}
+          allMatches={pendingMatches}
           onClose={() => setShowMyMatches(false)}
           legendId={legendId}
           actor={actor}
@@ -2642,7 +2748,7 @@ function PlayTab({
               key={t.id}
               tournament={t}
               index={i + 1}
-              isJoined={joinedMatchIds.has(t.id)}
+              isJoined={pendingJoinedMatchIds.has(t.id)}
               isJoining={joiningTournamentId === t.id}
               onJoin={() => onJoin(t)}
               legendId={legendId}
@@ -2675,6 +2781,7 @@ export function DashboardPage() {
     null,
   );
   const [showCoinShower, setShowCoinShower] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(() => {
     if (!legendId) return false;
     const key = `lxa_welcome_shown_${legendId}`;
@@ -2742,7 +2849,7 @@ export function DashboardPage() {
       const entryFee = Number(tournament.entryFee);
       if (balance < entryFee) {
         toast.error("Insufficient coins", {
-          description: `You need L${entryFee} LC but have L${balance} LC`,
+          description: `You need ${entryFee} coins but only have ${balance} coins`,
         });
         return;
       }
@@ -2793,9 +2900,6 @@ export function DashboardPage() {
     return diff;
   });
 
-  /* set of tournament IDs the user has already joined */
-  const joinedMatchIds = new Set<string>(allMatches.map((m) => m.matchId));
-
   /* avatar helpers */
   const highestUnlocked = AVATAR_TIERS.filter(
     (t) => totalDeposited >= t.required,
@@ -2818,6 +2922,31 @@ export function DashboardPage() {
   const [shopSection, setShopSection] = useState<"avatars" | "frames">(
     "avatars",
   );
+  // Upload avatar modal (admin only)
+  const [showUploadAvatarModal, setShowUploadAvatarModal] = useState(false);
+  const [uploadAvatarPreview, setUploadAvatarPreview] = useState<string | null>(
+    null,
+  );
+  const [uploadAvatarName, setUploadAvatarName] = useState("");
+  const [uploadAvatarPrice, setUploadAvatarPrice] = useState("0");
+  const [uploadAvatarExpire, setUploadAvatarExpire] = useState("");
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  // Custom shop avatars (admin-uploaded, stored in backend)
+  const { data: customShopAvatars = [] } = useQuery<CustomShopAvatar[]>({
+    queryKey: ["customShopAvatars"],
+    queryFn: async () => {
+      if (!actor) return [];
+      const result = await actor.getCustomShopAvatars();
+      return result.map((a) => ({
+        index: Number(a.index),
+        name: a.name,
+        price: Number(a.price),
+        src: a.src,
+      }));
+    },
+    enabled: !!actor && !isFetching,
+  });
 
   const selectedFrame = Number(profile?.selectedFrame ?? BigInt(0));
 
@@ -2893,6 +3022,259 @@ export function DashboardPage() {
           </p>
         </div>
 
+        {/* ── Upload Avatar Modal (Admin only) ── */}
+        {showUploadAvatarModal && (
+          // biome-ignore lint/a11y/useKeyWithClickEvents: backdrop close
+          <div
+            data-ocid="shop.admin_upload.modal"
+            className="fixed inset-0 z-[200] flex items-center justify-center px-4"
+            style={{
+              background: "rgba(0,0,0,0.8)",
+              backdropFilter: "blur(8px)",
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowUploadAvatarModal(false);
+            }}
+          >
+            <div
+              className="w-full max-w-sm rounded-2xl overflow-hidden"
+              style={{
+                background: "rgba(13,13,26,0.99)",
+                border: "1px solid rgba(180,80,255,0.4)",
+                boxShadow: "0 24px 60px rgba(0,0,0,0.7)",
+              }}
+            >
+              <div
+                className="p-5"
+                style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+              >
+                <div className="flex items-center justify-between">
+                  <h3
+                    className="font-display font-black text-base uppercase tracking-wider"
+                    style={{ color: "#b450ff" }}
+                  >
+                    Upload Avatar
+                  </h3>
+                  <button
+                    type="button"
+                    data-ocid="shop.admin_upload.close_button"
+                    onClick={() => setShowUploadAvatarModal(false)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-70"
+                    style={{
+                      background: "rgba(255,255,255,0.08)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                    }}
+                  >
+                    <X className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                {/* File picker */}
+                <div>
+                  <label
+                    htmlFor="upload-avatar-file"
+                    className="block text-xs font-display font-bold uppercase tracking-wider mb-2"
+                    style={{ color: "rgba(255,255,255,0.5)" }}
+                  >
+                    Choose Image (auto-cropped to circle)
+                  </label>
+                  <input
+                    id="upload-avatar-file"
+                    data-ocid="shop.admin_upload.upload_button"
+                    type="file"
+                    accept="image/*"
+                    className="w-full text-xs font-body py-2 px-3 rounded-xl"
+                    style={{
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(180,80,255,0.3)",
+                      color: "rgba(255,255,255,0.7)",
+                    }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (ev) => {
+                        const img = new Image();
+                        img.onload = () => {
+                          const canvas = document.createElement("canvas");
+                          canvas.width = 200;
+                          canvas.height = 200;
+                          const ctx = canvas.getContext("2d");
+                          if (!ctx) return;
+                          ctx.beginPath();
+                          ctx.arc(100, 100, 100, 0, Math.PI * 2);
+                          ctx.clip();
+                          const size = Math.min(img.width, img.height);
+                          const sx = (img.width - size) / 2;
+                          const sy = (img.height - size) / 2;
+                          ctx.drawImage(
+                            img,
+                            sx,
+                            sy,
+                            size,
+                            size,
+                            0,
+                            0,
+                            200,
+                            200,
+                          );
+                          setUploadAvatarPreview(canvas.toDataURL("image/png"));
+                        };
+                        img.src = ev.target?.result as string;
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </div>
+                {/* Preview */}
+                {uploadAvatarPreview && (
+                  <div className="flex justify-center">
+                    <img
+                      src={uploadAvatarPreview}
+                      alt="Preview"
+                      className="w-20 h-20 rounded-full object-cover"
+                      style={{
+                        border: "2px solid rgba(180,80,255,0.6)",
+                        boxShadow: "0 0 16px rgba(180,80,255,0.4)",
+                      }}
+                    />
+                  </div>
+                )}
+                {/* Name */}
+                <div>
+                  <label
+                    htmlFor="upload-avatar-name"
+                    className="block text-xs font-display font-bold uppercase tracking-wider mb-2"
+                    style={{ color: "rgba(255,255,255,0.5)" }}
+                  >
+                    Avatar Name
+                  </label>
+                  <input
+                    id="upload-avatar-name"
+                    data-ocid="shop.admin_upload.input"
+                    type="text"
+                    placeholder="e.g. Shadow Knight"
+                    value={uploadAvatarName}
+                    onChange={(e) => setUploadAvatarName(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground"
+                    style={{
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      outline: "none",
+                    }}
+                  />
+                </div>
+                {/* Price */}
+                <div>
+                  <label
+                    htmlFor="upload-avatar-price"
+                    className="block text-xs font-display font-bold uppercase tracking-wider mb-2"
+                    style={{ color: "rgba(255,255,255,0.5)" }}
+                  >
+                    Price (0 = free)
+                  </label>
+                  <input
+                    id="upload-avatar-price"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={uploadAvatarPrice}
+                    onChange={(e) => setUploadAvatarPrice(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground"
+                    style={{
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      outline: "none",
+                    }}
+                  />
+                </div>
+                {/* Expire date */}
+                <div>
+                  <label
+                    htmlFor="upload-avatar-expire"
+                    className="block text-xs font-display font-bold uppercase tracking-wider mb-2"
+                    style={{ color: "rgba(255,255,255,0.5)" }}
+                  >
+                    Expire Date (optional)
+                  </label>
+                  <input
+                    id="upload-avatar-expire"
+                    type="date"
+                    value={uploadAvatarExpire}
+                    onChange={(e) => setUploadAvatarExpire(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground"
+                    style={{
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      outline: "none",
+                      colorScheme: "dark",
+                    }}
+                  />
+                </div>
+                {/* Submit */}
+                <button
+                  type="button"
+                  data-ocid="shop.admin_upload.submit_button"
+                  disabled={
+                    isUploadingAvatar ||
+                    !uploadAvatarPreview ||
+                    !uploadAvatarName.trim()
+                  }
+                  onClick={async () => {
+                    if (
+                      !actor ||
+                      !uploadAvatarPreview ||
+                      !uploadAvatarName.trim()
+                    )
+                      return;
+                    const { legendId: upLid, passwordHash: upPh } =
+                      useAuthStore.getState();
+                    if (!upLid || !upPh) return;
+                    setIsUploadingAvatar(true);
+                    try {
+                      await actor.addCustomShopAvatar(
+                        upLid,
+                        upPh,
+                        uploadAvatarName.trim(),
+                        BigInt(Math.max(0, Number(uploadAvatarPrice) || 0)),
+                        uploadAvatarPreview,
+                      );
+                      queryClient.invalidateQueries({
+                        queryKey: ["customShopAvatars"],
+                      });
+                      toast.success(
+                        `Avatar "${uploadAvatarName.trim()}" added to shop!`,
+                      );
+                      setShowUploadAvatarModal(false);
+                      setUploadAvatarPreview(null);
+                      setUploadAvatarName("");
+                      setUploadAvatarPrice("0");
+                      setUploadAvatarExpire("");
+                    } catch (err) {
+                      console.error(err);
+                      toast.error("Failed to upload avatar. Please try again.");
+                    } finally {
+                      setIsUploadingAvatar(false);
+                    }
+                  }}
+                  className="w-full py-3 rounded-xl font-display font-black text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, rgba(180,80,255,0.85), rgba(120,40,200,0.85))",
+                    color: "#fff",
+                  }}
+                >
+                  {isUploadingAvatar ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : null}
+                  {isUploadingAvatar ? "Uploading…" : "Add to Shop"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Shop Section Toggle (Avatars / Frames) ── */}
         <div
           className="flex gap-0 rounded-2xl overflow-hidden mb-6"
@@ -2948,194 +3330,465 @@ export function DashboardPage() {
 
         {/* ── AVATARS SECTION ── */}
         {shopSection === "avatars" && (
-          <div className="grid grid-cols-2 gap-3">
-            {SHOP_AVATARS.map((avatar, i) => {
-              const isOwned = (profile?.purchasedShopAvatars ?? [])
-                .map(Number)
-                .includes(avatar.index);
-              const canAfford = Number(balance) >= avatar.price;
-              const isActive = selectedProfilePic === avatar.index;
-
-              return (
-                <div
-                  key={avatar.index}
-                  data-ocid={`shop.avatar_item.${i + 1}`}
-                  className="rounded-2xl overflow-hidden flex flex-col"
+          <div>
+            {/* Admin + Upload button */}
+            {role === "admin" && (
+              <div className="flex justify-end mb-3">
+                <button
+                  type="button"
+                  data-ocid="shop.admin_upload_button"
+                  onClick={() => setShowUploadAvatarModal(true)}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-display font-black text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-80"
                   style={{
-                    background: isOwned
-                      ? "rgba(34,204,102,0.04)"
-                      : "rgba(13,13,26,0.95)",
-                    border: isOwned
-                      ? `1px solid ${avatar.glowColor}55`
-                      : "1px solid rgba(255,255,255,0.08)",
-                    boxShadow: isOwned
-                      ? `0 4px 24px ${avatar.glowColor}22`
-                      : "0 4px 24px rgba(0,0,0,0.3)",
+                    background:
+                      "linear-gradient(135deg, rgba(180,80,255,0.25), rgba(120,40,200,0.2))",
+                    border: "1px solid rgba(180,80,255,0.5)",
+                    color: "#b450ff",
+                    boxShadow: "0 0 12px rgba(180,80,255,0.2)",
                   }}
                 >
-                  {/* Avatar image */}
+                  <span style={{ fontSize: "16px", lineHeight: 1 }}>+</span>
+                  Upload Avatar
+                </button>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              {SHOP_AVATARS.map((avatar, i) => {
+                const isOwned = (profile?.purchasedShopAvatars ?? [])
+                  .map(Number)
+                  .includes(avatar.index);
+                const canAfford = Number(balance) >= avatar.price;
+                const isActive = selectedProfilePic === avatar.index;
+
+                return (
                   <div
-                    className="relative flex items-center justify-center"
+                    key={avatar.index}
+                    data-ocid={`shop.avatar_item.${i + 1}`}
+                    className="rounded-2xl overflow-hidden flex flex-col"
                     style={{
-                      height: 120,
-                      background: "rgba(255,255,255,0.03)",
+                      background: isOwned
+                        ? "rgba(34,204,102,0.04)"
+                        : "rgba(13,13,26,0.95)",
+                      border: isOwned
+                        ? `1px solid ${avatar.glowColor}55`
+                        : "1px solid rgba(255,255,255,0.08)",
+                      boxShadow: isOwned
+                        ? `0 4px 24px ${avatar.glowColor}22`
+                        : "0 4px 24px rgba(0,0,0,0.3)",
                     }}
                   >
-                    <img
-                      src={avatar.src}
-                      alt={avatar.name}
-                      className="w-24 h-24 object-cover rounded-full"
+                    {/* Avatar image */}
+                    <div
+                      className="relative flex items-center justify-center"
                       style={{
-                        border: `2px solid ${avatar.glowColor}88`,
-                        boxShadow: `0 0 16px ${avatar.glowColor}55`,
+                        height: 120,
+                        background: "rgba(255,255,255,0.03)",
                       }}
-                    />
-                    {isOwned && (
-                      <div className="absolute top-2 right-2">
-                        <span
-                          className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
-                          style={{
-                            background: "rgba(34,204,102,0.85)",
-                            color: "#fff",
-                          }}
-                        >
-                          OWNED
-                        </span>
-                      </div>
-                    )}
-                    {isActive && (
-                      <div className="absolute top-2 left-2">
-                        <span
-                          className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
-                          style={{
-                            background: "#ffd700",
-                            color: "#000",
-                          }}
-                        >
-                          ACTIVE
-                        </span>
-                      </div>
-                    )}
-                  </div>
+                    >
+                      <img
+                        src={avatar.src}
+                        alt={avatar.name}
+                        className="w-24 h-24 object-cover rounded-full"
+                        style={{
+                          border: `2px solid ${avatar.glowColor}88`,
+                          boxShadow: `0 0 16px ${avatar.glowColor}55`,
+                        }}
+                      />
+                      {isOwned && (
+                        <div className="absolute top-2 right-2">
+                          <span
+                            className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
+                            style={{
+                              background: "rgba(34,204,102,0.85)",
+                              color: "#fff",
+                            }}
+                          >
+                            OWNED
+                          </span>
+                        </div>
+                      )}
+                      {isActive && (
+                        <div className="absolute top-2 left-2">
+                          <span
+                            className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
+                            style={{
+                              background: "#ffd700",
+                              color: "#000",
+                            }}
+                          >
+                            ACTIVE
+                          </span>
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Card body */}
-                  <div className="p-3 flex flex-col gap-2">
-                    <div>
+                    {/* Card body */}
+                    <div className="p-3 flex flex-col gap-2">
+                      <div>
+                        <p
+                          className="font-display font-black text-sm text-foreground"
+                          style={{ color: avatar.glowColor }}
+                        >
+                          {avatar.name}
+                        </p>
+                      </div>
+
+                      {/* Price */}
+                      <div
+                        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg"
+                        style={{
+                          background: "rgba(255,215,0,0.06)",
+                          border: "1px solid rgba(255,215,0,0.15)",
+                        }}
+                      >
+                        <LegendCoin size={14} />
+                        <span
+                          className="font-display font-black text-sm tabular-nums"
+                          style={{ color: "#ffd700" }}
+                        >
+                          {avatar.price.toLocaleString()}
+                        </span>
+                      </div>
+
+                      {/* Action button */}
+                      {isOwned ? (
+                        <button
+                          type="button"
+                          data-ocid={`shop.avatar_select_button.${i + 1}`}
+                          onClick={async () => {
+                            if (!actor) return;
+                            const { legendId: eqLid, passwordHash: eqPh } =
+                              useAuthStore.getState();
+                            if (!eqLid || !eqPh) return;
+                            try {
+                              await actor.setProfilePicture(
+                                eqLid,
+                                eqPh,
+                                BigInt(avatar.index),
+                              );
+                              await refetchProfile();
+                              queryClient.invalidateQueries({
+                                queryKey: ["userProfile", legendId],
+                              });
+                              toast.success(
+                                `${avatar.name} set as profile picture!`,
+                              );
+                            } catch (err) {
+                              console.error(err);
+                            }
+                          }}
+                          disabled={isActive}
+                          className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-80 disabled:opacity-50"
+                          style={{
+                            background: isActive
+                              ? "rgba(255,215,0,0.1)"
+                              : "linear-gradient(135deg, rgba(34,204,102,0.85), rgba(0,160,70,0.85))",
+                            border: isActive
+                              ? "1px solid rgba(255,215,0,0.3)"
+                              : "none",
+                            color: isActive ? "#ffd700" : "#fff",
+                          }}
+                        >
+                          {isActive ? "Active" : "Equip"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          data-ocid={`shop.avatar_buy_button.${i + 1}`}
+                          disabled={!canAfford || selectingPic === avatar.index}
+                          onClick={async () => {
+                            if (!actor) return;
+                            const { legendId: buyLid, passwordHash: buyPh } =
+                              useAuthStore.getState();
+                            if (!buyLid || !buyPh) return;
+                            setSelectingPic(avatar.index);
+                            try {
+                              await actor.buyShopAvatar(
+                                buyLid,
+                                buyPh,
+                                BigInt(avatar.index),
+                              );
+                              await refetchProfile();
+                              queryClient.invalidateQueries({
+                                queryKey: ["userProfile", legendId],
+                              });
+                              toast.success(
+                                `${avatar.name} unlocked and equipped!`,
+                              );
+                            } catch (err) {
+                              console.error(err);
+                              toast.error("Purchase failed. Please try again.");
+                            } finally {
+                              setSelectingPic(null);
+                            }
+                          }}
+                          className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                          style={{
+                            background: canAfford
+                              ? `linear-gradient(135deg, ${avatar.glowColor}cc, ${avatar.glowColor}88)`
+                              : "rgba(255,255,255,0.05)",
+                            border: canAfford
+                              ? "none"
+                              : "1px solid rgba(255,255,255,0.1)",
+                            color: canAfford
+                              ? "#fff"
+                              : "rgba(255,255,255,0.35)",
+                          }}
+                        >
+                          {selectingPic === avatar.index ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : null}
+                          {canAfford ? "BUY" : "Insufficient Coins"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {/* ── Custom admin-uploaded avatars (index 30+) ── */}
+              {customShopAvatars.map((avatar, ci) => {
+                const globalIndex = SHOP_AVATARS.length + ci + 1;
+                // Check if purchased via backend profile data
+                const isOwned =
+                  profile?.purchasedShopAvatars
+                    .map(Number)
+                    .includes(Number(avatar.index)) ?? false;
+                const canAfford = Number(balance) >= avatar.price;
+                const isActive = selectedProfilePic === avatar.index;
+
+                return (
+                  <div
+                    key={`custom-${avatar.index}`}
+                    data-ocid={`shop.avatar_item.${globalIndex}`}
+                    className="rounded-2xl overflow-hidden flex flex-col"
+                    style={{
+                      background: isOwned
+                        ? "rgba(180,80,255,0.04)"
+                        : "rgba(13,13,26,0.95)",
+                      border: isOwned
+                        ? "1px solid rgba(180,80,255,0.4)"
+                        : "1px solid rgba(255,255,255,0.08)",
+                      boxShadow: isOwned
+                        ? "0 4px 24px rgba(180,80,255,0.15)"
+                        : "0 4px 24px rgba(0,0,0,0.3)",
+                    }}
+                  >
+                    {/* Avatar image (circle crop) */}
+                    <div
+                      className="relative flex items-center justify-center"
+                      style={{
+                        height: 120,
+                        background: "rgba(255,255,255,0.03)",
+                      }}
+                    >
+                      <img
+                        src={avatar.src}
+                        alt={avatar.name}
+                        className="w-24 h-24 object-cover rounded-full"
+                        style={{
+                          border: "2px solid rgba(180,80,255,0.6)",
+                          boxShadow: "0 0 16px rgba(180,80,255,0.4)",
+                        }}
+                      />
+                      {isOwned && (
+                        <div className="absolute top-2 right-2">
+                          <span
+                            className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
+                            style={{
+                              background: "rgba(180,80,255,0.85)",
+                              color: "#fff",
+                            }}
+                          >
+                            OWNED
+                          </span>
+                        </div>
+                      )}
+                      {isActive && (
+                        <div className="absolute top-2 left-2">
+                          <span
+                            className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
+                            style={{ background: "#ffd700", color: "#000" }}
+                          >
+                            ACTIVE
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Card body */}
+                    <div className="p-3 flex flex-col gap-2">
                       <p
-                        className="font-display font-black text-sm text-foreground"
-                        style={{ color: avatar.glowColor }}
+                        className="font-display font-black text-sm"
+                        style={{ color: "#b450ff" }}
                       >
                         {avatar.name}
                       </p>
-                    </div>
-
-                    {/* Price */}
-                    <div
-                      className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg"
-                      style={{
-                        background: "rgba(255,215,0,0.06)",
-                        border: "1px solid rgba(255,215,0,0.15)",
-                      }}
-                    >
-                      <LegendCoin size={14} />
-                      <span
-                        className="font-display font-black text-sm tabular-nums"
-                        style={{ color: "#ffd700" }}
-                      >
-                        {avatar.price.toLocaleString()}
-                      </span>
-                    </div>
-
-                    {/* Action button */}
-                    {isOwned ? (
-                      <button
-                        type="button"
-                        data-ocid={`shop.avatar_select_button.${i + 1}`}
-                        onClick={async () => {
-                          if (!actor) return;
-                          const { legendId: eqLid, passwordHash: eqPh } =
-                            useAuthStore.getState();
-                          if (!eqLid || !eqPh) return;
-                          try {
-                            await actor.setProfilePicture(
-                              eqLid,
-                              eqPh,
-                              BigInt(avatar.index),
-                            );
-                            await refetchProfile();
-                            toast.success(
-                              `${avatar.name} set as profile picture!`,
-                            );
-                          } catch (err) {
-                            console.error(err);
-                          }
-                        }}
-                        disabled={isActive}
-                        className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-80 disabled:opacity-50"
+                      <div
+                        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg"
                         style={{
-                          background: isActive
-                            ? "rgba(255,215,0,0.1)"
-                            : "linear-gradient(135deg, rgba(34,204,102,0.85), rgba(0,160,70,0.85))",
-                          border: isActive
-                            ? "1px solid rgba(255,215,0,0.3)"
-                            : "none",
-                          color: isActive ? "#ffd700" : "#fff",
+                          background: "rgba(255,215,0,0.06)",
+                          border: "1px solid rgba(255,215,0,0.15)",
                         }}
                       >
-                        {isActive ? "Active" : "Equip"}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        data-ocid={`shop.avatar_buy_button.${i + 1}`}
-                        disabled={!canAfford || selectingPic === avatar.index}
-                        onClick={async () => {
-                          if (!actor) return;
-                          const { legendId: buyLid, passwordHash: buyPh } =
-                            useAuthStore.getState();
-                          if (!buyLid || !buyPh) return;
-                          setSelectingPic(avatar.index);
-                          try {
-                            await actor.buyShopAvatar(
-                              buyLid,
-                              buyPh,
-                              BigInt(avatar.index),
-                            );
-                            await refetchProfile();
-                            queryClient.invalidateQueries({
-                              queryKey: ["userProfile", legendId],
-                            });
-                            toast.success(
-                              `${avatar.name} unlocked and equipped!`,
-                            );
-                          } catch (err) {
-                            console.error(err);
-                            toast.error("Purchase failed. Please try again.");
-                          } finally {
-                            setSelectingPic(null);
-                          }
-                        }}
-                        className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1"
-                        style={{
-                          background: canAfford
-                            ? `linear-gradient(135deg, ${avatar.glowColor}cc, ${avatar.glowColor}88)`
-                            : "rgba(255,255,255,0.05)",
-                          border: canAfford
-                            ? "none"
-                            : "1px solid rgba(255,255,255,0.1)",
-                          color: canAfford ? "#fff" : "rgba(255,255,255,0.35)",
-                        }}
-                      >
-                        {selectingPic === avatar.index ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : null}
-                        {canAfford ? "BUY" : "Insufficient Coins"}
-                      </button>
-                    )}
+                        <LegendCoin size={14} />
+                        <span
+                          className="font-display font-black text-sm tabular-nums"
+                          style={{ color: "#ffd700" }}
+                        >
+                          {avatar.price.toLocaleString()}
+                        </span>
+                      </div>
+
+                      {/* Custom admin-uploaded avatars: always directly equippable (no purchase needed) */}
+                      {avatar.price === 0 ? (
+                        <button
+                          type="button"
+                          data-ocid={`shop.avatar_select_button.${globalIndex}`}
+                          onClick={async () => {
+                            if (!actor) return;
+                            const { legendId: eqLid, passwordHash: eqPh } =
+                              useAuthStore.getState();
+                            if (!eqLid || !eqPh) return;
+                            setSelectingPic(avatar.index);
+                            try {
+                              await actor.setProfilePicture(
+                                eqLid,
+                                eqPh,
+                                BigInt(avatar.index),
+                              );
+                              await refetchProfile();
+                              queryClient.invalidateQueries({
+                                queryKey: ["userProfile", legendId],
+                              });
+                              toast.success(
+                                `${avatar.name} set as profile picture!`,
+                              );
+                            } catch (err) {
+                              console.error(err);
+                              toast.error("Failed to update profile picture.");
+                            } finally {
+                              setSelectingPic(null);
+                            }
+                          }}
+                          disabled={isActive || selectingPic === avatar.index}
+                          className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-80 disabled:opacity-50 flex items-center justify-center gap-1"
+                          style={{
+                            background: isActive
+                              ? "rgba(255,215,0,0.1)"
+                              : "linear-gradient(135deg, rgba(180,80,255,0.85), rgba(120,40,200,0.85))",
+                            border: isActive
+                              ? "1px solid rgba(255,215,0,0.3)"
+                              : "none",
+                            color: isActive ? "#ffd700" : "#fff",
+                          }}
+                        >
+                          {selectingPic === avatar.index ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : null}
+                          {isActive ? "Active" : "Equip Free"}
+                        </button>
+                      ) : isOwned ? (
+                        <button
+                          type="button"
+                          data-ocid={`shop.avatar_select_button.${globalIndex}`}
+                          onClick={async () => {
+                            if (!actor) return;
+                            const { legendId: eqLid, passwordHash: eqPh } =
+                              useAuthStore.getState();
+                            if (!eqLid || !eqPh) return;
+                            setSelectingPic(avatar.index);
+                            try {
+                              await actor.setProfilePicture(
+                                eqLid,
+                                eqPh,
+                                BigInt(avatar.index),
+                              );
+                              await refetchProfile();
+                              queryClient.invalidateQueries({
+                                queryKey: ["userProfile", legendId],
+                              });
+                              toast.success(
+                                `${avatar.name} set as profile picture!`,
+                              );
+                            } catch (err) {
+                              console.error(err);
+                              toast.error("Failed to update profile picture.");
+                            } finally {
+                              setSelectingPic(null);
+                            }
+                          }}
+                          disabled={isActive || selectingPic === avatar.index}
+                          className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-80 disabled:opacity-50 flex items-center justify-center gap-1"
+                          style={{
+                            background: isActive
+                              ? "rgba(255,215,0,0.1)"
+                              : "linear-gradient(135deg, rgba(180,80,255,0.85), rgba(120,40,200,0.85))",
+                            border: isActive
+                              ? "1px solid rgba(255,215,0,0.3)"
+                              : "none",
+                            color: isActive ? "#ffd700" : "#fff",
+                          }}
+                        >
+                          {selectingPic === avatar.index ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : null}
+                          {isActive ? "Active" : "Equip"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          data-ocid={`shop.avatar_buy_button.${globalIndex}`}
+                          disabled={!canAfford || selectingPic === avatar.index}
+                          onClick={async () => {
+                            if (!canAfford || !actor) return;
+                            const { legendId: buyLid, passwordHash: buyPh } =
+                              useAuthStore.getState();
+                            if (!buyLid || !buyPh) return;
+                            setSelectingPic(avatar.index);
+                            try {
+                              await actor.buyShopAvatar(
+                                buyLid,
+                                buyPh,
+                                BigInt(avatar.index),
+                              );
+                              await refetchProfile();
+                              queryClient.invalidateQueries({
+                                queryKey: ["userProfile", legendId],
+                              });
+                              toast.success(
+                                `${avatar.name} unlocked and equipped!`,
+                              );
+                            } catch (err) {
+                              console.error(err);
+                              toast.error("Purchase failed. Please try again.");
+                            } finally {
+                              setSelectingPic(null);
+                            }
+                          }}
+                          className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                          style={{
+                            background: canAfford
+                              ? "linear-gradient(135deg, rgba(180,80,255,0.85), rgba(120,40,200,0.85))"
+                              : "rgba(255,255,255,0.05)",
+                            border: canAfford
+                              ? "none"
+                              : "1px solid rgba(255,255,255,0.1)",
+                            color: canAfford
+                              ? "#fff"
+                              : "rgba(255,255,255,0.35)",
+                          }}
+                        >
+                          {selectingPic === avatar.index ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : null}
+                          {canAfford ? "BUY" : "Insufficient Coins"}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -4084,7 +4737,6 @@ export function DashboardPage() {
         isFetchingActor={isFetching}
         joiningTournamentId={joiningTournamentId}
         onJoin={handleJoinTournament}
-        joinedMatchIds={joinedMatchIds}
         allMatches={allMatches}
         selectedProfilePic={selectedProfilePic}
         selectedFrame={selectedFrame}
@@ -4553,9 +5205,11 @@ export function DashboardPage() {
                   onClick={() =>
                     isUnlocked && !isSelected && handleSelectAvatar(tier.index)
                   }
-                  className="flex-shrink-0 flex flex-col items-center gap-2 transition-all duration-200"
+                  className="flex-shrink-0 flex flex-col items-center transition-all duration-200"
                   style={{
                     outline: "none",
+                    gap: 6,
+                    paddingBottom: 4,
                     cursor:
                       isUnlocked && !isSelected
                         ? "pointer"
@@ -4567,7 +5221,10 @@ export function DashboardPage() {
                   }}
                 >
                   {/* Avatar image container */}
-                  <div className="relative" style={{ width: 80, height: 80 }}>
+                  <div
+                    className="relative"
+                    style={{ width: 80, height: 86, paddingBottom: 6 }}
+                  >
                     {/* Ring: gold for selected, green for unlocked, dark for locked */}
                     <div
                       style={{
@@ -4706,11 +5363,13 @@ export function DashboardPage() {
                         ✓ Unlocked
                       </span>
                     ) : (
-                      <>
-                        L{tier.required}
-                        <br />
-                        to unlock
-                      </>
+                      <span className="flex flex-col items-center gap-0.5">
+                        <span className="flex items-center gap-0.5">
+                          <LegendCoin size={9} />
+                          {tier.required}
+                        </span>
+                        <span>to unlock</span>
+                      </span>
                     )}
                   </span>
                 </button>
@@ -5244,7 +5903,7 @@ export function DashboardPage() {
                           style={{
                             background: "rgba(255,255,255,0.02)",
                             border: "1px solid rgba(255,255,255,0.07)",
-                            opacity: 0.6,
+                            opacity: 0.65,
                           }}
                         >
                           <div
@@ -5280,13 +5939,17 @@ export function DashboardPage() {
                             {tier.label}
                           </span>
                           <span
-                            className="font-body text-xs text-center"
+                            className="font-body text-center"
                             style={{
-                              color: "rgba(255,68,34,0.8)",
-                              lineHeight: 1.2,
+                              fontSize: "8px",
+                              color: "rgba(255,180,0,0.85)",
+                              lineHeight: 1.3,
+                              fontWeight: 700,
                             }}
                           >
-                            L{tier.required}
+                            Deposit {tier.required}
+                            <br />
+                            to unlock
                           </span>
                         </div>
                       );
@@ -5603,104 +6266,150 @@ export function DashboardPage() {
 
       {/* ── HEADER ── */}
       <header
-        className="relative z-10 sticky top-0"
+        className="sticky top-0"
         style={{
-          background: "rgba(10, 10, 15, 0.92)",
-          backdropFilter: "blur(16px)",
+          zIndex: 110,
+          background: "rgba(8, 8, 14, 1.0)",
+          backdropFilter: "blur(24px)",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
+          boxShadow: "0 2px 20px rgba(0,0,0,0.8)",
         }}
       >
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <a
-            href="/"
-            className="font-display font-black text-base flex items-center gap-0"
-          >
-            <span
-              className="animate-legend-flame"
-              style={{ color: "#ff2200", fontSize: "0.9rem" }}
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 relative flex items-center">
+          {/* Left: LXA logo */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <a
+              href="/"
+              className="font-display font-black text-base flex items-center gap-0"
             >
-              L
-            </span>
-            <span
-              className="animate-x-beat"
-              style={{
-                color: "#ffd700",
-                fontSize: "1.1rem",
-                margin: "0 0.05em",
-              }}
-            >
-              X
-            </span>
-            <span
-              className="animate-arena-electric"
-              style={{ color: "#0066ff", fontSize: "0.9rem" }}
-            >
-              A
-            </span>
-          </a>
-
-          <div className="hidden sm:flex items-center gap-2">
-            {/* Profile avatar in header */}
-            <div
-              className="relative flex-shrink-0"
-              style={{ width: 28, height: 28 }}
-            >
-              {!profileImgError ? (
-                <img
-                  src={getProfilePicSrc(selectedProfilePic)}
-                  alt="Profile"
-                  className="rounded-full object-cover w-full h-full"
-                  style={{
-                    border: `1.5px solid ${avatarGlowColor}`,
-                    boxShadow: `0 0 8px ${avatarGlowColor}55`,
-                  }}
-                  onError={() => setProfileImgError(true)}
-                />
-              ) : (
-                <div
-                  className="rounded-full w-full h-full flex items-center justify-center font-display font-black"
-                  style={{
-                    background: "linear-gradient(135deg, #ff4422, #cc1100)",
-                    border: `1.5px solid ${avatarGlowColor}`,
-                    boxShadow: `0 0 8px ${avatarGlowColor}55`,
-                    color: "#fff",
-                    fontSize: "11px",
-                  }}
-                >
-                  {(legendId ?? "?")[0].toUpperCase()}
-                </div>
-              )}
-              <FrameOverlay
-                frameIndex={selectedFrame}
-                size={28}
-                isActive={selectedFrame > 0}
-              />
-            </div>
-            <div
-              className="w-2 h-2 rounded-full"
-              style={{ background: "#22cc66", boxShadow: "0 0 6px #22cc66" }}
-            />
-            <span
-              className="font-display font-bold text-sm tracking-wider"
-              style={{ color: "rgba(255,255,255,0.8)" }}
-            >
-              {profile?.gameName || legendId}
-            </span>
-            {role === "admin" && (
               <span
-                className="text-xs font-display font-bold px-2 py-0.5 rounded uppercase tracking-wider"
+                className="animate-legend-flame"
+                style={{ color: "#ff2200", fontSize: "0.9rem" }}
+              >
+                L
+              </span>
+              <span
+                className="animate-x-beat"
                 style={{
-                  background: "rgba(255,215,0,0.15)",
-                  border: "1px solid rgba(255,215,0,0.4)",
                   color: "#ffd700",
+                  fontSize: "1.1rem",
+                  margin: "0 0.05em",
                 }}
               >
-                ADMIN
+                X
               </span>
-            )}
+              <span
+                className="animate-arena-electric"
+                style={{ color: "#0066ff", fontSize: "0.9rem" }}
+              >
+                A
+              </span>
+            </a>
           </div>
 
-          <WalletDisplay balance={balance} />
+          {/* Center: profile + refresh button (absolute centered) */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
+            {/* Profile info (desktop only) */}
+            <div className="hidden sm:flex items-center gap-2">
+              <div
+                className="relative flex-shrink-0"
+                style={{ width: 28, height: 28 }}
+              >
+                {!profileImgError ? (
+                  <img
+                    src={getProfilePicSrc(selectedProfilePic)}
+                    alt="Profile"
+                    className="rounded-full object-cover w-full h-full"
+                    style={{
+                      border: `1.5px solid ${avatarGlowColor}`,
+                      boxShadow: `0 0 8px ${avatarGlowColor}55`,
+                    }}
+                    onError={() => setProfileImgError(true)}
+                  />
+                ) : (
+                  <div
+                    className="rounded-full w-full h-full flex items-center justify-center font-display font-black"
+                    style={{
+                      background: "linear-gradient(135deg, #ff4422, #cc1100)",
+                      border: `1.5px solid ${avatarGlowColor}`,
+                      boxShadow: `0 0 8px ${avatarGlowColor}55`,
+                      color: "#fff",
+                      fontSize: "11px",
+                    }}
+                  >
+                    {(legendId ?? "?")[0].toUpperCase()}
+                  </div>
+                )}
+                <FrameOverlay
+                  frameIndex={selectedFrame}
+                  size={28}
+                  isActive={selectedFrame > 0}
+                />
+              </div>
+              <div
+                className="w-2 h-2 rounded-full"
+                style={{ background: "#22cc66", boxShadow: "0 0 6px #22cc66" }}
+              />
+              <span
+                className="font-display font-bold text-sm tracking-wider"
+                style={{ color: "rgba(255,255,255,0.8)" }}
+              >
+                {profile?.gameName || legendId}
+              </span>
+              {role === "admin" && (
+                <span
+                  className="text-xs font-display font-bold px-2 py-0.5 rounded uppercase tracking-wider"
+                  style={{
+                    background: "rgba(255,215,0,0.15)",
+                    border: "1px solid rgba(255,215,0,0.4)",
+                    color: "#ffd700",
+                  }}
+                >
+                  ADMIN
+                </span>
+              )}
+            </div>
+
+            {/* Refresh button */}
+            <button
+              type="button"
+              data-ocid="header.refresh_button"
+              onClick={() => {
+                setIsRefreshing(true);
+                queryClient.invalidateQueries({ queryKey: ["profile"] });
+                queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+                queryClient.invalidateQueries({
+                  queryKey: ["activeTournaments"],
+                });
+                queryClient.invalidateQueries({
+                  queryKey: ["myDepositRequests"],
+                });
+                queryClient.invalidateQueries({
+                  queryKey: ["userProfile", legendId],
+                });
+                setTimeout(() => setIsRefreshing(false), 1000);
+              }}
+              className="flex items-center justify-center flex-shrink-0 transition-opacity hover:opacity-80"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.12)",
+              }}
+              title="Refresh data"
+            >
+              <RefreshCcw
+                className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+                style={{ color: "rgba(255,255,255,0.6)" }}
+              />
+            </button>
+          </div>
+
+          {/* Right: wallet */}
+          <div className="ml-auto flex-shrink-0">
+            <WalletDisplay balance={balance} />
+          </div>
         </div>
       </header>
 

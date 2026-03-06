@@ -1,49 +1,29 @@
 # Legend X Arena
 
 ## Current State
-- Full Free Fire esports tournament app with 5-tab navigation (Shop, Ranking, Play, Deposit, Profile)
-- User registration with auto-assigned Legend ID (0001, 0002...)
-- JazzCash deposit system with admin approve/reject
-- Withdraw section in Deposit tab
-- Leaderboard with 3 sections: Global Winners (by totalProfit), Prime Legends (by deposit), Oldest Legends (by createdAt)
-- Match join system with View Details modal showing Room ID/Password
-- First-login roulette (5/10/15/20 RS coins) with biased odds
-- Avatar/frame collection system with shop purchase
-- Admin panel with match management, deposit approval, user management
+Full-stack ICP esports tournament app with authentication, shop, leaderboard, admin panel, deposit/withdraw system, and animated frames/avatars. Backend uses stable var storage. Frontend has React + Tailwind.
 
 ## Requested Changes (Diff)
 
 ### Add
-- **JazzCash uniqueness validation**: Backend must reject registration if `jazzCashNumber` already exists on another account. Similarly, `updatePlayerInfo` must block if new jazzCashNumber is already used by a different user.
-- **Duplicate field validation on registration**: `gameName`, `gameUID`, and `jazzCashNumber` must all be globally unique. If any already exists, registration fails with a clear error message indicating which field is duplicate.
-- **Withdraw JazzCash uniqueness**: In withdraw form, once a user has saved their JazzCash number (from their profile), it auto-fills and locks. They cannot change it — it's their registered number. First time they set it during registration, it stays.
-- **APP OWNER title for Legend ID 0001**: Wherever any user's name is shown (leaderboard, ranking cards, profile header, any player row), if that user's legendId is "0001", show a gold "APP OWNER" badge/title next to their game name.
-- **Registration bonus coins**: Change from 100 coins to 5 coins on registration. The roulette spin can give 5 or 10 (luck). Roulette coins already go to wallet — no change needed there except starting balance.
-- **Roulette coins excluded from leaderboard**: Roulette coins (spin reward) should NOT count toward totalProfit or appear in any leaderboard. They just go to walletBalance silently. Currently roulette coins may increment totalProfit — fix so they only go to walletBalance.
-- **Global Winners leaderboard shows only match-declared wins**: The totalProfit field (incremented via declareMatchResult winner coins) is correctly used. Ensure roulette coins do NOT add to totalProfit.
-- **My Matches tab: "View Details" button on each joined match + "Joined" badge**: In the "My Matches" section (the modal/panel that shows joined matches), each match card should show a green "JOINED" badge and a "View Details" button that opens the ViewDetailsModal. No "Loss" label anywhere in My Matches — only show "JOINED" in green.
-- **updatePlayerInfo duplicate check**: Backend `updatePlayerInfo` must check that the new gameName/gameUID/jazzCashNumber don't already exist on a DIFFERENT user.
+- Refresh button in dashboard header between LXA logo (left) and coins display (right) -- clicking it refetches all user data (profile, balance, leaderboard, etc.)
+- Upload Avatar button visible in Shop page (Avatars tab) for admin users -- "+" button in top-right of Avatars tab header to open upload modal (same as AdminStoreAvatarSection upload form)
 
 ### Modify
-- **Backend register**: walletBalance starts at 5 (down from 100). Validate uniqueness of gameName, gameUID, jazzCashNumber across existing users before creating.
-- **Backend updatePlayerInfo**: Add duplicate checks for gameName, gameUID, jazzCashNumber — reject if another user already has that value.
-- **Withdraw form**: Pre-fill JazzCash number from user's profile `jazzCashNumber` field. Make it read-only (disabled input). User cannot change it — it's locked to their registered number.
-- **Global Leaderboard (totalProfit)**: Roulette collectReward must NOT modify `totalProfit` — only `walletBalance`. Winning from admin-declared match result correctly increments `totalProfit`. This is already correctly set in the backend for `declareMatchResult`; no backend change needed unless roulette was adding to totalProfit.
-- **My Matches section**: Show "JOINED" green badge on each match card. Remove any "Loss" display. Add "View Details" button that opens the existing ViewDetailsModal. 
+1. **Login bug fix**: In `AuthPage.tsx` `handleLogin`, add better error handling -- catch specific errors from `getUserByLegendId` separately so network/backend startup errors show "Backend not ready, please wait and retry" instead of the generic "Login failed". Also ensure the generic catch does NOT override the "Invalid Legend ID or password" toast -- currently if `getUserByLegendId` throws (e.g. actor loading), it swallows the real error. Fix: only set isSubmitting=false in finally, and use separate try/catch for the profile fetch step.
+
+2. **Admin User Lookup search isolation**: In `AdminPage.tsx`, the search input `onChange` handler calls `e.stopPropagation()` but that's not enough -- the issue is that other `useQuery` hooks in the same component (PendingDepositsSection, MatchManagementSection) automatically refetch when the component re-renders due to typing in the search box. Fix: add `refetchOnWindowFocus: false` and `refetchInterval: false` to all auto-fetching queries in AdminPage so they only refetch when explicitly triggered, not on every render/focus. Also ensure `handleSearch` only sets `searchTerm` -- it should NOT trigger any other query invalidation.
+
+3. **Header always on top**: In `DashboardPage.tsx`, the header `<header>` already has `sticky top-0 z-100` but the background may not fully cover underlying content. Change header `position` to `sticky`, ensure `zIndex: 110` (higher than modals at z-50), and add `background: "rgba(8, 8, 14, 0.98)"` (slightly more opaque). This ensures LXA and coins never appear behind scrolled content.
+
+4. **Header black background popup**: The header area (from top of screen to bottom of header bar) should have a solid dark background so no text from the main content scrolls visually behind/through it. Ensure the header div has `background: "rgba(8,8,14,0.98)"` with `backdropFilter: "blur(20px)"` and `zIndex: 110`.
 
 ### Remove
-- **Nothing to remove** — only additions and modifications.
+- Nothing removed
 
 ## Implementation Plan
-1. Backend (`main.mo`):
-   - Change starting `walletBalance` in `register` from 100 to 5
-   - Add uniqueness check in `register` for `gameName`, `gameUID`, `jazzCashNumber` — trap with descriptive message if duplicate
-   - Add uniqueness check in `updatePlayerInfo` for `gameName`, `gameUID`, `jazzCashNumber` — exclude the current user from check
-   - Ensure `declareMatchResult` is the only place that increments `totalProfit` — roulette coin collect only modifies `walletBalance` (frontend-only change)
-
-2. Frontend (`DashboardPage.tsx`):
-   - **APP OWNER badge**: Create a helper `isAppOwner(legendId)` that returns true if legendId === "0001". Wrap any game name display in leaderboard / ranking sections with a gold "APP OWNER" badge if true.
-   - **Withdraw form**: Pre-fill `withdrawJazzCash` with `profile.jazzCashNumber` and make input `readOnly` + visually disabled.
-   - **My Matches**: In the My Matches modal/section, for each joined match, show green "JOINED" badge. Replace any "Loss" text. Add "View Details" button that opens ViewDetailsModal for that tournament.
-   - **Roulette**: `collectReward` already only sets `walletBalance` in state — confirm it does NOT call any backend function that touches `totalProfit`. No backend call needed for roulette reward.
-   - **Registration error messages**: Show which field is a duplicate when registration fails (backend trap message propagated to toast).
+1. Fix `AuthPage.tsx` login error handling: split `getUserByLegendId` into its own try/catch so backend errors don't show "Login failed" -- only show "Invalid Legend ID or password" when `authenticate()` returns false, and show "Backend error, please retry" on thrown exceptions.
+2. Fix `AdminPage.tsx` search isolation: add `refetchOnWindowFocus: false` to `PendingDepositsSection` and `MatchManagementSection` queries; ensure `handleSearch` only updates `searchTerm` state without side effects on other queries.
+3. Add refresh button to dashboard header: between LXA `<a>` link and `<WalletDisplay>`, add a circular refresh `<button>` that calls `queryClient.invalidateQueries()` on all profile/leaderboard/tournament query keys and shows a brief spin animation.
+4. Harden header z-index and background opacity in `DashboardPage.tsx` header.
+5. Add admin upload avatar shortcut to Shop tab: when `role === "admin"` and `activeTab === "shop"`, show a "+" upload button in the Avatars tab header that opens an inline upload modal (reuse the same upload logic from `AdminStoreAvatarSection`).

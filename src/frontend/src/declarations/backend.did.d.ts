@@ -10,6 +10,12 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
+export interface CustomShopAvatar {
+  'src' : string,
+  'name' : string,
+  'index' : bigint,
+  'price' : bigint,
+}
 export interface DepositRequest {
   'id' : string,
   'status' : DepositStatus,
@@ -93,6 +99,10 @@ export interface UserProfile {
 }
 export interface _SERVICE {
   'addCoins' : ActorMethod<[string, string, string, bigint], undefined>,
+  'addCustomShopAvatar' : ActorMethod<
+    [string, string, string, bigint, string],
+    bigint
+  >,
   'approveDepositRequest' : ActorMethod<[string, string, string], undefined>,
   'authenticate' : ActorMethod<[string, string], boolean>,
   'buyShopAvatar' : ActorMethod<[string, string, bigint], undefined>,
@@ -116,10 +126,12 @@ export interface _SERVICE {
     [string, string, string, string, string, bigint, bigint],
     undefined
   >,
+  'deleteCustomShopAvatar' : ActorMethod<[string, string, bigint], undefined>,
   'deleteTournament' : ActorMethod<[string, string, string], undefined>,
   'deleteUser' : ActorMethod<[string, string, string], undefined>,
   'getActiveTournaments' : ActorMethod<[], Array<Tournament>>,
   'getAllUsers' : ActorMethod<[string], Array<UserProfile>>,
+  'getCustomShopAvatars' : ActorMethod<[], Array<CustomShopAvatar>>,
   'getLeaderboard' : ActorMethod<[], Array<LeaderboardEntry>>,
   'getMyDepositRequests' : ActorMethod<[string, string], Array<DepositRequest>>,
   'getNextLegendId' : ActorMethod<[], string>,
@@ -136,6 +148,10 @@ export interface _SERVICE {
   'joinTournamentById' : ActorMethod<[string, string, string], undefined>,
   'register' : ActorMethod<[string, string, string, string], string>,
   'rejectDepositRequest' : ActorMethod<[string, string, string], undefined>,
+  'resetUsersWithDepositTierAvatar' : ActorMethod<
+    [string, string, bigint],
+    undefined
+  >,
   'setProfileFrame' : ActorMethod<[string, string, bigint], undefined>,
   'setProfilePicture' : ActorMethod<[string, string, bigint], undefined>,
   'setTournamentRoom' : ActorMethod<

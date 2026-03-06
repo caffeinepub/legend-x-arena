@@ -1,4 +1,5 @@
 import {
+  type CustomShopAvatar,
   type DepositRequest,
   DepositStatus,
   GameMode,
@@ -36,6 +37,7 @@ import {
   Search,
   SendHorizonal,
   Shield,
+  ShoppingBag,
   Trash2,
   Trophy,
   Users,
@@ -786,6 +788,9 @@ function MatchManagementSection() {
       return actor.getTournaments(adminLid);
     },
     enabled: !!actor && !isFetching,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
   function openRoomForm(t: Tournament) {
@@ -805,7 +810,7 @@ function MatchManagementSection() {
     setWinnerIdInput("");
     setLoserIdInput("");
     setWinnerCoinsInput("");
-    setLoserCoinsInput("");
+    setLoserCoinsInput(Number(t.returningCoins).toString());
     // close room form if open
     setRoomFormId(null);
   }
@@ -844,6 +849,13 @@ function MatchManagementSection() {
       if (winnerIdInput.trim()) {
         localStorage.setItem(
           `lxa_pending_coinshower_${winnerIdInput.trim()}`,
+          "1",
+        );
+      }
+      // Queue coin shower animation for the loser (return coins) on their next app open/focus
+      if (loserCoins > 0 && loserIdInput.trim()) {
+        localStorage.setItem(
+          `lxa_pending_coinshower_${loserIdInput.trim()}`,
           "1",
         );
       }
@@ -1343,20 +1355,64 @@ function MatchManagementSection() {
                 />
               </div>
 
-              {/* Image URL */}
+              {/* Match Banner (file upload + URL) */}
               <div className="sm:col-span-2">
                 <label
                   htmlFor="match-image-url"
                   className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5"
                   style={{ color: "rgba(255,255,255,0.5)" }}
                 >
-                  Image URL (optional)
+                  Match Banner (optional)
                 </label>
+                {/* File upload button */}
+                <div className="flex gap-2 mb-2">
+                  <label
+                    htmlFor="match-banner-file"
+                    data-ocid="admin.match.upload_button"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-body text-sm cursor-pointer transition-all duration-200 hover:opacity-80"
+                    style={{
+                      background: "rgba(255,180,0,0.1)",
+                      border: "1px solid rgba(255,180,0,0.3)",
+                      color: "#ffb400",
+                    }}
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    Choose from Gallery
+                  </label>
+                  <input
+                    id="match-banner-file"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (ev) => {
+                        setFormData((p) => ({
+                          ...p,
+                          imageUrl: ev.target?.result as string,
+                        }));
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </div>
+                <p
+                  className="text-xs font-body mb-2"
+                  style={{ color: "rgba(255,255,255,0.3)" }}
+                >
+                  — or paste a URL —
+                </p>
                 <input
                   id="match-image-url"
                   data-ocid="admin.match.image_url_input"
-                  type="url"
-                  value={formData.imageUrl}
+                  type="text"
+                  value={
+                    formData.imageUrl.startsWith("data:")
+                      ? ""
+                      : formData.imageUrl
+                  }
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, imageUrl: e.target.value }))
                   }
@@ -1368,8 +1424,8 @@ function MatchManagementSection() {
                 />
                 {formData.imageUrl && (
                   <div
-                    className="mt-2 rounded-lg overflow-hidden"
-                    style={{ maxWidth: 120, height: 60 }}
+                    className="mt-2 rounded-lg overflow-hidden relative"
+                    style={{ maxWidth: 160, height: 80 }}
                   >
                     <img
                       src={formData.imageUrl}
@@ -1379,6 +1435,16 @@ function MatchManagementSection() {
                         (e.target as HTMLImageElement).style.display = "none";
                       }}
                     />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData((p) => ({ ...p, imageUrl: "" }))
+                      }
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                      style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
                   </div>
                 )}
               </div>
@@ -2151,6 +2217,9 @@ function PendingDepositsSection() {
       return actor.getPendingDepositRequests(adminLid, adminPh);
     },
     enabled: !!actor && !isFetching,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
   async function handleApprove(req: DepositRequest) {
@@ -2384,6 +2453,445 @@ function PendingDepositsSection() {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─── Deposit tier config for reset ─────────────────────────── */
+const DEPOSIT_TIERS = [
+  { index: 0, label: "T1 – Free (Joker)", required: 0 },
+  { index: 1, label: "Bronze – 50 LC", required: 50 },
+  { index: 2, label: "Platinum – 100 LC", required: 100 },
+  { index: 3, label: "Diamond – 200 LC", required: 200 },
+  { index: 4, label: "Heroic – 500 LC", required: 500 },
+  { index: 5, label: "T5 – 800 LC", required: 800 },
+  { index: 6, label: "T6 Champion – 1000 LC", required: 1000 },
+];
+
+/* ─── Admin Store Avatar Upload Section ─────────────────────── */
+function AdminStoreAvatarSection() {
+  const { actor, isFetching } = useActor();
+  const queryClient = useQueryClient();
+
+  const [avatarFile, setAvatarFile] = useState<string | null>(null);
+  const [avatarName, setAvatarName] = useState("");
+  const [avatarPrice, setAvatarPrice] = useState("200");
+  const [isSaving, setIsSaving] = useState(false);
+  const [deletingIndex, setDeletingIndex] = useState<bigint | null>(null);
+  const [resetingTier, setResetingTier] = useState<number | null>(null);
+
+  // Load custom shop avatars from backend
+  const { data: customAvatars = [] } = useQuery<CustomShopAvatar[]>({
+    queryKey: ["customShopAvatars"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getCustomShopAvatars();
+    },
+    enabled: !!actor && !isFetching,
+  });
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setAvatarFile(ev.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function handleSave() {
+    if (!avatarFile || !avatarName.trim()) {
+      toast.error("Please select an image and enter a name");
+      return;
+    }
+    const price = Math.max(1, Math.floor(Number(avatarPrice)));
+    if (!price) {
+      toast.error("Enter a valid price");
+      return;
+    }
+    if (!actor) {
+      toast.error("Actor not ready");
+      return;
+    }
+    const { legendId: adminLid, passwordHash: adminPh } =
+      useAuthStore.getState();
+    if (!adminLid || !adminPh) {
+      toast.error("Not authenticated");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await actor.addCustomShopAvatar(
+        adminLid,
+        adminPh,
+        avatarName.trim(),
+        BigInt(price),
+        avatarFile,
+      );
+      await queryClient.invalidateQueries({ queryKey: ["customShopAvatars"] });
+      setAvatarFile(null);
+      setAvatarName("");
+      setAvatarPrice("200");
+      toast.success(`"${avatarName.trim()}" added to the store!`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to add avatar. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleRemove(avatarIndex: bigint) {
+    if (!actor) return;
+    const { legendId: adminLid, passwordHash: adminPh } =
+      useAuthStore.getState();
+    if (!adminLid || !adminPh) return;
+    setDeletingIndex(avatarIndex);
+    try {
+      await actor.deleteCustomShopAvatar(adminLid, adminPh, avatarIndex);
+      await queryClient.invalidateQueries({ queryKey: ["customShopAvatars"] });
+      toast.success("Avatar removed from store");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to remove avatar");
+    } finally {
+      setDeletingIndex(null);
+    }
+  }
+
+  async function handleResetTier(tierIndex: number) {
+    if (!actor) return;
+    const { legendId: adminLid, passwordHash: adminPh } =
+      useAuthStore.getState();
+    if (!adminLid || !adminPh) return;
+    setResetingTier(tierIndex);
+    try {
+      await actor.resetUsersWithDepositTierAvatar(
+        adminLid,
+        adminPh,
+        BigInt(tierIndex),
+      );
+      toast.success(`Tier ${tierIndex} avatar reset for affected users`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Reset failed");
+    } finally {
+      setResetingTier(null);
+    }
+  }
+
+  return (
+    <div
+      className="rounded-2xl p-6 mb-8"
+      style={{
+        background: "rgba(13, 13, 26, 0.9)",
+        border: "1px solid rgba(180,80,255,0.2)",
+      }}
+    >
+      <div className="flex items-center gap-3 mb-5">
+        <div
+          className="flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0"
+          style={{
+            background: "rgba(180,80,255,0.12)",
+            border: "1px solid rgba(180,80,255,0.3)",
+          }}
+        >
+          <ShoppingBag className="w-4 h-4" style={{ color: "#b450ff" }} />
+        </div>
+        <h2 className="font-display font-bold text-base uppercase tracking-wider text-foreground">
+          Store Avatar Upload
+        </h2>
+        <span
+          className="text-xs font-display font-black px-2.5 py-0.5 rounded-full"
+          style={{
+            background: "rgba(180,80,255,0.12)",
+            border: "1px solid rgba(180,80,255,0.3)",
+            color: "#b450ff",
+          }}
+        >
+          Admin Only
+        </span>
+      </div>
+
+      {/* Upload form */}
+      <div
+        className="rounded-xl p-5 mb-5"
+        style={{
+          background: "rgba(180,80,255,0.04)",
+          border: "1px solid rgba(180,80,255,0.15)",
+        }}
+      >
+        <div className="flex flex-col sm:flex-row gap-4 items-start">
+          {/* Circle preview */}
+          <div className="flex-shrink-0">
+            <label htmlFor="store-avatar-file" className="cursor-pointer block">
+              <div
+                className="relative flex items-center justify-center transition-all duration-200 hover:opacity-80"
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: "50%",
+                  background: avatarFile
+                    ? "transparent"
+                    : "rgba(180,80,255,0.1)",
+                  border: "2px dashed rgba(180,80,255,0.4)",
+                  overflow: "hidden",
+                }}
+              >
+                {avatarFile ? (
+                  <img
+                    src={avatarFile}
+                    alt="preview"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="text-center">
+                    <ImageIcon
+                      className="w-6 h-6 mx-auto mb-1"
+                      style={{ color: "rgba(180,80,255,0.5)" }}
+                    />
+                    <p
+                      className="text-xs font-body"
+                      style={{ color: "rgba(180,80,255,0.5)" }}
+                    >
+                      Upload
+                    </p>
+                  </div>
+                )}
+              </div>
+            </label>
+            <input
+              id="store-avatar-file"
+              data-ocid="admin.store.upload_button"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+          </div>
+
+          {/* Fields */}
+          <div className="flex-1 space-y-3">
+            <div>
+              <label
+                htmlFor="store-avatar-name"
+                className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5"
+                style={{ color: "rgba(180,80,255,0.6)" }}
+              >
+                Avatar Name *
+              </label>
+              <input
+                id="store-avatar-name"
+                data-ocid="admin.store.input"
+                type="text"
+                value={avatarName}
+                onChange={(e) => setAvatarName(e.target.value)}
+                placeholder="e.g. Shadow Demon"
+                className="w-full px-4 py-2.5 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground"
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(180,80,255,0.2)",
+                  outline: "none",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "rgba(180,80,255,0.5)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "rgba(180,80,255,0.2)";
+                }}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="store-avatar-price"
+                className="block text-xs font-display font-bold uppercase tracking-wider mb-1.5"
+                style={{ color: "rgba(180,80,255,0.6)" }}
+              >
+                Price (LC) *
+              </label>
+              <input
+                id="store-avatar-price"
+                data-ocid="admin.store.coins_input"
+                type="number"
+                min="1"
+                value={avatarPrice}
+                onChange={(e) => setAvatarPrice(e.target.value)}
+                placeholder="200"
+                className="w-full px-4 py-2.5 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground"
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(180,80,255,0.2)",
+                  outline: "none",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "rgba(180,80,255,0.5)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "rgba(180,80,255,0.2)";
+                }}
+              />
+            </div>
+            <button
+              type="button"
+              data-ocid="admin.store.save_button"
+              onClick={handleSave}
+              disabled={isSaving || !avatarFile || !avatarName.trim()}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(180,80,255,0.9), rgba(120,40,200,0.9))",
+                color: "#fff",
+              }}
+            >
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Plus className="w-4 h-4" />
+              )}
+              {isSaving ? "Saving…" : "Add to Store"}
+            </button>
+          </div>
+        </div>
+        <p
+          className="text-xs font-body mt-3"
+          style={{ color: "rgba(255,255,255,0.3)" }}
+        >
+          Image will be auto-cropped to a circle shape in the store. Upload from
+          your phone gallery.
+        </p>
+      </div>
+
+      {/* Existing custom avatars */}
+      {customAvatars.length > 0 && (
+        <div className="mb-6">
+          <p
+            className="text-xs font-display font-bold uppercase tracking-wider mb-3"
+            style={{ color: "rgba(255,255,255,0.4)" }}
+          >
+            Custom Avatars in Store ({customAvatars.length})
+          </p>
+          <div className="flex flex-wrap gap-3">
+            {customAvatars.map((av, ci) => (
+              <div
+                key={String(av.index)}
+                data-ocid={`admin.store.item.${ci + 1}`}
+                className="flex flex-col items-center gap-1.5 p-3 rounded-xl"
+                style={{
+                  background: "rgba(180,80,255,0.05)",
+                  border: "1px solid rgba(180,80,255,0.15)",
+                }}
+              >
+                <div
+                  style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: "50%",
+                    overflow: "hidden",
+                    border: "2px solid rgba(180,80,255,0.3)",
+                  }}
+                >
+                  <img
+                    src={av.src}
+                    alt={av.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <p
+                  className="text-xs font-display font-bold text-foreground text-center"
+                  style={{ maxWidth: 70 }}
+                >
+                  {av.name}
+                </p>
+                <p className="text-xs font-body" style={{ color: "#b450ff" }}>
+                  {Number(av.price)} LC
+                </p>
+                <button
+                  type="button"
+                  data-ocid={`admin.store.delete_button.${ci + 1}`}
+                  onClick={() => handleRemove(av.index)}
+                  disabled={deletingIndex === av.index}
+                  className="text-xs px-2 py-1 rounded-lg transition-all hover:opacity-80 disabled:opacity-50 flex items-center gap-1"
+                  style={{
+                    background: "rgba(255,34,0,0.1)",
+                    border: "1px solid rgba(255,34,0,0.2)",
+                    color: "#ff4422",
+                  }}
+                >
+                  {deletingIndex === av.index ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3 h-3" />
+                  )}
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Deposit Tier Avatar Reset */}
+      <div
+        className="rounded-xl p-5"
+        style={{
+          background: "rgba(255,80,80,0.04)",
+          border: "1px solid rgba(255,80,80,0.15)",
+        }}
+      >
+        <p
+          className="text-xs font-display font-bold uppercase tracking-wider mb-3"
+          style={{ color: "rgba(255,100,100,0.8)" }}
+        >
+          Deposit Tier Avatar Reset
+        </p>
+        <p
+          className="text-xs font-body mb-4"
+          style={{ color: "rgba(255,255,255,0.4)" }}
+        >
+          Reset all users who have a specific deposit-tier avatar equipped back
+          to the default (Joker). Use after changing tier images.
+        </p>
+        <div className="flex flex-col gap-2">
+          {DEPOSIT_TIERS.map((tier) => (
+            <div
+              key={tier.index}
+              data-ocid={`admin.tier_reset.item.${tier.index + 1}`}
+              className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg"
+              style={{
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
+              <span
+                className="text-xs font-display font-bold"
+                style={{ color: "rgba(255,255,255,0.7)" }}
+              >
+                {tier.label}
+              </span>
+              <button
+                type="button"
+                data-ocid={`admin.tier_reset.button.${tier.index + 1}`}
+                onClick={() => handleResetTier(tier.index)}
+                disabled={resetingTier === tier.index}
+                className="text-xs px-3 py-1.5 rounded-lg font-display font-bold uppercase tracking-wider transition-all hover:opacity-80 disabled:opacity-50 flex items-center gap-1"
+                style={{
+                  background: "rgba(255,80,80,0.12)",
+                  border: "1px solid rgba(255,80,80,0.25)",
+                  color: "#ff5050",
+                }}
+              >
+                {resetingTier === tier.index ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <RefreshCcw className="w-3 h-3" />
+                )}
+                Reset
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -2682,8 +3190,16 @@ export function AdminPage() {
                 ref={searchInputRef}
                 data-ocid="admin.search_input"
                 value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                onChange={(e) => {
+                  setSearchInput(e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSearch();
+                  }
+                }}
                 placeholder="Enter Legend ID (e.g. 0001)…"
                 className="w-full pl-10 pr-4 py-3.5 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200"
                 style={{
@@ -2791,6 +3307,9 @@ export function AdminPage() {
 
         {/* ── Match Management ── */}
         <MatchManagementSection />
+
+        {/* ── Store Avatar Upload (Admin Only) ── */}
+        <AdminStoreAvatarSection />
 
         {/* ── Deposit / Withdraw Tab Toggle ── */}
         <div
