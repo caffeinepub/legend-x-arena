@@ -2495,9 +2495,32 @@ function AdminStoreAvatarSection() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      setAvatarFile(ev.target?.result as string);
+      const dataUrl = ev.target?.result as string;
+      // Auto-crop to circle (200x200)
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 200;
+        canvas.height = 200;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          setAvatarFile(dataUrl);
+          return;
+        }
+        ctx.beginPath();
+        ctx.arc(100, 100, 100, 0, Math.PI * 2);
+        ctx.clip();
+        const size = Math.min(img.width, img.height);
+        const sx = (img.width - size) / 2;
+        const sy = (img.height - size) / 2;
+        ctx.drawImage(img, sx, sy, size, size, 0, 0, 200, 200);
+        setAvatarFile(canvas.toDataURL("image/png"));
+      };
+      img.src = dataUrl;
     };
     reader.readAsDataURL(file);
+    // Reset input value so same file can be re-selected
+    e.target.value = "";
   }
 
   async function handleSave() {
@@ -2622,21 +2645,35 @@ function AdminStoreAvatarSection() {
           border: "1px solid rgba(180,80,255,0.15)",
         }}
       >
-        <div className="flex flex-col sm:flex-row gap-4 items-start">
-          {/* Circle preview */}
-          <div className="flex-shrink-0">
-            <label htmlFor="store-avatar-file" className="cursor-pointer block">
+        <div className="flex flex-col gap-4">
+          {/* Mobile-friendly upload button (large tap target) */}
+          <label
+            htmlFor="store-avatar-file"
+            className="cursor-pointer block w-full"
+            data-ocid="admin.store.upload_button"
+          >
+            <div
+              className="flex items-center gap-4 px-5 py-4 rounded-xl transition-all duration-200 active:scale-[0.99]"
+              style={{
+                background: avatarFile
+                  ? "rgba(180,80,255,0.08)"
+                  : "rgba(180,80,255,0.06)",
+                border: `2px dashed rgba(180,80,255,${avatarFile ? "0.6" : "0.35"})`,
+              }}
+            >
+              {/* Circle preview */}
               <div
-                className="relative flex items-center justify-center transition-all duration-200 hover:opacity-80"
+                className="flex-shrink-0"
                 style={{
-                  width: 80,
-                  height: 80,
+                  width: 72,
+                  height: 72,
                   borderRadius: "50%",
-                  background: avatarFile
-                    ? "transparent"
-                    : "rgba(180,80,255,0.1)",
-                  border: "2px dashed rgba(180,80,255,0.4)",
                   overflow: "hidden",
+                  border: "2px solid rgba(180,80,255,0.4)",
+                  background: "rgba(180,80,255,0.1)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
                 {avatarFile ? (
@@ -2646,33 +2683,46 @@ function AdminStoreAvatarSection() {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="text-center">
-                    <ImageIcon
-                      className="w-6 h-6 mx-auto mb-1"
-                      style={{ color: "rgba(180,80,255,0.5)" }}
-                    />
-                    <p
-                      className="text-xs font-body"
-                      style={{ color: "rgba(180,80,255,0.5)" }}
-                    >
-                      Upload
-                    </p>
-                  </div>
+                  <ImageIcon
+                    className="w-7 h-7"
+                    style={{ color: "rgba(180,80,255,0.5)" }}
+                  />
                 )}
               </div>
-            </label>
-            <input
-              id="store-avatar-file"
-              data-ocid="admin.store.upload_button"
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-          </div>
+              <div>
+                <p
+                  className="font-display font-black text-sm uppercase tracking-wider mb-0.5"
+                  style={{ color: "#b450ff" }}
+                >
+                  {avatarFile ? "✓ Image Selected" : "📁 Choose from Gallery"}
+                </p>
+                <p
+                  className="font-body text-xs"
+                  style={{ color: "rgba(255,255,255,0.4)" }}
+                >
+                  {avatarFile
+                    ? "Tap to change image"
+                    : "Tap to select image from phone gallery or files"}
+                </p>
+              </div>
+            </div>
+          </label>
+          <input
+            id="store-avatar-file"
+            type="file"
+            accept="image/*"
+            style={{
+              position: "absolute",
+              opacity: 0,
+              width: 0,
+              height: 0,
+              pointerEvents: "none",
+            }}
+            onChange={handleFileSelect}
+          />
 
           {/* Fields */}
-          <div className="flex-1 space-y-3">
+          <div className="space-y-3">
             <div>
               <label
                 htmlFor="store-avatar-name"

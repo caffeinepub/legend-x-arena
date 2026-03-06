@@ -150,6 +150,7 @@ export interface UserProfile {
     createdAt: bigint;
     role: Role;
     purchasedFrames: Array<bigint>;
+    hasClaimedRouletteReward: boolean;
     jazzCashNumber: string;
     totalProfit: bigint;
     gameUID: string;
@@ -193,6 +194,7 @@ export interface backendInterface {
     authenticate(legendId: string, passwordHash: string): Promise<boolean>;
     buyShopAvatar(legendId: string, passwordHash: string, avatarIndex: bigint): Promise<void>;
     buyShopFrame(legendId: string, passwordHash: string, frameIndex: bigint): Promise<void>;
+    claimRouletteReward(legendId: string, passwordHash: string, amount: bigint): Promise<void>;
     createTournament(adminLegendId: string, adminPasswordHash: string, title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, returningCoins: bigint): Promise<string>;
     declareMatchResult(adminLegendId: string, adminPasswordHash: string, tournamentId: string, winnerLegendId: string, loserLegendId: string, winnerCoins: bigint, loserCoins: bigint): Promise<void>;
     deleteCustomShopAvatar(adminLegendId: string, adminPasswordHash: string, avatarIndex: bigint): Promise<void>;
@@ -211,6 +213,7 @@ export interface backendInterface {
     }>;
     getTournaments(adminLegendId: string): Promise<Array<Tournament>>;
     getUserByLegendId(legendId: string): Promise<UserProfile>;
+    getUserHasClaimedRoulette(legendId: string): Promise<boolean>;
     joinTournamentById(legendId: string, passwordHash: string, tournamentId: string): Promise<void>;
     register(passwordHash: string, jazzCash: string, uid: string, ignName: string): Promise<string>;
     rejectDepositRequest(adminLegendId: string, adminPasswordHash: string, requestId: string): Promise<void>;
@@ -307,6 +310,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.buyShopFrame(arg0, arg1, arg2);
+            return result;
+        }
+    }
+    async claimRouletteReward(arg0: string, arg1: string, arg2: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.claimRouletteReward(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.claimRouletteReward(arg0, arg1, arg2);
             return result;
         }
     }
@@ -521,6 +538,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.getUserByLegendId(arg0);
             return from_candid_UserProfile_n2(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getUserHasClaimedRoulette(arg0: string): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getUserHasClaimedRoulette(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getUserHasClaimedRoulette(arg0);
+            return result;
         }
     }
     async joinTournamentById(arg0: string, arg1: string, arg2: string): Promise<void> {
@@ -756,6 +787,7 @@ function from_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint
     createdAt: bigint;
     role: _Role;
     purchasedFrames: Array<bigint>;
+    hasClaimedRouletteReward: boolean;
     jazzCashNumber: string;
     totalProfit: bigint;
     gameUID: string;
@@ -774,6 +806,7 @@ function from_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint
     createdAt: bigint;
     role: Role;
     purchasedFrames: Array<bigint>;
+    hasClaimedRouletteReward: boolean;
     jazzCashNumber: string;
     totalProfit: bigint;
     gameUID: string;
@@ -793,6 +826,7 @@ function from_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint
         createdAt: value.createdAt,
         role: from_candid_Role_n4(_uploadFile, _downloadFile, value.role),
         purchasedFrames: value.purchasedFrames,
+        hasClaimedRouletteReward: value.hasClaimedRouletteReward,
         jazzCashNumber: value.jazzCashNumber,
         totalProfit: value.totalProfit,
         gameUID: value.gameUID,

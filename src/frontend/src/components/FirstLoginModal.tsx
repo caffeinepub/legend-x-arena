@@ -6,44 +6,53 @@ interface FirstLoginModalProps {
   passwordHash?: string | null;
   onClose: () => void;
   actor?: {
-    addCoins: (
-      adminLegendId: string,
-      adminPasswordHash: string,
-      targetLegendId: string,
+    claimRouletteReward: (
+      legendId: string,
+      passwordHash: string,
       amount: bigint,
     ) => Promise<void>;
   } | null;
 }
 
 /* ─── Constants ──────────────────────────────────────── */
+// Updated segments: 10=85%, 15=10%, 20=4%, 30=1%
+// Degrees proportional: total 360. 10=306, 15=36, 20=14.4, 30=3.6
 const WHEEL_SEGMENTS = [
   {
-    label: "5 RS",
+    label: "10 RS",
     color: "#1a5aff",
     textColor: "#fff",
-    degrees: 200,
+    glowColor: "rgba(26,90,255,0.8)",
+    degrees: 306,
     weight: 85,
-  },
-  {
-    label: "10 RS",
-    color: "#22cc44",
-    textColor: "#fff",
-    degrees: 100,
-    weight: 14,
+    coins: 10,
   },
   {
     label: "15 RS",
     color: "#ff8800",
     textColor: "#fff",
-    degrees: 40,
-    weight: 0.7,
+    glowColor: "rgba(255,136,0,0.8)",
+    degrees: 36,
+    weight: 10,
+    coins: 15,
   },
   {
     label: "20 RS",
     color: "#ff2200",
     textColor: "#fff",
-    degrees: 20,
-    weight: 0.3,
+    glowColor: "rgba(255,34,0,0.8)",
+    degrees: 14,
+    weight: 4,
+    coins: 20,
+  },
+  {
+    label: "30 RS",
+    color: "#ffd700",
+    textColor: "#000",
+    glowColor: "rgba(255,215,0,0.9)",
+    degrees: 4,
+    weight: 1,
+    coins: 30,
   },
 ];
 
@@ -266,7 +275,9 @@ function RouletteWheel({ rotation }: { rotation: number }) {
             ? "transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)"
             : "none",
         borderRadius: "50%",
-        boxShadow: "0 0 30px rgba(255,215,0,0.4), 0 0 60px rgba(255,100,0,0.2)",
+        boxShadow:
+          "0 0 40px rgba(255,215,0,0.6), 0 0 80px rgba(255,100,0,0.3), 0 0 120px rgba(26,90,255,0.2)",
+        animation: "wheelGlowPulse 2s ease-in-out infinite",
       }}
     >
       <svg
@@ -277,14 +288,29 @@ function RouletteWheel({ rotation }: { rotation: number }) {
         aria-label="Roulette wheel"
         role="img"
       >
-        {/* Outer ring */}
+        {/* Outer glow ring - gradient */}
+        <defs>
+          <filter id="segGlow">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+        <circle
+          cx={cx}
+          cy={cy}
+          r={r + 8}
+          fill="none"
+          stroke="#ffd700"
+          strokeWidth="6"
+          opacity="0.3"
+        />
         <circle
           cx={cx}
           cy={cy}
           r={r + 4}
           fill="none"
           stroke="#ffd700"
-          strokeWidth="4"
+          strokeWidth="3"
         />
         {paths}
         {labels}
@@ -292,12 +318,13 @@ function RouletteWheel({ rotation }: { rotation: number }) {
         <circle
           cx={cx}
           cy={cy}
-          r={20}
+          r={22}
           fill="#0a0a0f"
           stroke="#ffd700"
-          strokeWidth="2"
+          strokeWidth="3"
         />
-        <circle cx={cx} cy={cy} r={10} fill="#ffd700" />
+        <circle cx={cx} cy={cy} r={14} fill="#ffd700" opacity="0.9" />
+        <circle cx={cx} cy={cy} r={7} fill="#ff9900" />
         {/* Segment divider lines */}
         {(() => {
           const lines: React.ReactNode[] = [];
@@ -311,8 +338,8 @@ function RouletteWheel({ rotation }: { rotation: number }) {
                 y1={cy}
                 x2={pt.x}
                 y2={pt.y}
-                stroke="#0a0a0f"
-                strokeWidth="2"
+                stroke="rgba(0,0,0,0.8)"
+                strokeWidth="3"
               />,
             );
             a += WHEEL_SEGMENTS[i].degrees;
@@ -373,18 +400,29 @@ export function FirstLoginModal({
     }, 4200);
   }
 
+  const [isCollecting, setIsCollecting] = useState(false);
+  const [collectError, setCollectError] = useState<string | null>(null);
+
   async function handleCollect() {
-    if (actor && legendId && passwordHash && wonAmount) {
-      const coins = Number.parseInt(wonAmount.split(" ")[0], 10);
-      if (!Number.isNaN(coins) && coins > 0) {
-        try {
-          await actor.addCoins(legendId, passwordHash, legendId, BigInt(coins));
-        } catch {
-          // silently ignore if actor unavailable or permission denied
-        }
-      }
+    if (!actor || !legendId || !passwordHash || !wonAmount) {
+      onClose();
+      return;
     }
-    onClose();
+    const coins = Number.parseInt(wonAmount.split(" ")[0], 10);
+    if (Number.isNaN(coins) || coins <= 0) {
+      onClose();
+      return;
+    }
+    setIsCollecting(true);
+    setCollectError(null);
+    try {
+      await actor.claimRouletteReward(legendId, passwordHash, BigInt(coins));
+      onClose();
+    } catch (err) {
+      console.error("claimRouletteReward failed:", err);
+      setCollectError("Failed to claim reward. Please try again.");
+      setIsCollecting(false);
+    }
   }
 
   return (
@@ -443,6 +481,24 @@ export function FirstLoginModal({
         @keyframes coinLGlow {
           0%, 100% { box-shadow: inset 0 4px 8px rgba(255,255,200,0.9), inset 0 -4px 8px rgba(0,0,0,0.5), 0 0 20px rgba(255,215,0,0.7), 0 0 40px rgba(255,150,0,0.3); }
           50% { box-shadow: inset 0 4px 8px rgba(255,255,200,0.9), inset 0 -4px 8px rgba(0,0,0,0.5), 0 0 40px rgba(255,215,0,0.95), 0 0 80px rgba(255,150,0,0.6), 0 0 120px rgba(255,80,0,0.3); }
+        }
+        @keyframes wheelGlowPulse {
+          0%, 100% { box-shadow: 0 0 40px rgba(255,215,0,0.6), 0 0 80px rgba(255,100,0,0.3), 0 0 120px rgba(26,90,255,0.2); }
+          50% { box-shadow: 0 0 60px rgba(255,215,0,0.85), 0 0 120px rgba(255,100,0,0.5), 0 0 180px rgba(26,90,255,0.35); }
+        }
+        @keyframes spinButtonNeon {
+          0%, 100% { box-shadow: 0 0 16px rgba(255,180,0,0.5), 0 0 32px rgba(255,100,0,0.3), 0 4px 16px rgba(0,0,0,0.4); }
+          50% { box-shadow: 0 0 30px rgba(255,215,0,0.8), 0 0 60px rgba(255,100,0,0.5), 0 4px 20px rgba(0,0,0,0.5); }
+        }
+        @keyframes pointerGlow {
+          0%, 100% { filter: drop-shadow(0 0 4px rgba(255,215,0,0.7)) drop-shadow(0 0 8px rgba(255,100,0,0.4)); }
+          50% { filter: drop-shadow(0 0 8px rgba(255,215,0,1)) drop-shadow(0 0 16px rgba(255,100,0,0.7)); }
+        }
+        @keyframes winSegmentBurst {
+          0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+          40% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+          70% { transform: translate(-50%, -50%) scale(0.95); }
+          100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
         }
       `}</style>
 
@@ -766,24 +822,43 @@ export function FirstLoginModal({
             </div>
 
             {/* Wheel + pointer container */}
-            <div style={{ position: "relative", width: 280, height: 300 }}>
+            <div style={{ position: "relative", width: 300, height: 320 }}>
+              {/* Neon glow ring around wheel (static) */}
+              <div
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  top: 20,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  width: 296,
+                  height: 296,
+                  borderRadius: "50%",
+                  border: "3px solid rgba(255,215,0,0.4)",
+                  boxShadow:
+                    "0 0 30px rgba(255,215,0,0.3), 0 0 60px rgba(255,100,0,0.2), inset 0 0 30px rgba(26,90,255,0.1)",
+                  pointerEvents: "none",
+                  zIndex: 5,
+                }}
+              />
+
               {/* Pointer triangle (fixed, above the wheel) */}
               <div
                 aria-hidden="true"
                 style={{
                   position: "absolute",
-                  top: -8,
+                  top: 4,
                   left: "50%",
                   transform: "translateX(-50%)",
                   zIndex: 20,
                   animation: spinning
                     ? "none"
-                    : "pointerBob 1.2s ease-in-out infinite",
+                    : "pointerBob 1.2s ease-in-out infinite, pointerGlow 1.8s ease-in-out infinite",
                 }}
               >
                 <svg
-                  width="28"
-                  height="28"
+                  width="34"
+                  height="34"
                   viewBox="0 0 28 28"
                   aria-label="Pointer"
                   role="img"
@@ -795,11 +870,18 @@ export function FirstLoginModal({
                     strokeWidth="2"
                   />
                   <polygon points="14,24 4,7 24,7" fill="#ff9900" />
+                  <polygon points="14,20 7,10 21,10" fill="#fff7aa" />
                 </svg>
               </div>
 
               {/* The wheel */}
-              <div style={{ marginTop: 20 }}>
+              <div
+                style={{
+                  marginTop: 22,
+                  display: "flex",
+                  justifyContent: "center",
+                }}
+              >
                 <RouletteWheel rotation={wheelRotation} />
               </div>
 
@@ -870,38 +952,58 @@ export function FirstLoginModal({
                 onClick={handleSpin}
                 disabled={spinning}
                 style={{
-                  padding: "14px 48px",
+                  padding: "16px 52px",
                   borderRadius: 100,
                   border: spinning
                     ? "2px solid rgba(255,215,0,0.3)"
-                    : "2px solid rgba(255,215,0,0.7)",
+                    : "2px solid rgba(255,215,0,0.8)",
                   background: spinning
                     ? "rgba(255,153,0,0.2)"
                     : "linear-gradient(135deg, #ffd700, #ff9900 50%, #ff6600)",
                   color: spinning ? "rgba(255,215,0,0.5)" : "#0a0a0f",
                   fontFamily: "Mona Sans, sans-serif",
                   fontWeight: 900,
-                  fontSize: 18,
+                  fontSize: 20,
                   letterSpacing: "0.15em",
                   textTransform: "uppercase",
                   cursor: spinning ? "not-allowed" : "pointer",
                   boxShadow: spinning
                     ? "none"
-                    : "0 0 24px rgba(255,180,0,0.5), 0 4px 16px rgba(0,0,0,0.4)",
-                  transition: "all 0.2s",
+                    : "0 0 20px rgba(255,180,0,0.6), 0 0 40px rgba(255,100,0,0.3), 0 4px 16px rgba(0,0,0,0.4)",
+                  animation: spinning
+                    ? "none"
+                    : "spinButtonNeon 2s ease-in-out infinite",
+                  transition: "transform 0.15s",
                 }}
                 onMouseEnter={(e) => {
-                  if (!spinning)
+                  if (!spinning) {
                     (e.currentTarget as HTMLButtonElement).style.transform =
-                      "scale(1.05)";
+                      "scale(1.06)";
+                  }
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.transform =
                     "scale(1)";
                 }}
               >
-                {spinning ? "SPINNING…" : "SPIN"}
+                {spinning ? "SPINNING…" : "✦ SPIN ✦"}
               </button>
+            )}
+
+            {/* Error message */}
+            {collectError && (
+              <p
+                style={{
+                  fontFamily: "Outfit, sans-serif",
+                  fontSize: 13,
+                  color: "#ff4422",
+                  textAlign: "center",
+                  padding: "0 16px",
+                  animation: "wonBounce 0.4s ease-out forwards",
+                }}
+              >
+                ⚠ {collectError}
+              </p>
             )}
 
             {/* COLLECT REWARD button — appears after spin */}
@@ -910,35 +1012,38 @@ export function FirstLoginModal({
                 type="button"
                 data-ocid="welcome.collect_button"
                 onClick={handleCollect}
+                disabled={isCollecting}
                 style={{
-                  padding: "14px 40px",
+                  padding: "15px 44px",
                   borderRadius: 100,
-                  border: "2px solid rgba(255,215,0,0.7)",
-                  background:
-                    "linear-gradient(135deg, rgba(34,204,102,0.9), rgba(0,180,80,0.85))",
+                  border: "2px solid rgba(34,204,102,0.8)",
+                  background: isCollecting
+                    ? "rgba(34,204,102,0.3)"
+                    : "linear-gradient(135deg, rgba(34,204,102,0.95), rgba(0,180,80,0.9))",
                   color: "#fff",
                   fontFamily: "Mona Sans, sans-serif",
                   fontWeight: 900,
-                  fontSize: 16,
+                  fontSize: 17,
                   letterSpacing: "0.12em",
                   textTransform: "uppercase",
-                  cursor: "pointer",
+                  cursor: isCollecting ? "not-allowed" : "pointer",
                   animation:
                     "wonBounce 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards",
                   boxShadow:
-                    "0 0 24px rgba(34,204,102,0.5), 0 4px 16px rgba(0,0,0,0.4)",
-                  transition: "transform 0.1s, box-shadow 0.1s",
+                    "0 0 28px rgba(34,204,102,0.6), 0 0 56px rgba(34,204,102,0.3), 0 4px 16px rgba(0,0,0,0.4)",
+                  transition: "transform 0.1s",
                 }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.transform =
-                    "scale(1.05)";
+                  if (!isCollecting)
+                    (e.currentTarget as HTMLButtonElement).style.transform =
+                      "scale(1.05)";
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.transform =
                     "scale(1)";
                 }}
               >
-                🎉 COLLECT REWARD
+                {isCollecting ? "⏳ Claiming…" : "🎉 COLLECT REWARD"}
               </button>
             )}
 

@@ -1,32 +1,19 @@
 import Map "mo:core/Map";
 import Nat "mo:core/Nat";
-import Text "mo:core/Text";
-import Time "mo:core/Time";
+import Array "mo:core/Array";
 
 module {
   type Role = { #admin; #user };
   type GameMode = { #loneWolf; #csMod; #brMod };
   type Result = { #win; #loss; #draw };
   type TransactionType = { #deposit; #withdraw };
+  type DepositStatus = { #pending; #approved; #rejected };
 
-  type UserProfile = {
-    legendId : Text;
-    passwordHash : Text;
-    role : Role;
-    walletBalance : Nat;
-    isBanned : Bool;
-    createdAt : Int;
-    matchHistory : [Match];
-    transactions : [Transaction];
-    totalDeposited : Nat;
-    selectedProfilePic : Nat;
-    jazzCashNumber : Text;
-    gameName : Text;
-    gameUID : Text;
-    totalProfit : Nat;
-    purchasedShopAvatars : [Nat];
-    purchasedFrames : [Nat];
-    selectedFrame : Nat;
+  type CustomShopAvatar = {
+    index : Nat;
+    name : Text;
+    price : Nat;
+    src : Text;
   };
 
   type Match = {
@@ -43,8 +30,6 @@ module {
     date : Int;
     description : Text;
   };
-
-  type DepositStatus = { #pending; #approved; #rejected };
 
   type DepositRequest = {
     id : Text;
@@ -73,35 +58,61 @@ module {
     returningCoins : Nat;
   };
 
+  type OldUserProfile = {
+    legendId : Text;
+    passwordHash : Text;
+    role : Role;
+    walletBalance : Nat;
+    isBanned : Bool;
+    createdAt : Int;
+    matchHistory : [Match];
+    transactions : [Transaction];
+    totalDeposited : Nat;
+    selectedProfilePic : Nat;
+    jazzCashNumber : Text;
+    gameName : Text;
+    gameUID : Text;
+    totalProfit : Nat;
+    purchasedShopAvatars : [Nat];
+    purchasedFrames : [Nat];
+    selectedFrame : Nat;
+  };
+
   type OldActor = {
-    var isFirstAdminSet : Bool;
-    users : Map.Map<Text, UserProfile>;
-    depositRequests : Map.Map<Text, DepositRequest>;
-    tournaments : Map.Map<Text, Tournament>;
-    depositIdCounter : Nat;
-    tournamentIdCounter : Nat;
-    userIdCounter : Nat;
+    users : Map.Map<Text, OldUserProfile>;
+  };
+
+  type NewUserProfile = {
+    legendId : Text;
+    passwordHash : Text;
+    role : Role;
+    walletBalance : Nat;
+    isBanned : Bool;
+    createdAt : Int;
+    matchHistory : [Match];
+    transactions : [Transaction];
+    totalDeposited : Nat;
+    selectedProfilePic : Nat;
+    jazzCashNumber : Text;
+    gameName : Text;
+    gameUID : Text;
+    totalProfit : Nat;
+    purchasedShopAvatars : [Nat];
+    purchasedFrames : [Nat];
+    selectedFrame : Nat;
+    hasClaimedRouletteReward : Bool;
   };
 
   type NewActor = {
-    var isFirstAdminSet : Bool;
-    users : Map.Map<Text, UserProfile>;
-    depositRequests : Map.Map<Text, DepositRequest>;
-    tournaments : Map.Map<Text, Tournament>;
-    depositIdCounter : Nat;
-    tournamentIdCounter : Nat;
-    userIdCounter : Nat;
+    users : Map.Map<Text, NewUserProfile>;
   };
 
   public func run(old : OldActor) : NewActor {
-    {
-      var isFirstAdminSet = old.isFirstAdminSet;
-      users = old.users;
-      depositRequests = old.depositRequests;
-      tournaments = old.tournaments;
-      depositIdCounter = old.depositIdCounter;
-      tournamentIdCounter = old.tournamentIdCounter;
-      userIdCounter = old.userIdCounter;
-    };
+    let newUsers = old.users.map<Text, OldUserProfile, NewUserProfile>(
+      func(_id, oldUser) {
+        { oldUser with hasClaimedRouletteReward = false };
+      }
+    );
+    { users = newUsers };
   };
 };

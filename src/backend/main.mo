@@ -1,14 +1,15 @@
-import Iter "mo:core/Iter";
-import Array "mo:core/Array";
-import Nat "mo:core/Nat";
-import Text "mo:core/Text";
 import Map "mo:core/Map";
+import Array "mo:core/Array";
+import Text "mo:core/Text";
+import Nat "mo:core/Nat";
+import Int "mo:core/Int";
+import Iter "mo:core/Iter";
 import Time "mo:core/Time";
-import Order "mo:core/Order";
 import Runtime "mo:core/Runtime";
+import Order "mo:core/Order";
+import Migration "migration";
 
-
-
+(with migration = Migration.run)
 actor {
   type Role = { #admin; #user };
   type GameMode = { #loneWolf; #csMod; #brMod };
@@ -41,6 +42,7 @@ actor {
     purchasedShopAvatars : [Nat];
     purchasedFrames : [Nat];
     selectedFrame : Nat;
+    hasClaimedRouletteReward : Bool;
   };
 
   type Match = {
@@ -179,7 +181,6 @@ actor {
   };
 
   public shared ({ caller }) func register(passwordHash : Text, jazzCash : Text, uid : Text, ignName : Text) : async Text {
-    // Validate uniqueness of gameName, gameUID, jazzCashNumber
     for (user in users.values()) {
       if (user.gameName == ignName and ignName != "") {
         Runtime.trap("Game Name already taken. Please choose a different Game Name.");
@@ -229,7 +230,7 @@ actor {
       legendId;
       passwordHash;
       role;
-      walletBalance = 5;
+      walletBalance = 0;
       isBanned = false;
       createdAt = Time.now();
       matchHistory = [];
@@ -243,6 +244,7 @@ actor {
       purchasedShopAvatars = [];
       purchasedFrames = [];
       selectedFrame = 0;
+      hasClaimedRouletteReward = false;
     };
 
     users.add(legendId, newUser);
@@ -273,7 +275,6 @@ actor {
   ) : async () {
     let userProfile = getUserByLegendIdOrTrap(legendId);
     if (not (userProfile.passwordHash == passwordHash)) { Runtime.trap("Incorrect password") };
-    // Check uniqueness against other users
     for (otherUser in users.values()) {
       if (otherUser.legendId != legendId) {
         if (otherUser.gameName == gameName and gameName != "") {
@@ -887,7 +888,6 @@ actor {
     };
   };
 
-  // ADMIN: Add Custom Shop Avatar
   public shared ({ caller }) func addCustomShopAvatar(
     adminLegendId : Text,
     adminPasswordHash : Text,
@@ -908,7 +908,6 @@ actor {
     newAvatar.index;
   };
 
-  // ADMIN: Delete Custom Shop Avatar
   public shared ({ caller }) func deleteCustomShopAvatar(
     adminLegendId : Text,
     adminPasswordHash : Text,
@@ -923,7 +922,6 @@ actor {
       case (?_) {
         customShopAvatars.remove(avatarIndex);
 
-        // Reset users who have this avatar equipped to default (0)
         let newUsers = users.map<Text, UserProfile, UserProfile>(
           func(_id, profile) {
             if (profile.selectedProfilePic == avatarIndex) {
@@ -938,7 +936,6 @@ actor {
     };
   };
 
-  // ADMIN: Reset Users with Deposit Tier Avatars
   public shared ({ caller }) func resetUsersWithDepositTierAvatar(
     adminLegendId : Text,
     adminPasswordHash : Text,
@@ -961,8 +958,43 @@ actor {
     users := newUsers;
   };
 
-  // Query: Get all Custom Shop Avatars
   public query ({ caller }) func getCustomShopAvatars() : async [CustomShopAvatar] {
     customShopAvatars.values().toArray();
+  };
+
+  public query ({ caller }) func getUserHasClaimedRoulette(legendId : Text) : async Bool {
+    switch (users.get(legendId)) {
+      case (null) { false };
+      case (?profile) { profile.hasClaimedRouletteReward };
+    };
+  };
+
+  public shared ({ caller }) func claimRouletteReward(
+    legendId : Text,
+    passwordHash : Text,
+    amount : Nat,
+  ) : async () {
+    switch (users.get(legendId)) {
+      case (null) { Runtime.trap("User not found") };
+      case (?profile) {
+        if (not (profile.passwordHash == passwordHash)) { Runtime.trap("Incorrect password") };
+        if (profile.hasClaimedRouletteReward) {
+          Runtime.trap("Roulette reward already claimed");
+        };
+
+        let updatedProfile = {
+          profile with
+          walletBalance = profile.walletBalance + amount;
+          hasClaimedRouletteReward = true;
+          transactions = profile.transactions.concat([{
+            txType = #deposit;
+            amount;
+            date = Time.now();
+            description = "Roulette Reward";
+          }]);
+        };
+        users.add(legendId, updatedProfile);
+      };
+    };
   };
 };

@@ -2048,6 +2048,268 @@ function PlayerInfoCard({
   );
 }
 
+/* ─── Admin Player Lookup (Profile Tab) ─────────────────────── */
+function AdminPlayerLookup({
+  actor,
+  isFetching,
+}: {
+  actor: backendInterface | null;
+  isFetching: boolean;
+}) {
+  const [searchId, setSearchId] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResult, setSearchResult] = useState<UserProfile | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  async function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = searchId.trim();
+    if (!trimmed) return;
+    if (!actor || isFetching) return;
+    setIsSearching(true);
+    setSearchResult(null);
+    setSearchError(null);
+    try {
+      const user = await actor.getUserByLegendId(trimmed);
+      setSearchResult(user);
+    } catch {
+      setSearchError("Player not found. Check the Legend ID and try again.");
+    } finally {
+      setIsSearching(false);
+    }
+  }
+
+  return (
+    <div
+      data-ocid="profile.admin_lookup.section"
+      className="rounded-2xl p-5 mb-6"
+      style={{
+        background:
+          "linear-gradient(135deg, rgba(255,215,0,0.05), rgba(255,153,0,0.03))",
+        border: "1px solid rgba(255,215,0,0.22)",
+      }}
+    >
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-4">
+        <Shield className="w-4 h-4" style={{ color: "#ffd700" }} />
+        <h4
+          className="font-display font-black text-sm uppercase tracking-wider"
+          style={{ color: "#ffd700" }}
+        >
+          Player Lookup
+        </h4>
+        <span
+          className="text-xs font-display font-black px-2 py-0.5 rounded-full ml-auto"
+          style={{
+            background: "rgba(255,215,0,0.12)",
+            border: "1px solid rgba(255,215,0,0.3)",
+            color: "#ffd700",
+          }}
+        >
+          Admin
+        </span>
+      </div>
+
+      {/* Search form */}
+      <form onSubmit={handleSearch} className="flex gap-2 mb-4">
+        <input
+          type="text"
+          data-ocid="profile.admin_lookup.search_input"
+          value={searchId}
+          onChange={(e) => setSearchId(e.target.value)}
+          placeholder="Enter Legend ID (e.g. 0001)"
+          className="flex-1 px-4 py-2.5 rounded-xl font-body text-sm text-foreground placeholder:text-muted-foreground"
+          style={{
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,215,0,0.25)",
+            outline: "none",
+          }}
+          onFocus={(e) => {
+            e.target.style.borderColor = "rgba(255,215,0,0.6)";
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = "rgba(255,215,0,0.25)";
+          }}
+        />
+        <button
+          type="submit"
+          data-ocid="profile.admin_lookup.primary_button"
+          disabled={isSearching || !searchId.trim()}
+          className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50"
+          style={{
+            background:
+              "linear-gradient(135deg, rgba(255,215,0,0.85), rgba(255,153,0,0.85))",
+            color: "#000",
+            flexShrink: 0,
+          }}
+        >
+          {isSearching ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Star className="w-3.5 h-3.5" />
+          )}
+          {isSearching ? "" : "Search"}
+        </button>
+      </form>
+
+      {/* Loading state */}
+      {isSearching && (
+        <div
+          data-ocid="profile.admin_lookup.loading_state"
+          className="flex items-center justify-center gap-2 py-4 text-muted-foreground"
+        >
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span className="font-body text-sm">Searching…</span>
+        </div>
+      )}
+
+      {/* Error state */}
+      {searchError && !isSearching && (
+        <div
+          data-ocid="profile.admin_lookup.error_state"
+          className="rounded-xl px-4 py-3 text-center"
+          style={{
+            background: "rgba(255,34,0,0.07)",
+            border: "1px solid rgba(255,34,0,0.2)",
+          }}
+        >
+          <p className="font-body text-sm" style={{ color: "#ff4422" }}>
+            {searchError}
+          </p>
+        </div>
+      )}
+
+      {/* Result card */}
+      {searchResult && !isSearching && (
+        <div
+          data-ocid="profile.admin_lookup.card"
+          className="rounded-xl overflow-hidden"
+          style={{
+            background: "rgba(255,255,255,0.02)",
+            border: "1px solid rgba(255,255,255,0.1)",
+          }}
+        >
+          {/* Player header */}
+          <div
+            className="flex items-center gap-3 p-4"
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(255,34,0,0.06), rgba(0,102,255,0.06))",
+              borderBottom: "1px solid rgba(255,255,255,0.07)",
+            }}
+          >
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 font-display font-black text-base"
+              style={{
+                background: "linear-gradient(135deg, #ff4422, #cc1100)",
+                color: "#fff",
+              }}
+            >
+              {(searchResult.gameName ||
+                searchResult.legendId)[0]?.toUpperCase() ?? "?"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div
+                className="font-display font-black text-sm flex items-center gap-1.5 flex-wrap"
+                style={{ color: "#fff" }}
+              >
+                <span className="truncate">{searchResult.gameName || "—"}</span>
+                {searchResult.legendId === "0001" && <AppOwnerBadge />}
+              </div>
+              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                <span
+                  className="font-mono text-xs px-1.5 py-0.5 rounded"
+                  style={{
+                    background: "rgba(255,215,0,0.12)",
+                    color: "#ffd700",
+                  }}
+                >
+                  ID: {searchResult.legendId}
+                </span>
+                {searchResult.isBanned && (
+                  <span
+                    className="font-display font-black text-xs px-1.5 py-0.5 rounded uppercase"
+                    style={{
+                      background: "rgba(255,34,0,0.15)",
+                      border: "1px solid rgba(255,34,0,0.3)",
+                      color: "#ff4422",
+                    }}
+                  >
+                    BANNED
+                  </span>
+                )}
+                <span
+                  className="font-display font-bold text-xs px-1.5 py-0.5 rounded uppercase"
+                  style={{
+                    background:
+                      searchResult.role === Role.admin
+                        ? "rgba(255,215,0,0.12)"
+                        : "rgba(255,255,255,0.06)",
+                    color:
+                      searchResult.role === Role.admin
+                        ? "#ffd700"
+                        : "rgba(255,255,255,0.5)",
+                  }}
+                >
+                  {searchResult.role === Role.admin ? "Admin" : "Player"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Data rows */}
+          <div className="p-4 grid grid-cols-2 gap-2">
+            {[
+              {
+                label: "Wallet",
+                value: `${Number(searchResult.walletBalance).toLocaleString()} LC`,
+                color: "#ffd700",
+              },
+              {
+                label: "Total Deposited",
+                value: `${Number(searchResult.totalDeposited).toLocaleString()} LC`,
+                color: "#22cc66",
+              },
+              {
+                label: "Game UID",
+                value: searchResult.gameUID || "—",
+                color: "rgba(255,255,255,0.7)",
+              },
+              {
+                label: "JazzCash",
+                value: searchResult.jazzCashNumber || "—",
+                color: "rgba(255,255,255,0.7)",
+              },
+            ].map(({ label, value, color }) => (
+              <div
+                key={label}
+                className="rounded-lg px-3 py-2"
+                style={{
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                }}
+              >
+                <p
+                  className="text-xs font-display font-bold uppercase tracking-wider mb-0.5"
+                  style={{ color: "rgba(255,255,255,0.35)" }}
+                >
+                  {label}
+                </p>
+                <p
+                  className="text-sm font-display font-bold tabular-nums truncate"
+                  style={{ color }}
+                >
+                  {value}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Tournament Card ──────────────────────────────────────── */
 function TournamentCard({
   tournament,
@@ -2782,11 +3044,8 @@ export function DashboardPage() {
   );
   const [showCoinShower, setShowCoinShower] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showWelcomeModal, setShowWelcomeModal] = useState(() => {
-    if (!legendId) return false;
-    const key = `lxa_welcome_shown_${legendId}`;
-    return !localStorage.getItem(key);
-  });
+  // Backend-controlled: show modal only if roulette not yet claimed
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
   const { data: profile, refetch: refetchProfile } = useQuery({
     queryKey: ["userProfile", legendId],
@@ -2810,6 +3069,14 @@ export function DashboardPage() {
       refetchProfile();
     }
   }, [actor, isFetching]);
+
+  // Show welcome modal only if user has NOT claimed roulette reward (backend-controlled, one-time)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional -- run once when profile is first loaded
+  useEffect(() => {
+    if (profile && !profile.hasClaimedRouletteReward) {
+      setShowWelcomeModal(true);
+    }
+  }, [profile?.hasClaimedRouletteReward]);
 
   // Pending coin shower queue — fires when user returns online after an offline deposit approval or win
   useEffect(() => {
@@ -4757,6 +5024,11 @@ export function DashboardPage() {
     /* ── PROFILE ── */
     profile: (
       <section className="animate-tab-in px-4 py-6" aria-label="Player Profile">
+        {/* ── Admin Player Lookup (admin only, at the very top) ── */}
+        {role === "admin" && (
+          <AdminPlayerLookup actor={actor} isFetching={isFetching} />
+        )}
+
         {/* Avatar & ID */}
         <div
           className="rounded-2xl p-6 mb-6 flex items-center gap-5 relative overflow-hidden"
@@ -5521,8 +5793,9 @@ export function DashboardPage() {
           passwordHash={useAuthStore.getState().passwordHash}
           actor={actor}
           onClose={() => {
-            localStorage.setItem(`lxa_welcome_shown_${legendId}`, "1");
             setShowWelcomeModal(false);
+            // Refetch profile to update hasClaimedRouletteReward
+            refetchProfile();
           }}
         />
       )}

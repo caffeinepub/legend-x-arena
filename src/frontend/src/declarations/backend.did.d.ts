@@ -84,6 +84,7 @@ export interface UserProfile {
   'createdAt' : bigint,
   'role' : Role,
   'purchasedFrames' : Array<bigint>,
+  'hasClaimedRouletteReward' : boolean,
   'jazzCashNumber' : string,
   'totalProfit' : bigint,
   'gameUID' : string,
@@ -107,6 +108,7 @@ export interface _SERVICE {
   'authenticate' : ActorMethod<[string, string], boolean>,
   'buyShopAvatar' : ActorMethod<[string, string, bigint], undefined>,
   'buyShopFrame' : ActorMethod<[string, string, bigint], undefined>,
+  'claimRouletteReward' : ActorMethod<[string, string, bigint], undefined>,
   'createTournament' : ActorMethod<
     [
       string,
@@ -145,6 +147,7 @@ export interface _SERVICE {
   >,
   'getTournaments' : ActorMethod<[string], Array<Tournament>>,
   'getUserByLegendId' : ActorMethod<[string], UserProfile>,
+  'getUserHasClaimedRoulette' : ActorMethod<[string], boolean>,
   'joinTournamentById' : ActorMethod<[string, string, string], undefined>,
   'register' : ActorMethod<[string, string, string, string], string>,
   'rejectDepositRequest' : ActorMethod<[string, string, string], undefined>,

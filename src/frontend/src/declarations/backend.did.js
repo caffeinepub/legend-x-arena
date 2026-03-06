@@ -59,6 +59,7 @@ export const UserProfile = IDL.Record({
   'createdAt' : IDL.Int,
   'role' : Role,
   'purchasedFrames' : IDL.Vec(IDL.Nat),
+  'hasClaimedRouletteReward' : IDL.Bool,
   'jazzCashNumber' : IDL.Text,
   'totalProfit' : IDL.Nat,
   'gameUID' : IDL.Text,
@@ -114,6 +115,7 @@ export const idlService = IDL.Service({
   'authenticate' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], ['query']),
   'buyShopAvatar' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
   'buyShopFrame' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
+  'claimRouletteReward' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
   'createTournament' : IDL.Func(
       [
         IDL.Text,
@@ -160,6 +162,7 @@ export const idlService = IDL.Service({
     ),
   'getTournaments' : IDL.Func([IDL.Text], [IDL.Vec(Tournament)], ['query']),
   'getUserByLegendId' : IDL.Func([IDL.Text], [UserProfile], ['query']),
+  'getUserHasClaimedRoulette' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
   'joinTournamentById' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'register' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
@@ -264,6 +267,7 @@ export const idlFactory = ({ IDL }) => {
     'createdAt' : IDL.Int,
     'role' : Role,
     'purchasedFrames' : IDL.Vec(IDL.Nat),
+    'hasClaimedRouletteReward' : IDL.Bool,
     'jazzCashNumber' : IDL.Text,
     'totalProfit' : IDL.Nat,
     'gameUID' : IDL.Text,
@@ -319,6 +323,7 @@ export const idlFactory = ({ IDL }) => {
     'authenticate' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], ['query']),
     'buyShopAvatar' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
     'buyShopFrame' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
+    'claimRouletteReward' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
     'createTournament' : IDL.Func(
         [
           IDL.Text,
@@ -369,6 +374,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getTournaments' : IDL.Func([IDL.Text], [IDL.Vec(Tournament)], ['query']),
     'getUserByLegendId' : IDL.Func([IDL.Text], [UserProfile], ['query']),
+    'getUserHasClaimedRoulette' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
     'joinTournamentById' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'register' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
