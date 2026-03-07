@@ -75,14 +75,18 @@ export const UserProfile = IDL.Record({
 });
 export const CustomShopAvatar = IDL.Record({
   'src' : IDL.Text,
+  'expiryDate' : IDL.Int,
   'name' : IDL.Text,
+  'discount' : IDL.Nat,
   'index' : IDL.Nat,
   'price' : IDL.Nat,
 });
 export const LeaderboardEntry = IDL.Record({
   'legendId' : IDL.Text,
   'totalMatches' : IDL.Nat,
+  'purchasedShopAvatars' : IDL.Vec(IDL.Nat),
   'createdAt' : IDL.Int,
+  'purchasedFrames' : IDL.Vec(IDL.Nat),
   'wins' : IDL.Nat,
   'totalProfit' : IDL.Nat,
   'gameName' : IDL.Text,
@@ -103,16 +107,45 @@ export const DepositRequest = IDL.Record({
   'amount' : IDL.Nat,
   'transactionId' : IDL.Text,
 });
+export const WithdrawStatus = IDL.Variant({
+  'pending' : IDL.Null,
+  'approved' : IDL.Null,
+  'rejected' : IDL.Null,
+});
+export const WithdrawRequest = IDL.Record({
+  'id' : IDL.Text,
+  'jazzCashName' : IDL.Text,
+  'status' : WithdrawStatus,
+  'legendId' : IDL.Text,
+  'submittedAt' : IDL.Int,
+  'jazzCashNumber' : IDL.Text,
+  'amount' : IDL.Nat,
+});
+export const ShopFrame = IDL.Record({
+  'src' : IDL.Text,
+  'expiryDate' : IDL.Int,
+  'name' : IDL.Text,
+  'discount' : IDL.Nat,
+  'index' : IDL.Nat,
+  'price' : IDL.Nat,
+});
 
 export const idlService = IDL.Service({
   'addCoins' : IDL.Func([IDL.Text, IDL.Text, IDL.Text, IDL.Nat], [], []),
   'addCustomShopAvatar' : IDL.Func(
-      [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Text],
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Nat, IDL.Int, IDL.Text],
+      [IDL.Nat],
+      [],
+    ),
+  'addShopFrame' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Nat, IDL.Int, IDL.Text],
       [IDL.Nat],
       [],
     ),
   'approveDepositRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+  'approveWithdrawRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'authenticate' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], ['query']),
+  'buyCustomShopAvatar' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
   'buyShopAvatar' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
   'buyShopFrame' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
   'claimRouletteReward' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
@@ -138,6 +171,7 @@ export const idlService = IDL.Service({
       [],
     ),
   'deleteCustomShopAvatar' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
+  'deleteShopFrame' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
   'deleteTournament' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'deleteUser' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'getActiveTournaments' : IDL.Func([], [IDL.Vec(Tournament)], ['query']),
@@ -155,6 +189,12 @@ export const idlService = IDL.Service({
       [IDL.Vec(DepositRequest)],
       [],
     ),
+  'getPendingWithdrawRequests' : IDL.Func(
+      [IDL.Text, IDL.Text],
+      [IDL.Vec(WithdrawRequest)],
+      [],
+    ),
+  'getShopFrames' : IDL.Func([], [IDL.Vec(ShopFrame)], ['query']),
   'getTournamentRoom' : IDL.Func(
       [IDL.Text, IDL.Text],
       [IDL.Record({ 'roomPassword' : IDL.Text, 'roomId' : IDL.Text })],
@@ -170,6 +210,7 @@ export const idlService = IDL.Service({
       [],
     ),
   'rejectDepositRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+  'rejectWithdrawRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'resetUsersWithDepositTierAvatar' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Nat],
       [],
@@ -187,9 +228,24 @@ export const idlService = IDL.Service({
       [],
       [],
     ),
+  'submitWithdrawRequest' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
   'toggleBan' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+  'updateCustomShopAvatar' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat, IDL.Int],
+      [],
+      [],
+    ),
   'updatePlayerInfo' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
+  'updateShopFrame' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat, IDL.Int],
       [],
       [],
     ),
@@ -283,14 +339,18 @@ export const idlFactory = ({ IDL }) => {
   });
   const CustomShopAvatar = IDL.Record({
     'src' : IDL.Text,
+    'expiryDate' : IDL.Int,
     'name' : IDL.Text,
+    'discount' : IDL.Nat,
     'index' : IDL.Nat,
     'price' : IDL.Nat,
   });
   const LeaderboardEntry = IDL.Record({
     'legendId' : IDL.Text,
     'totalMatches' : IDL.Nat,
+    'purchasedShopAvatars' : IDL.Vec(IDL.Nat),
     'createdAt' : IDL.Int,
+    'purchasedFrames' : IDL.Vec(IDL.Nat),
     'wins' : IDL.Nat,
     'totalProfit' : IDL.Nat,
     'gameName' : IDL.Text,
@@ -311,16 +371,45 @@ export const idlFactory = ({ IDL }) => {
     'amount' : IDL.Nat,
     'transactionId' : IDL.Text,
   });
+  const WithdrawStatus = IDL.Variant({
+    'pending' : IDL.Null,
+    'approved' : IDL.Null,
+    'rejected' : IDL.Null,
+  });
+  const WithdrawRequest = IDL.Record({
+    'id' : IDL.Text,
+    'jazzCashName' : IDL.Text,
+    'status' : WithdrawStatus,
+    'legendId' : IDL.Text,
+    'submittedAt' : IDL.Int,
+    'jazzCashNumber' : IDL.Text,
+    'amount' : IDL.Nat,
+  });
+  const ShopFrame = IDL.Record({
+    'src' : IDL.Text,
+    'expiryDate' : IDL.Int,
+    'name' : IDL.Text,
+    'discount' : IDL.Nat,
+    'index' : IDL.Nat,
+    'price' : IDL.Nat,
+  });
   
   return IDL.Service({
     'addCoins' : IDL.Func([IDL.Text, IDL.Text, IDL.Text, IDL.Nat], [], []),
     'addCustomShopAvatar' : IDL.Func(
-        [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Text],
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Nat, IDL.Int, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
+    'addShopFrame' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Nat, IDL.Int, IDL.Text],
         [IDL.Nat],
         [],
       ),
     'approveDepositRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+    'approveWithdrawRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'authenticate' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], ['query']),
+    'buyCustomShopAvatar' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
     'buyShopAvatar' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
     'buyShopFrame' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
     'claimRouletteReward' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
@@ -346,6 +435,7 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'deleteCustomShopAvatar' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
+    'deleteShopFrame' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
     'deleteTournament' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'deleteUser' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'getActiveTournaments' : IDL.Func([], [IDL.Vec(Tournament)], ['query']),
@@ -367,6 +457,12 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(DepositRequest)],
         [],
       ),
+    'getPendingWithdrawRequests' : IDL.Func(
+        [IDL.Text, IDL.Text],
+        [IDL.Vec(WithdrawRequest)],
+        [],
+      ),
+    'getShopFrames' : IDL.Func([], [IDL.Vec(ShopFrame)], ['query']),
     'getTournamentRoom' : IDL.Func(
         [IDL.Text, IDL.Text],
         [IDL.Record({ 'roomPassword' : IDL.Text, 'roomId' : IDL.Text })],
@@ -382,6 +478,7 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'rejectDepositRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+    'rejectWithdrawRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'resetUsersWithDepositTierAvatar' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Nat],
         [],
@@ -399,9 +496,24 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
+    'submitWithdrawRequest' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
     'toggleBan' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+    'updateCustomShopAvatar' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat, IDL.Int],
+        [],
+        [],
+      ),
     'updatePlayerInfo' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
+    'updateShopFrame' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat, IDL.Int],
         [],
         [],
       ),

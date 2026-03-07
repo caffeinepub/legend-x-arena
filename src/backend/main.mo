@@ -7,20 +7,32 @@ import Iter "mo:core/Iter";
 import Time "mo:core/Time";
 import Runtime "mo:core/Runtime";
 import Order "mo:core/Order";
+import Migration "migration";
 
-
-
+(with migration = Migration.run)
 actor {
   type Role = { #admin; #user };
   type GameMode = { #loneWolf; #csMod; #brMod };
   type Result = { #win; #loss; #draw };
   type TransactionType = { #deposit; #withdraw };
   type DepositStatus = { #pending; #approved; #rejected };
+  type WithdrawStatus = DepositStatus;
+
+  type ShopFrame = {
+    index : Nat;
+    name : Text;
+    price : Nat;
+    discount : Nat;
+    expiryDate : Int;
+    src : Text;
+  };
 
   type CustomShopAvatar = {
     index : Nat;
     name : Text;
     price : Nat;
+    discount : Nat;
+    expiryDate : Int;
     src : Text;
   };
 
@@ -69,6 +81,16 @@ actor {
     submittedAt : Int;
   };
 
+  type WithdrawRequest = {
+    id : Text;
+    legendId : Text;
+    amount : Nat;
+    jazzCashNumber : Text;
+    jazzCashName : Text;
+    status : WithdrawStatus;
+    submittedAt : Int;
+  };
+
   type Tournament = {
     id : Text;
     title : Text;
@@ -97,18 +119,22 @@ actor {
     gameName : Text;
     selectedProfilePic : Nat;
     selectedFrame : Nat;
+    purchasedShopAvatars : [Nat];
+    purchasedFrames : [Nat];
   };
 
   stable var isFirstAdminSet = false;
   stable var users = Map.empty<Text, UserProfile>();
   stable var depositRequests = Map.empty<Text, DepositRequest>();
   stable var tournaments = Map.empty<Text, Tournament>();
+  stable var withdrawRequests = Map.empty<Text, WithdrawRequest>();
   stable var depositIdCounter = 0;
   stable var tournamentIdCounter = 0;
   stable var userIdCounter = 1;
-
+  stable var shopFrames = Map.empty<Nat, ShopFrame>();
+  stable var shopFrameIndexCounter = 20;
   stable var customShopAvatars = Map.empty<Nat, CustomShopAvatar>();
-  stable var customAvatarIndexCounter = 30; // Start at 30
+  stable var customAvatarIndexCounter = 30;
 
   module UserProfile {
     public func compare(a : UserProfile, b : UserProfile) : Order.Order {
@@ -340,6 +366,70 @@ actor {
     };
 
     depositRequests.add(depositId, newRequest);
+  };
+
+  public shared ({ caller }) func submitWithdrawRequest(
+    legendId : Text,
+    passwordHash : Text,
+    amount : Nat,
+    jazzCashNumber : Text,
+    jazzCashName : Text,
+  ) : async () {
+    let userProfile = getUserByLegendIdOrTrap(legendId);
+    if (not (userProfile.passwordHash == passwordHash)) { Runtime.trap("Incorrect password") };
+
+    if (userProfile.walletBalance < amount) {
+      Runtime.trap("Insufficient coins for withdrawal");
+    };
+
+    let withdrawId = depositIdCounter.toText();
+    depositIdCounter += 1;
+
+    let newRequest : WithdrawRequest = {
+      id = withdrawId;
+      legendId;
+      amount;
+      jazzCashNumber;
+      jazzCashName;
+      status = #pending;
+      submittedAt = Time.now();
+    };
+
+    withdrawRequests.add(withdrawId, newRequest);
+  };
+
+  public shared ({ caller }) func getPendingWithdrawRequests(adminLegendId : Text, adminPasswordHash : Text) : async [WithdrawRequest] {
+    assertAdmin(adminLegendId, adminPasswordHash);
+    withdrawRequests.values().toArray().filter(
+      func(r) { r.status == #pending }
+    );
+  };
+
+  public shared ({ caller }) func approveWithdrawRequest(adminLegendId : Text, adminPasswordHash : Text, requestId : Text) : async () {
+    assertAdmin(adminLegendId, adminPasswordHash);
+    let request = switch (withdrawRequests.get(requestId)) {
+      case (null) { Runtime.trap("Withdraw request not found") };
+      case (?r) { r };
+    };
+
+    let userProfile = getUserByLegendIdOrTrap(request.legendId);
+
+    withdrawRequests.add(requestId, { request with status = #approved });
+
+    let updatedProfile = {
+      userProfile with
+      walletBalance = userProfile.walletBalance - request.amount;
+    };
+    users.add(request.legendId, updatedProfile);
+  };
+
+  public shared ({ caller }) func rejectWithdrawRequest(adminLegendId : Text, adminPasswordHash : Text, requestId : Text) : async () {
+    assertAdmin(adminLegendId, adminPasswordHash);
+    let request = switch (withdrawRequests.get(requestId)) {
+      case (null) { Runtime.trap("Withdraw request not found") };
+      case (?r) { r };
+    };
+    withdrawRequests.add(requestId, { request with status = #rejected });
   };
 
   public shared ({ caller }) func getMyDepositRequests(legendId : Text, passwordHash : Text) : async [DepositRequest] {
@@ -644,6 +734,8 @@ actor {
           gameName = user.gameName;
           selectedProfilePic = user.selectedProfilePic;
           selectedFrame = user.selectedFrame;
+          purchasedShopAvatars = user.purchasedShopAvatars;
+          purchasedFrames = user.purchasedFrames;
         };
       }
     );
@@ -822,12 +914,55 @@ actor {
     users.add(legendId, updatedProfile);
   };
 
-  public shared ({ caller }) func buyShopFrame(legendId : Text, passwordHash : Text, frameIndex : Nat) : async () {
-    if (not isValidRange(frameIndex, 20, 24)) {
-      Runtime.trap("Invalid frame index");
+  public shared ({ caller }) func buyCustomShopAvatar(
+    legendId : Text,
+    passwordHash : Text,
+    avatarIndex : Nat,
+  ) : async () {
+    if (avatarIndex < 30) { Runtime.trap("Custom avatars must have an index >= 30") };
+
+    let customAvatar = switch (customShopAvatars.get(avatarIndex)) {
+      case (null) { Runtime.trap("Custom avatar not found") };
+      case (?avatar) { avatar };
     };
 
-    let price = 200;
+    let userProfile = getUserByLegendIdOrTrap(legendId);
+    if (not (userProfile.passwordHash == passwordHash)) { Runtime.trap("Incorrect password") };
+
+    if (userProfile.purchasedShopAvatars.any(func(v) { v == avatarIndex })) {
+      Runtime.trap("Avatar already purchased");
+    };
+
+    if (userProfile.walletBalance < customAvatar.price) {
+      Runtime.trap("Insufficient balance");
+    };
+
+    let avatarArray = userProfile.purchasedShopAvatars.concat([avatarIndex]);
+
+    let newTransaction : Transaction = {
+      txType = #withdraw;
+      amount = customAvatar.price;
+      date = Time.now();
+      description = "Custom Avatar Purchase";
+    };
+
+    let updatedProfile : UserProfile = {
+      userProfile with
+      walletBalance = userProfile.walletBalance - customAvatar.price;
+      transactions = userProfile.transactions.concat([newTransaction]);
+      purchasedShopAvatars = avatarArray;
+      selectedProfilePic = avatarIndex;
+    };
+
+    users.add(legendId, updatedProfile);
+  };
+
+  public shared ({ caller }) func buyShopFrame(legendId : Text, passwordHash : Text, frameIndex : Nat) : async () {
+    let shopFrame = switch (shopFrames.get(frameIndex)) {
+      case (null) { Runtime.trap("Frame not found") };
+      case (?frame) { frame };
+    };
+
     let userProfile = getUserByLegendIdOrTrap(legendId);
     if (not (userProfile.passwordHash == passwordHash)) { Runtime.trap("Incorrect password") };
 
@@ -835,22 +970,22 @@ actor {
       Runtime.trap("Frame already purchased");
     };
 
-    if (userProfile.walletBalance < price) {
-      Runtime.trap("Insufficient balance");
+    if (userProfile.walletBalance < shopFrame.price) {
+      Runtime.trap("Insufficient balance for frame");
     };
 
     let frameArray = userProfile.purchasedFrames.concat([frameIndex]);
 
     let newTransaction : Transaction = {
       txType = #withdraw;
-      amount = price;
+      amount = shopFrame.price;
       date = Time.now();
       description = "Frame Purchase";
     };
 
     let updatedProfile = {
       userProfile with
-      walletBalance = userProfile.walletBalance - price;
+      walletBalance = userProfile.walletBalance - shopFrame.price;
       transactions = userProfile.transactions.concat([newTransaction]);
       purchasedFrames = frameArray;
       selectedFrame = frameIndex;
@@ -893,6 +1028,8 @@ actor {
     adminPasswordHash : Text,
     name : Text,
     price : Nat,
+    discount : Nat,
+    expiryDate : Int,
     src : Text,
   ) : async Nat {
     assertAdmin(adminLegendId, adminPasswordHash);
@@ -901,11 +1038,99 @@ actor {
       index = customAvatarIndexCounter;
       name;
       price;
+      discount;
+      expiryDate;
       src;
     };
     customShopAvatars.add(customAvatarIndexCounter, newAvatar);
     customAvatarIndexCounter += 1;
     newAvatar.index;
+  };
+
+  public shared ({ caller }) func addShopFrame(
+    adminLegendId : Text,
+    adminPasswordHash : Text,
+    name : Text,
+    price : Nat,
+    discount : Nat,
+    expiryDate : Int,
+    src : Text,
+  ) : async Nat {
+    assertAdmin(adminLegendId, adminPasswordHash);
+
+    let newFrame : ShopFrame = {
+      index = shopFrameIndexCounter;
+      name;
+      price;
+      discount;
+      expiryDate;
+      src;
+    };
+    shopFrames.add(shopFrameIndexCounter, newFrame);
+    shopFrameIndexCounter += 1;
+    newFrame.index;
+  };
+
+  public shared ({ caller }) func updateCustomShopAvatar(
+    adminLegendId : Text,
+    adminPasswordHash : Text,
+    avatarIndex : Nat,
+    name : Text,
+    price : Nat,
+    discount : Nat,
+    expiryDate : Int,
+  ) : async () {
+    assertAdmin(adminLegendId, adminPasswordHash);
+
+    let avatar = switch (customShopAvatars.get(avatarIndex)) {
+      case (null) { Runtime.trap("Custom avatar not found") };
+      case (?a) { a };
+    };
+
+    let updatedAvatar = {
+      avatar with name; price; discount; expiryDate;
+    };
+    customShopAvatars.add(avatarIndex, updatedAvatar);
+  };
+
+  public shared ({ caller }) func updateShopFrame(
+    adminLegendId : Text,
+    adminPasswordHash : Text,
+    frameIndex : Nat,
+    name : Text,
+    price : Nat,
+    discount : Nat,
+    expiryDate : Int,
+  ) : async () {
+    assertAdmin(adminLegendId, adminPasswordHash);
+
+    let frame = switch (shopFrames.get(frameIndex)) {
+      case (null) { Runtime.trap("Shop frame not found") };
+      case (?f) { f };
+    };
+
+    let updatedFrame = {
+      frame with name; price; discount; expiryDate;
+    };
+    shopFrames.add(frameIndex, updatedFrame);
+  };
+
+  public query ({ caller }) func getShopFrames() : async [ShopFrame] {
+    shopFrames.values().toArray();
+  };
+
+  public shared ({ caller }) func deleteShopFrame(
+    adminLegendId : Text,
+    adminPasswordHash : Text,
+    frameIndex : Nat,
+  ) : async () {
+    assertAdmin(adminLegendId, adminPasswordHash);
+    switch (shopFrames.get(frameIndex)) {
+      case (null) { Runtime.trap("Shop frame not found") };
+      case (?_) {
+        shopFrames.remove(frameIndex);
+      };
+    };
   };
 
   public shared ({ caller }) func deleteCustomShopAvatar(
@@ -998,3 +1223,4 @@ actor {
     };
   };
 };
+

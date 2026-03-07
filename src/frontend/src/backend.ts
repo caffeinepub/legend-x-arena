@@ -89,16 +89,12 @@ export class ExternalBlob {
         return this;
     }
 }
-export interface Transaction {
-    date: bigint;
-    description: string;
-    txType: TransactionType;
-    amount: bigint;
-}
 export interface LeaderboardEntry {
     legendId: string;
     totalMatches: bigint;
+    purchasedShopAvatars: Array<bigint>;
     createdAt: bigint;
+    purchasedFrames: Array<bigint>;
     wins: bigint;
     totalProfit: bigint;
     gameName: string;
@@ -108,17 +104,11 @@ export interface LeaderboardEntry {
 }
 export interface CustomShopAvatar {
     src: string;
+    expiryDate: bigint;
     name: string;
+    discount: bigint;
     index: bigint;
     price: bigint;
-}
-export interface DepositRequest {
-    id: string;
-    status: DepositStatus;
-    legendId: string;
-    submittedAt: bigint;
-    amount: bigint;
-    transactionId: string;
 }
 export interface Tournament {
     id: string;
@@ -137,12 +127,43 @@ export interface Tournament {
     maxPlayers: bigint;
     prizePool: string;
 }
+export interface ShopFrame {
+    src: string;
+    expiryDate: bigint;
+    name: string;
+    discount: bigint;
+    index: bigint;
+    price: bigint;
+}
 export interface Match {
     result: Result;
     date: bigint;
     mode: GameMode;
     matchId: string;
     coinsWagered: bigint;
+}
+export interface WithdrawRequest {
+    id: string;
+    jazzCashName: string;
+    status: WithdrawStatus;
+    legendId: string;
+    submittedAt: bigint;
+    jazzCashNumber: string;
+    amount: bigint;
+}
+export interface Transaction {
+    date: bigint;
+    description: string;
+    txType: TransactionType;
+    amount: bigint;
+}
+export interface DepositRequest {
+    id: string;
+    status: DepositStatus;
+    legendId: string;
+    submittedAt: bigint;
+    amount: bigint;
+    transactionId: string;
 }
 export interface UserProfile {
     legendId: string;
@@ -189,15 +210,19 @@ export enum TransactionType {
 }
 export interface backendInterface {
     addCoins(adminLegendId: string, adminPasswordHash: string, targetLegendId: string, amount: bigint): Promise<void>;
-    addCustomShopAvatar(adminLegendId: string, adminPasswordHash: string, name: string, price: bigint, src: string): Promise<bigint>;
+    addCustomShopAvatar(adminLegendId: string, adminPasswordHash: string, name: string, price: bigint, discount: bigint, expiryDate: bigint, src: string): Promise<bigint>;
+    addShopFrame(adminLegendId: string, adminPasswordHash: string, name: string, price: bigint, discount: bigint, expiryDate: bigint, src: string): Promise<bigint>;
     approveDepositRequest(adminLegendId: string, adminPasswordHash: string, requestId: string): Promise<void>;
+    approveWithdrawRequest(adminLegendId: string, adminPasswordHash: string, requestId: string): Promise<void>;
     authenticate(legendId: string, passwordHash: string): Promise<boolean>;
+    buyCustomShopAvatar(legendId: string, passwordHash: string, avatarIndex: bigint): Promise<void>;
     buyShopAvatar(legendId: string, passwordHash: string, avatarIndex: bigint): Promise<void>;
     buyShopFrame(legendId: string, passwordHash: string, frameIndex: bigint): Promise<void>;
     claimRouletteReward(legendId: string, passwordHash: string, amount: bigint): Promise<void>;
     createTournament(adminLegendId: string, adminPasswordHash: string, title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, returningCoins: bigint): Promise<string>;
     declareMatchResult(adminLegendId: string, adminPasswordHash: string, tournamentId: string, winnerLegendId: string, loserLegendId: string, winnerCoins: bigint, loserCoins: bigint): Promise<void>;
     deleteCustomShopAvatar(adminLegendId: string, adminPasswordHash: string, avatarIndex: bigint): Promise<void>;
+    deleteShopFrame(adminLegendId: string, adminPasswordHash: string, frameIndex: bigint): Promise<void>;
     deleteTournament(adminLegendId: string, adminPasswordHash: string, id: string): Promise<void>;
     deleteUser(adminLegendId: string, adminPasswordHash: string, targetLegendId: string): Promise<void>;
     getActiveTournaments(): Promise<Array<Tournament>>;
@@ -207,6 +232,8 @@ export interface backendInterface {
     getMyDepositRequests(legendId: string, passwordHash: string): Promise<Array<DepositRequest>>;
     getNextLegendId(): Promise<string>;
     getPendingDepositRequests(adminLegendId: string, adminPasswordHash: string): Promise<Array<DepositRequest>>;
+    getPendingWithdrawRequests(adminLegendId: string, adminPasswordHash: string): Promise<Array<WithdrawRequest>>;
+    getShopFrames(): Promise<Array<ShopFrame>>;
     getTournamentRoom(tournamentId: string, legendId: string): Promise<{
         roomPassword: string;
         roomId: string;
@@ -217,16 +244,20 @@ export interface backendInterface {
     joinTournamentById(legendId: string, passwordHash: string, tournamentId: string): Promise<void>;
     register(passwordHash: string, jazzCash: string, uid: string, ignName: string): Promise<string>;
     rejectDepositRequest(adminLegendId: string, adminPasswordHash: string, requestId: string): Promise<void>;
+    rejectWithdrawRequest(adminLegendId: string, adminPasswordHash: string, requestId: string): Promise<void>;
     resetUsersWithDepositTierAvatar(adminLegendId: string, adminPasswordHash: string, tierIndex: bigint): Promise<void>;
     setProfileFrame(legendId: string, passwordHash: string, frameIndex: bigint): Promise<void>;
     setProfilePicture(legendId: string, passwordHash: string, picIndex: bigint): Promise<void>;
     setTournamentRoom(adminLegendId: string, adminPasswordHash: string, tournamentId: string, roomId: string, roomPassword: string): Promise<void>;
     submitDepositRequest(legendId: string, passwordHash: string, amount: bigint, transactionId: string): Promise<void>;
+    submitWithdrawRequest(legendId: string, passwordHash: string, amount: bigint, jazzCashNumber: string, jazzCashName: string): Promise<void>;
     toggleBan(adminLegendId: string, adminPasswordHash: string, targetLegendId: string): Promise<void>;
+    updateCustomShopAvatar(adminLegendId: string, adminPasswordHash: string, avatarIndex: bigint, name: string, price: bigint, discount: bigint, expiryDate: bigint): Promise<void>;
     updatePlayerInfo(legendId: string, passwordHash: string, gameName: string, gameUID: string, jazzCashNumber: string): Promise<void>;
+    updateShopFrame(adminLegendId: string, adminPasswordHash: string, frameIndex: bigint, name: string, price: bigint, discount: bigint, expiryDate: bigint): Promise<void>;
     updateTournament(adminLegendId: string, adminPasswordHash: string, id: string, title: string, category: string, mode: string, entryFee: bigint, prizePool: string, maxPlayers: bigint, imageUrl: string, isActive: boolean, returningCoins: bigint): Promise<void>;
 }
-import type { DepositRequest as _DepositRequest, DepositStatus as _DepositStatus, GameMode as _GameMode, Match as _Match, Result as _Result, Role as _Role, Transaction as _Transaction, TransactionType as _TransactionType, UserProfile as _UserProfile } from "./declarations/backend.did.d.ts";
+import type { DepositRequest as _DepositRequest, DepositStatus as _DepositStatus, GameMode as _GameMode, Match as _Match, Result as _Result, Role as _Role, Transaction as _Transaction, TransactionType as _TransactionType, UserProfile as _UserProfile, WithdrawRequest as _WithdrawRequest, WithdrawStatus as _WithdrawStatus } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async addCoins(arg0: string, arg1: string, arg2: string, arg3: bigint): Promise<void> {
@@ -243,17 +274,31 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async addCustomShopAvatar(arg0: string, arg1: string, arg2: string, arg3: bigint, arg4: string): Promise<bigint> {
+    async addCustomShopAvatar(arg0: string, arg1: string, arg2: string, arg3: bigint, arg4: bigint, arg5: bigint, arg6: string): Promise<bigint> {
         if (this.processError) {
             try {
-                const result = await this.actor.addCustomShopAvatar(arg0, arg1, arg2, arg3, arg4);
+                const result = await this.actor.addCustomShopAvatar(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.addCustomShopAvatar(arg0, arg1, arg2, arg3, arg4);
+            const result = await this.actor.addCustomShopAvatar(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+            return result;
+        }
+    }
+    async addShopFrame(arg0: string, arg1: string, arg2: string, arg3: bigint, arg4: bigint, arg5: bigint, arg6: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addShopFrame(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addShopFrame(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
             return result;
         }
     }
@@ -271,6 +316,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async approveWithdrawRequest(arg0: string, arg1: string, arg2: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.approveWithdrawRequest(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.approveWithdrawRequest(arg0, arg1, arg2);
+            return result;
+        }
+    }
     async authenticate(arg0: string, arg1: string): Promise<boolean> {
         if (this.processError) {
             try {
@@ -282,6 +341,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.authenticate(arg0, arg1);
+            return result;
+        }
+    }
+    async buyCustomShopAvatar(arg0: string, arg1: string, arg2: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.buyCustomShopAvatar(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.buyCustomShopAvatar(arg0, arg1, arg2);
             return result;
         }
     }
@@ -366,6 +439,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deleteCustomShopAvatar(arg0, arg1, arg2);
+            return result;
+        }
+    }
+    async deleteShopFrame(arg0: string, arg1: string, arg2: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteShopFrame(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteShopFrame(arg0, arg1, arg2);
             return result;
         }
     }
@@ -495,6 +582,34 @@ export class Backend implements backendInterface {
             return from_candid_vec_n18(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getPendingWithdrawRequests(arg0: string, arg1: string): Promise<Array<WithdrawRequest>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getPendingWithdrawRequests(arg0, arg1);
+                return from_candid_vec_n23(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getPendingWithdrawRequests(arg0, arg1);
+            return from_candid_vec_n23(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getShopFrames(): Promise<Array<ShopFrame>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getShopFrames();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getShopFrames();
+            return result;
+        }
+    }
     async getTournamentRoom(arg0: string, arg1: string): Promise<{
         roomPassword: string;
         roomId: string;
@@ -596,6 +711,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async rejectWithdrawRequest(arg0: string, arg1: string, arg2: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.rejectWithdrawRequest(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.rejectWithdrawRequest(arg0, arg1, arg2);
+            return result;
+        }
+    }
     async resetUsersWithDepositTierAvatar(arg0: string, arg1: string, arg2: bigint): Promise<void> {
         if (this.processError) {
             try {
@@ -666,6 +795,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async submitWithdrawRequest(arg0: string, arg1: string, arg2: bigint, arg3: string, arg4: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.submitWithdrawRequest(arg0, arg1, arg2, arg3, arg4);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.submitWithdrawRequest(arg0, arg1, arg2, arg3, arg4);
+            return result;
+        }
+    }
     async toggleBan(arg0: string, arg1: string, arg2: string): Promise<void> {
         if (this.processError) {
             try {
@@ -680,6 +823,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async updateCustomShopAvatar(arg0: string, arg1: string, arg2: bigint, arg3: string, arg4: bigint, arg5: bigint, arg6: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateCustomShopAvatar(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateCustomShopAvatar(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+            return result;
+        }
+    }
     async updatePlayerInfo(arg0: string, arg1: string, arg2: string, arg3: string, arg4: string): Promise<void> {
         if (this.processError) {
             try {
@@ -691,6 +848,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.updatePlayerInfo(arg0, arg1, arg2, arg3, arg4);
+            return result;
+        }
+    }
+    async updateShopFrame(arg0: string, arg1: string, arg2: bigint, arg3: string, arg4: bigint, arg5: bigint, arg6: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateShopFrame(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateShopFrame(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
             return result;
         }
     }
@@ -736,6 +907,12 @@ function from_candid_Transaction_n7(_uploadFile: (file: ExternalBlob) => Promise
 function from_candid_UserProfile_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserProfile): UserProfile {
     return from_candid_record_n3(_uploadFile, _downloadFile, value);
 }
+function from_candid_WithdrawRequest_n24(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _WithdrawRequest): WithdrawRequest {
+    return from_candid_record_n25(_uploadFile, _downloadFile, value);
+}
+function from_candid_WithdrawStatus_n26(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _WithdrawStatus): WithdrawStatus {
+    return from_candid_variant_n22(_uploadFile, _downloadFile, value);
+}
 function from_candid_record_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     result: _Result;
     date: bigint;
@@ -779,6 +956,33 @@ function from_candid_record_n20(_uploadFile: (file: ExternalBlob) => Promise<Uin
         submittedAt: value.submittedAt,
         amount: value.amount,
         transactionId: value.transactionId
+    };
+}
+function from_candid_record_n25(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    id: string;
+    jazzCashName: string;
+    status: _WithdrawStatus;
+    legendId: string;
+    submittedAt: bigint;
+    jazzCashNumber: string;
+    amount: bigint;
+}): {
+    id: string;
+    jazzCashName: string;
+    status: WithdrawStatus;
+    legendId: string;
+    submittedAt: bigint;
+    jazzCashNumber: string;
+    amount: bigint;
+} {
+    return {
+        id: value.id,
+        jazzCashName: value.jazzCashName,
+        status: from_candid_WithdrawStatus_n26(_uploadFile, _downloadFile, value.status),
+        legendId: value.legendId,
+        submittedAt: value.submittedAt,
+        jazzCashNumber: value.jazzCashNumber,
+        amount: value.amount
     };
 }
 function from_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
@@ -908,6 +1112,9 @@ function from_candid_vec_n11(_uploadFile: (file: ExternalBlob) => Promise<Uint8A
 }
 function from_candid_vec_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_DepositRequest>): Array<DepositRequest> {
     return value.map((x)=>from_candid_DepositRequest_n19(_uploadFile, _downloadFile, x));
+}
+function from_candid_vec_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_WithdrawRequest>): Array<WithdrawRequest> {
+    return value.map((x)=>from_candid_WithdrawRequest_n24(_uploadFile, _downloadFile, x));
 }
 function from_candid_vec_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Transaction>): Array<Transaction> {
     return value.map((x)=>from_candid_Transaction_n7(_uploadFile, _downloadFile, x));

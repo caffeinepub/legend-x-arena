@@ -12,7 +12,9 @@ import type { Principal } from '@icp-sdk/core/principal';
 
 export interface CustomShopAvatar {
   'src' : string,
+  'expiryDate' : bigint,
   'name' : string,
+  'discount' : bigint,
   'index' : bigint,
   'price' : bigint,
 }
@@ -33,7 +35,9 @@ export type GameMode = { 'csMod' : null } |
 export interface LeaderboardEntry {
   'legendId' : string,
   'totalMatches' : bigint,
+  'purchasedShopAvatars' : Array<bigint>,
   'createdAt' : bigint,
+  'purchasedFrames' : Array<bigint>,
   'wins' : bigint,
   'totalProfit' : bigint,
   'gameName' : string,
@@ -53,6 +57,14 @@ export type Result = { 'win' : null } |
   { 'loss' : null };
 export type Role = { 'admin' : null } |
   { 'user' : null };
+export interface ShopFrame {
+  'src' : string,
+  'expiryDate' : bigint,
+  'name' : string,
+  'discount' : bigint,
+  'index' : bigint,
+  'price' : bigint,
+}
 export interface Tournament {
   'id' : string,
   'title' : string,
@@ -98,14 +110,32 @@ export interface UserProfile {
   'matchHistory' : Array<Match>,
   'selectedFrame' : bigint,
 }
+export interface WithdrawRequest {
+  'id' : string,
+  'jazzCashName' : string,
+  'status' : WithdrawStatus,
+  'legendId' : string,
+  'submittedAt' : bigint,
+  'jazzCashNumber' : string,
+  'amount' : bigint,
+}
+export type WithdrawStatus = { 'pending' : null } |
+  { 'approved' : null } |
+  { 'rejected' : null };
 export interface _SERVICE {
   'addCoins' : ActorMethod<[string, string, string, bigint], undefined>,
   'addCustomShopAvatar' : ActorMethod<
-    [string, string, string, bigint, string],
+    [string, string, string, bigint, bigint, bigint, string],
+    bigint
+  >,
+  'addShopFrame' : ActorMethod<
+    [string, string, string, bigint, bigint, bigint, string],
     bigint
   >,
   'approveDepositRequest' : ActorMethod<[string, string, string], undefined>,
+  'approveWithdrawRequest' : ActorMethod<[string, string, string], undefined>,
   'authenticate' : ActorMethod<[string, string], boolean>,
+  'buyCustomShopAvatar' : ActorMethod<[string, string, bigint], undefined>,
   'buyShopAvatar' : ActorMethod<[string, string, bigint], undefined>,
   'buyShopFrame' : ActorMethod<[string, string, bigint], undefined>,
   'claimRouletteReward' : ActorMethod<[string, string, bigint], undefined>,
@@ -129,6 +159,7 @@ export interface _SERVICE {
     undefined
   >,
   'deleteCustomShopAvatar' : ActorMethod<[string, string, bigint], undefined>,
+  'deleteShopFrame' : ActorMethod<[string, string, bigint], undefined>,
   'deleteTournament' : ActorMethod<[string, string, string], undefined>,
   'deleteUser' : ActorMethod<[string, string, string], undefined>,
   'getActiveTournaments' : ActorMethod<[], Array<Tournament>>,
@@ -141,6 +172,11 @@ export interface _SERVICE {
     [string, string],
     Array<DepositRequest>
   >,
+  'getPendingWithdrawRequests' : ActorMethod<
+    [string, string],
+    Array<WithdrawRequest>
+  >,
+  'getShopFrames' : ActorMethod<[], Array<ShopFrame>>,
   'getTournamentRoom' : ActorMethod<
     [string, string],
     { 'roomPassword' : string, 'roomId' : string }
@@ -151,6 +187,7 @@ export interface _SERVICE {
   'joinTournamentById' : ActorMethod<[string, string, string], undefined>,
   'register' : ActorMethod<[string, string, string, string], string>,
   'rejectDepositRequest' : ActorMethod<[string, string, string], undefined>,
+  'rejectWithdrawRequest' : ActorMethod<[string, string, string], undefined>,
   'resetUsersWithDepositTierAvatar' : ActorMethod<
     [string, string, bigint],
     undefined
@@ -165,9 +202,21 @@ export interface _SERVICE {
     [string, string, bigint, string],
     undefined
   >,
+  'submitWithdrawRequest' : ActorMethod<
+    [string, string, bigint, string, string],
+    undefined
+  >,
   'toggleBan' : ActorMethod<[string, string, string], undefined>,
+  'updateCustomShopAvatar' : ActorMethod<
+    [string, string, bigint, string, bigint, bigint, bigint],
+    undefined
+  >,
   'updatePlayerInfo' : ActorMethod<
     [string, string, string, string, string],
+    undefined
+  >,
+  'updateShopFrame' : ActorMethod<
+    [string, string, bigint, string, bigint, bigint, bigint],
     undefined
   >,
   'updateTournament' : ActorMethod<

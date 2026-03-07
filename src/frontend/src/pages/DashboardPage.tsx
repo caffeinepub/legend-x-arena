@@ -18,6 +18,7 @@ import { FirstLoginModal } from "@/components/FirstLoginModal";
 import {
   ANIMATED_FRAMES,
   AnimatedFrameOverlay,
+  getAnimatedFrame,
 } from "@/components/FrameAnimations";
 import { RifleAnimation } from "@/components/RifleAnimation";
 import { WalletDisplay } from "@/components/WalletDisplay";
@@ -242,19 +243,7 @@ const AVATAR_TIERS = [
   },
 ] as const;
 
-/* ─── Shop Frames (5 animated frames using ANIMATED_FRAMES) ─── */
-const SHOP_FRAMES = ANIMATED_FRAMES as unknown as readonly {
-  index: number;
-  name: string;
-  price: number;
-  color: string;
-  Component: React.ComponentType<{
-    size?: number;
-    isPreview?: boolean;
-    isActive?: boolean;
-  }>;
-  description: string;
-}[];
+/* ─── SHOP_FRAMES removed: now driven from backend via shopFramesData query ─── */
 
 /* ─── Frame overlay component (animated SVG version) ─────────── */
 function FrameOverlay({
@@ -277,7 +266,19 @@ type CustomShopAvatar = {
   index: number;
   name: string;
   price: number;
+  discount: number;
+  expiryDate: number; // ms timestamp, 0 = no expiry
   src: string;
+};
+
+/* ─── ShopFrame local type ───────────────────────────────────── */
+type ShopFrameItem = {
+  index: number;
+  name: string;
+  price: number;
+  discount: number;
+  expiryDate: number;
+  src: string; // e.g. "lightning", "galaxy", etc.
 };
 
 /* ─── Get profile pic src by index ──────────────────────────── */
@@ -314,6 +315,54 @@ function formatDate(ts: bigint): string {
 }
 
 type TabId = "shop" | "ranking" | "play" | "deposit" | "profile";
+
+/* ─── Expiry helpers ───────────────────────────────────────── */
+function isExpired(expiryDate: number): boolean {
+  return expiryDate > 0 && Date.now() > expiryDate;
+}
+function ExpiryCountdown({ expiryDate }: { expiryDate: number }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  if (expiryDate === 0) return null;
+  const diff = expiryDate - now;
+  if (diff <= 0)
+    return <span style={{ color: "#ff4422", fontSize: 9 }}>EXPIRED</span>;
+  const days = Math.floor(diff / 86_400_000);
+  const hours = Math.floor((diff % 86_400_000) / 3_600_000);
+  return (
+    <span style={{ color: "#ffaa00", fontSize: 9 }}>
+      ⏱ {days > 0 ? `${days}d ` : ""}
+      {hours}h left
+    </span>
+  );
+}
+function DiscountBadge({ discount }: { discount: number }) {
+  if (!discount || discount <= 0) return null;
+  return (
+    <span
+      style={{
+        position: "absolute",
+        top: 6,
+        left: 6,
+        zIndex: 3,
+        background: "linear-gradient(135deg, #ff4422, #ff8800)",
+        color: "#fff",
+        fontSize: 9,
+        fontWeight: 900,
+        fontFamily: "Mona Sans, sans-serif",
+        borderRadius: 5,
+        padding: "2px 5px",
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
+      }}
+    >
+      -{discount}%
+    </span>
+  );
+}
 
 /* ─── AccountAge live counter ──────────────────────────────── */
 function AccountAge({ createdAt }: { createdAt: bigint }) {
@@ -561,8 +610,24 @@ function DepositTab({
       toast.error("Enter your JazzCash account name");
       return;
     }
+    if (!actor) {
+      toast.error("Actor not ready, please wait.");
+      return;
+    }
     setIsWithdrawing(true);
     try {
+      const { legendId: wLid, passwordHash: wPh } = useAuthStore.getState();
+      if (!wLid || !wPh) {
+        toast.error("Session expired, please login again.");
+        return;
+      }
+      await actor.submitWithdrawRequest(
+        wLid,
+        wPh,
+        BigInt(amount),
+        withdrawJazzCash.trim(),
+        withdrawJazzCashName.trim(),
+      );
       toast.success("Withdraw request submitted! Admin will process shortly.");
       setWithdrawAmount("");
       setWithdrawJazzCashName("");
@@ -3216,8 +3281,32 @@ export function DashboardPage() {
   );
   const [uploadAvatarName, setUploadAvatarName] = useState("");
   const [uploadAvatarPrice, setUploadAvatarPrice] = useState("0");
+  const [uploadAvatarDiscount, setUploadAvatarDiscount] = useState("0");
   const [uploadAvatarExpire, setUploadAvatarExpire] = useState("");
+  const [uploadAdminOnly, setUploadAdminOnly] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  // Admin edit/delete state for avatars
+  const [editingAvatarIndex, setEditingAvatarIndex] = useState<number | null>(
+    null,
+  );
+  const [editAvatarName, setEditAvatarName] = useState("");
+  const [editAvatarPrice, setEditAvatarPrice] = useState("");
+  const [editAvatarDiscount, setEditAvatarDiscount] = useState("");
+  const [editAvatarExpire, setEditAvatarExpire] = useState("");
+  const [isDeletingAvatar, setIsDeletingAvatar] = useState<number | null>(null);
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false);
+
+  // Admin edit/delete state for frames
+  const [editingFrameIndex, setEditingFrameIndex] = useState<number | null>(
+    null,
+  );
+  const [editFrameName, setEditFrameName] = useState("");
+  const [editFramePrice, setEditFramePrice] = useState("");
+  const [editFrameDiscount, setEditFrameDiscount] = useState("");
+  const [editFrameExpire, setEditFrameExpire] = useState("");
+  const [isDeletingFrame, setIsDeletingFrame] = useState<number | null>(null);
+  const [isSavingFrame, setIsSavingFrame] = useState(false);
 
   // Custom shop avatars (admin-uploaded, stored in backend)
   const { data: customShopAvatars = [] } = useQuery<CustomShopAvatar[]>({
@@ -3229,11 +3318,67 @@ export function DashboardPage() {
         index: Number(a.index),
         name: a.name,
         price: Number(a.price),
+        discount: Number(a.discount),
+        expiryDate:
+          a.expiryDate === BigInt(0) ? 0 : Number(a.expiryDate) / 1_000_000,
         src: a.src,
       }));
     },
     enabled: !!actor && !isFetching,
   });
+
+  // Backend-driven shop frames
+  const { data: shopFramesData = [] } = useQuery<ShopFrameItem[]>({
+    queryKey: ["shopFrames"],
+    queryFn: async () => {
+      if (!actor) return [];
+      const result = await actor.getShopFrames();
+      return result.map((f) => ({
+        index: Number(f.index),
+        name: f.name,
+        price: Number(f.price),
+        discount: Number(f.discount),
+        expiryDate:
+          f.expiryDate === BigInt(0) ? 0 : Number(f.expiryDate) / 1_000_000,
+        src: f.src,
+      }));
+    },
+    enabled: !!actor && !isFetching,
+  });
+
+  // Seed frames if backend has none (first admin visit)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional seed
+  useEffect(() => {
+    if (!actor || !isFetching === false || shopFramesData.length > 0) return;
+    if (!actor || isFetching || shopFramesData.length > 0) return;
+    const { legendId: seedLid, passwordHash: seedPh } = useAuthStore.getState();
+    if (!seedLid || !seedPh || seedLid !== "0001") return;
+    const SEED_FRAMES = ANIMATED_FRAMES.map((f) => ({
+      name: f.name,
+      src: f.label.toLowerCase(),
+      price: BigInt(150),
+      discount: BigInt(0),
+      expiryDate: BigInt(0),
+    }));
+    (async () => {
+      for (const sf of SEED_FRAMES) {
+        try {
+          await actor.addShopFrame(
+            seedLid,
+            seedPh,
+            sf.name,
+            sf.price,
+            sf.discount,
+            sf.expiryDate,
+            sf.src,
+          );
+        } catch {
+          /* already exists */
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ["shopFrames"] });
+    })();
+  }, [actor, isFetching]);
 
   const selectedFrame = Number(profile?.selectedFrame ?? BigInt(0));
 
@@ -3476,6 +3621,31 @@ export function DashboardPage() {
                     }}
                   />
                 </div>
+                {/* Discount */}
+                <div>
+                  <label
+                    htmlFor="upload-avatar-discount"
+                    className="block text-xs font-display font-bold uppercase tracking-wider mb-2"
+                    style={{ color: "rgba(255,255,255,0.5)" }}
+                  >
+                    Discount % (0 = none)
+                  </label>
+                  <input
+                    id="upload-avatar-discount"
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder="0"
+                    value={uploadAvatarDiscount}
+                    onChange={(e) => setUploadAvatarDiscount(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl font-body text-sm text-foreground"
+                    style={{
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      outline: "none",
+                    }}
+                  />
+                </div>
                 {/* Expire date */}
                 <div>
                   <label
@@ -3499,6 +3669,21 @@ export function DashboardPage() {
                     }}
                   />
                 </div>
+                {/* Admin only checkbox */}
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={uploadAdminOnly}
+                    onChange={(e) => setUploadAdminOnly(e.target.checked)}
+                    className="w-4 h-4 accent-purple-500"
+                  />
+                  <span
+                    className="text-xs font-display font-bold uppercase tracking-wider"
+                    style={{ color: "rgba(255,255,255,0.5)" }}
+                  >
+                    Only For Admins section
+                  </span>
+                </label>
                 {/* Submit */}
                 <button
                   type="button"
@@ -3519,25 +3704,41 @@ export function DashboardPage() {
                       useAuthStore.getState();
                     if (!upLid || !upPh) return;
                     setIsUploadingAvatar(true);
+                    const finalName = uploadAdminOnly
+                      ? `[ADMIN] ${uploadAvatarName.trim()}`
+                      : uploadAvatarName.trim();
+                    const discountVal = BigInt(
+                      Math.max(
+                        0,
+                        Math.min(100, Number(uploadAvatarDiscount) || 0),
+                      ),
+                    );
+                    const expiryVal = uploadAvatarExpire
+                      ? BigInt(
+                          new Date(uploadAvatarExpire).getTime() * 1_000_000,
+                        )
+                      : BigInt(0);
                     try {
                       await actor.addCustomShopAvatar(
                         upLid,
                         upPh,
-                        uploadAvatarName.trim(),
+                        finalName,
                         BigInt(Math.max(0, Number(uploadAvatarPrice) || 0)),
+                        discountVal,
+                        expiryVal,
                         uploadAvatarPreview,
                       );
                       queryClient.invalidateQueries({
                         queryKey: ["customShopAvatars"],
                       });
-                      toast.success(
-                        `Avatar "${uploadAvatarName.trim()}" added to shop!`,
-                      );
+                      toast.success(`Avatar "${finalName}" added to shop!`);
                       setShowUploadAvatarModal(false);
                       setUploadAvatarPreview(null);
                       setUploadAvatarName("");
                       setUploadAvatarPrice("0");
+                      setUploadAvatarDiscount("0");
                       setUploadAvatarExpire("");
+                      setUploadAdminOnly(false);
                     } catch (err) {
                       console.error(err);
                       toast.error("Failed to upload avatar. Please try again.");
@@ -4076,6 +4277,512 @@ export function DashboardPage() {
                 );
               })}
             </div>
+            {/* Only For Admins avatar section (visible only to IDs 0001-0005) */}
+            {legendId &&
+              ["0001", "0002", "0003", "0004", "0005"].includes(legendId) && (
+                <div
+                  className="mt-6 p-4 rounded-2xl"
+                  style={{
+                    background: "rgba(255,215,0,0.04)",
+                    border: "1px solid rgba(255,215,0,0.18)",
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <span
+                      className="font-display font-black text-xs uppercase tracking-wider"
+                      style={{ color: "#ffd700" }}
+                    >
+                      👑 Only For Admins
+                    </span>
+                    {legendId === "0001" && (
+                      <button
+                        type="button"
+                        data-ocid="shop.admin_section.upload_button"
+                        onClick={() => setShowUploadAvatarModal(true)}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-display font-bold uppercase tracking-wider hover:opacity-80"
+                        style={{
+                          background: "rgba(180,80,255,0.15)",
+                          border: "1px solid rgba(180,80,255,0.3)",
+                          color: "#b450ff",
+                        }}
+                      >
+                        + Upload
+                      </button>
+                    )}
+                  </div>
+                  {/* Edit Avatar Modal */}
+                  {editingAvatarIndex !== null && (
+                    // biome-ignore lint/a11y/useKeyWithClickEvents: backdrop
+                    <div
+                      className="fixed inset-0 z-[200] flex items-center justify-center px-4"
+                      style={{
+                        background: "rgba(0,0,0,0.8)",
+                        backdropFilter: "blur(8px)",
+                      }}
+                      onClick={(e) => {
+                        if (e.target === e.currentTarget)
+                          setEditingAvatarIndex(null);
+                      }}
+                    >
+                      <div
+                        className="w-full max-w-xs rounded-2xl overflow-hidden"
+                        style={{
+                          background: "rgba(13,13,26,0.99)",
+                          border: "1px solid rgba(180,80,255,0.3)",
+                        }}
+                      >
+                        <div
+                          className="p-5 flex items-center justify-between"
+                          style={{
+                            borderBottom: "1px solid rgba(255,255,255,0.07)",
+                          }}
+                        >
+                          <h3
+                            className="font-display font-black text-base uppercase tracking-wider"
+                            style={{ color: "#b450ff" }}
+                          >
+                            Edit Avatar
+                          </h3>
+                          <button
+                            type="button"
+                            onClick={() => setEditingAvatarIndex(null)}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-70"
+                            style={{ background: "rgba(255,255,255,0.08)" }}
+                          >
+                            <X className="w-4 h-4 text-muted-foreground" />
+                          </button>
+                        </div>
+                        <div className="p-5 space-y-3">
+                          {[
+                            ["Name", editAvatarName, setEditAvatarName, "text"],
+                            [
+                              "Price (LC)",
+                              editAvatarPrice,
+                              setEditAvatarPrice,
+                              "number",
+                            ],
+                            [
+                              "Discount %",
+                              editAvatarDiscount,
+                              setEditAvatarDiscount,
+                              "number",
+                            ],
+                          ].map(([label, val, setter, type]) => (
+                            <div key={String(label)}>
+                              {/* biome-ignore lint/a11y/noLabelWithoutControl: dynamic map prevents static id pairing */}
+                              <label
+                                className="block text-xs font-display font-bold uppercase tracking-wider mb-1"
+                                style={{ color: "rgba(255,255,255,0.5)" }}
+                              >
+                                {String(label)}
+                              </label>
+                              <input
+                                type={String(type)}
+                                value={String(val)}
+                                onChange={(e) =>
+                                  (
+                                    setter as React.Dispatch<
+                                      React.SetStateAction<string>
+                                    >
+                                  )(e.target.value)
+                                }
+                                className="w-full px-4 py-2.5 rounded-xl font-body text-sm text-foreground"
+                                style={{
+                                  background: "rgba(255,255,255,0.04)",
+                                  border: "1px solid rgba(255,255,255,0.1)",
+                                  outline: "none",
+                                }}
+                              />
+                            </div>
+                          ))}
+                          <div>
+                            {/* biome-ignore lint/a11y/noLabelWithoutControl: standalone date label */}
+                            <label
+                              className="block text-xs font-display font-bold uppercase tracking-wider mb-1"
+                              style={{ color: "rgba(255,255,255,0.5)" }}
+                            >
+                              Expire Date
+                            </label>
+                            <input
+                              type="date"
+                              value={editAvatarExpire}
+                              onChange={(e) =>
+                                setEditAvatarExpire(e.target.value)
+                              }
+                              className="w-full px-4 py-2.5 rounded-xl font-body text-sm text-foreground"
+                              style={{
+                                background: "rgba(255,255,255,0.04)",
+                                border: "1px solid rgba(255,255,255,0.1)",
+                                outline: "none",
+                                colorScheme: "dark",
+                              }}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            data-ocid="shop.avatar_edit.save_button"
+                            disabled={isSavingAvatar}
+                            onClick={async () => {
+                              if (!actor || editingAvatarIndex === null) return;
+                              const { legendId: eLid, passwordHash: ePh } =
+                                useAuthStore.getState();
+                              if (!eLid || !ePh) return;
+                              setIsSavingAvatar(true);
+                              try {
+                                const expiryMs = editAvatarExpire
+                                  ? BigInt(
+                                      new Date(editAvatarExpire).getTime() *
+                                        1_000_000,
+                                    )
+                                  : BigInt(0);
+                                await actor.updateCustomShopAvatar(
+                                  eLid,
+                                  ePh,
+                                  BigInt(editingAvatarIndex),
+                                  editAvatarName,
+                                  BigInt(Number(editAvatarPrice) || 0),
+                                  BigInt(Number(editAvatarDiscount) || 0),
+                                  expiryMs,
+                                );
+                                queryClient.invalidateQueries({
+                                  queryKey: ["customShopAvatars"],
+                                });
+                                toast.success("Avatar updated!");
+                                setEditingAvatarIndex(null);
+                              } catch {
+                                toast.error("Failed to update avatar");
+                              } finally {
+                                setIsSavingAvatar(false);
+                              }
+                            }}
+                            className="w-full py-3 rounded-xl font-display font-black text-sm uppercase tracking-wider hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                            style={{
+                              background:
+                                "linear-gradient(135deg,rgba(180,80,255,0.85),rgba(120,40,200,0.85))",
+                              color: "#fff",
+                            }}
+                          >
+                            {isSavingAvatar ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : null}
+                            {isSavingAvatar ? "Saving…" : "Save Changes"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    {customShopAvatars
+                      .filter((av) => av.name.startsWith("[ADMIN]"))
+                      .map((avatar, ci) => {
+                        const isOwned =
+                          (profile?.purchasedShopAvatars ?? [])
+                            .map(Number)
+                            .includes(Number(avatar.index)) ||
+                          avatar.price === 0;
+                        const canAfford = Number(balance) >= avatar.price;
+                        const isActive = selectedProfilePic === avatar.index;
+                        const effectivePrice =
+                          avatar.discount > 0
+                            ? Math.round(
+                                avatar.price * (1 - avatar.discount / 100),
+                              )
+                            : avatar.price;
+                        const expired = isExpired(avatar.expiryDate);
+                        return (
+                          <div
+                            key={`admin-av-${avatar.index}`}
+                            data-ocid={`shop.admin_avatar_item.${ci + 1}`}
+                            className="rounded-2xl overflow-hidden flex flex-col"
+                            style={{
+                              background: "rgba(255,215,0,0.03)",
+                              border: "1px solid rgba(255,215,0,0.18)",
+                            }}
+                          >
+                            <div
+                              className="relative flex items-center justify-center"
+                              style={{
+                                height: 110,
+                                background: "rgba(255,255,255,0.02)",
+                              }}
+                            >
+                              <DiscountBadge discount={avatar.discount} />
+                              <img
+                                src={avatar.src}
+                                alt={avatar.name}
+                                className="w-20 h-20 object-cover rounded-full"
+                                style={{
+                                  border: "2px solid rgba(255,215,0,0.4)",
+                                  boxShadow: "0 0 12px rgba(255,215,0,0.2)",
+                                }}
+                              />
+                              {isOwned && (
+                                <div className="absolute top-2 right-2">
+                                  <span
+                                    className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
+                                    style={{
+                                      background: "rgba(255,215,0,0.85)",
+                                      color: "#000",
+                                    }}
+                                  >
+                                    OWNED
+                                  </span>
+                                </div>
+                              )}
+                              {isActive && (
+                                <div className="absolute top-2 left-2">
+                                  <span
+                                    className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
+                                    style={{
+                                      background: "#ffd700",
+                                      color: "#000",
+                                    }}
+                                  >
+                                    ACTIVE
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-3 flex flex-col gap-2">
+                              <p
+                                className="font-display font-black text-xs"
+                                style={{ color: "#ffd700" }}
+                              >
+                                {avatar.name.replace("[ADMIN] ", "")}
+                              </p>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <div
+                                  className="flex items-center gap-1 px-2 py-1 rounded-lg"
+                                  style={{
+                                    background: "rgba(255,215,0,0.06)",
+                                    border: "1px solid rgba(255,215,0,0.15)",
+                                  }}
+                                >
+                                  <LegendCoin size={12} />
+                                  <span
+                                    className="font-display font-black text-xs"
+                                    style={{ color: "#ffd700" }}
+                                  >
+                                    {effectivePrice === 0
+                                      ? "FREE"
+                                      : effectivePrice}
+                                  </span>
+                                  {avatar.discount > 0 && (
+                                    <span
+                                      className="font-body text-xs line-through"
+                                      style={{ color: "rgba(255,255,255,0.3)" }}
+                                    >
+                                      {avatar.price}
+                                    </span>
+                                  )}
+                                </div>
+                                <ExpiryCountdown
+                                  expiryDate={avatar.expiryDate}
+                                />
+                              </div>
+                              {legendId === "0001" && (
+                                <div className="flex gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingAvatarIndex(avatar.index);
+                                      setEditAvatarName(avatar.name);
+                                      setEditAvatarPrice(String(avatar.price));
+                                      setEditAvatarDiscount(
+                                        String(avatar.discount),
+                                      );
+                                      setEditAvatarExpire(
+                                        avatar.expiryDate > 0
+                                          ? new Date(avatar.expiryDate)
+                                              .toISOString()
+                                              .slice(0, 10)
+                                          : "",
+                                      );
+                                    }}
+                                    className="flex-1 py-1 rounded-lg text-xs font-display font-bold uppercase tracking-wider hover:opacity-80"
+                                    style={{
+                                      background: "rgba(255,215,0,0.1)",
+                                      color: "#ffd700",
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isDeletingAvatar === avatar.index}
+                                    onClick={async () => {
+                                      if (!actor) return;
+                                      const {
+                                        legendId: dLid,
+                                        passwordHash: dPh,
+                                      } = useAuthStore.getState();
+                                      if (!dLid || !dPh) return;
+                                      setIsDeletingAvatar(avatar.index);
+                                      try {
+                                        await actor.deleteCustomShopAvatar(
+                                          dLid,
+                                          dPh,
+                                          BigInt(avatar.index),
+                                        );
+                                        queryClient.invalidateQueries({
+                                          queryKey: ["customShopAvatars"],
+                                        });
+                                        toast.success("Avatar removed");
+                                      } catch {
+                                        toast.error("Delete failed");
+                                      } finally {
+                                        setIsDeletingAvatar(null);
+                                      }
+                                    }}
+                                    className="px-2 py-1 rounded-lg text-xs font-display font-bold uppercase tracking-wider hover:opacity-80 disabled:opacity-40 flex items-center"
+                                    style={{
+                                      background: "rgba(255,34,0,0.12)",
+                                      color: "#ff4422",
+                                    }}
+                                  >
+                                    {isDeletingAvatar === avatar.index ? (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      "Del"
+                                    )}
+                                  </button>
+                                </div>
+                              )}
+                              {expired ? (
+                                <div
+                                  className="text-center py-1 text-xs font-display font-bold"
+                                  style={{ color: "#ff4422" }}
+                                >
+                                  EXPIRED
+                                </div>
+                              ) : isOwned ? (
+                                <button
+                                  type="button"
+                                  disabled={
+                                    isActive || selectingPic === avatar.index
+                                  }
+                                  onClick={async () => {
+                                    if (!actor) return;
+                                    const {
+                                      legendId: eqLid,
+                                      passwordHash: eqPh,
+                                    } = useAuthStore.getState();
+                                    if (!eqLid || !eqPh) return;
+                                    setSelectingPic(avatar.index);
+                                    try {
+                                      await actor.setProfilePicture(
+                                        eqLid,
+                                        eqPh,
+                                        BigInt(avatar.index),
+                                      );
+                                      await refetchProfile();
+                                      queryClient.invalidateQueries({
+                                        queryKey: ["userProfile", legendId],
+                                      });
+                                      toast.success(
+                                        `${avatar.name.replace("[ADMIN] ", "")} set as profile picture!`,
+                                      );
+                                    } catch {
+                                      toast.error(
+                                        "Failed to update profile picture.",
+                                      );
+                                    } finally {
+                                      setSelectingPic(null);
+                                    }
+                                  }}
+                                  className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider hover:opacity-80 disabled:opacity-50 flex items-center justify-center gap-1"
+                                  style={{
+                                    background: isActive
+                                      ? "rgba(255,215,0,0.1)"
+                                      : "linear-gradient(135deg,rgba(180,80,255,0.85),rgba(120,40,200,0.85))",
+                                    border: isActive
+                                      ? "1px solid rgba(255,215,0,0.3)"
+                                      : "none",
+                                    color: isActive ? "#ffd700" : "#fff",
+                                  }}
+                                >
+                                  {selectingPic === avatar.index ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : null}
+                                  {isActive ? "Active" : "Equip"}
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={
+                                    !canAfford || selectingPic === avatar.index
+                                  }
+                                  onClick={async () => {
+                                    if (!canAfford || !actor) return;
+                                    const {
+                                      legendId: buyLid,
+                                      passwordHash: buyPh,
+                                    } = useAuthStore.getState();
+                                    if (!buyLid || !buyPh) return;
+                                    setSelectingPic(avatar.index);
+                                    try {
+                                      await actor.buyCustomShopAvatar(
+                                        buyLid,
+                                        buyPh,
+                                        BigInt(avatar.index),
+                                      );
+                                      await refetchProfile();
+                                      queryClient.invalidateQueries({
+                                        queryKey: ["userProfile", legendId],
+                                      });
+                                      toast.success(
+                                        `${avatar.name.replace("[ADMIN] ", "")} unlocked!`,
+                                      );
+                                    } catch {
+                                      toast.error(
+                                        "Purchase failed. Please try again.",
+                                      );
+                                    } finally {
+                                      setSelectingPic(null);
+                                    }
+                                  }}
+                                  className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider hover:opacity-90 disabled:opacity-40 flex items-center justify-center gap-1"
+                                  style={{
+                                    background: canAfford
+                                      ? "linear-gradient(135deg,rgba(180,80,255,0.85),rgba(120,40,200,0.85))"
+                                      : "rgba(255,255,255,0.05)",
+                                    color: canAfford
+                                      ? "#fff"
+                                      : "rgba(255,255,255,0.35)",
+                                  }}
+                                >
+                                  {selectingPic === avatar.index ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : null}
+                                  {canAfford ? "BUY" : "Insufficient Coins"}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    {customShopAvatars.filter((av) =>
+                      av.name.startsWith("[ADMIN]"),
+                    ).length === 0 && (
+                      <div
+                        data-ocid="shop.admin_section.empty_state"
+                        className="col-span-2 rounded-xl py-6 text-center"
+                        style={{
+                          background: "rgba(255,255,255,0.02)",
+                          border: "1px dashed rgba(255,215,0,0.12)",
+                        }}
+                      >
+                        <p
+                          className="font-body text-xs"
+                          style={{ color: "rgba(255,215,0,0.4)" }}
+                        >
+                          No admin-only avatars yet. Upload one above.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
           </div>
         )}
 
@@ -4085,200 +4792,737 @@ export function DashboardPage() {
             <p className="text-xs font-body text-muted-foreground mb-4">
               Equip animated frames to style your profile picture
             </p>
-            <div className="grid grid-cols-2 gap-3">
-              {SHOP_FRAMES.map((frame, i) => {
-                const isOwned = (profile?.purchasedFrames ?? [])
-                  .map(Number)
-                  .includes(frame.index);
-                const isActive = selectedFrame === frame.index;
-                const canAfford = Number(balance) >= frame.price;
-                const isLoading = selectingFrame === frame.index;
-                const FrameComp = frame.Component;
-
-                return (
-                  <div
-                    key={frame.index}
-                    data-ocid={`shop.frame_item.${i + 1}`}
-                    className="rounded-2xl overflow-visible flex flex-col"
-                    style={{
-                      background: isOwned
-                        ? "rgba(204,136,255,0.04)"
-                        : "rgba(13,13,26,0.95)",
-                      border: isOwned
-                        ? `1px solid ${frame.color}55`
-                        : "1px solid rgba(255,255,255,0.08)",
-                      boxShadow: isOwned
-                        ? `0 4px 24px ${frame.color}22`
-                        : "0 4px 24px rgba(0,0,0,0.3)",
-                    }}
-                  >
-                    {/* Frame preview -- animated SVG frame around profile pic */}
-                    <div
-                      className="relative flex items-center justify-center"
-                      style={{
-                        height: 140,
-                        background: "transparent",
-                      }}
+            {/* Admin: Only For Admins frame section (IDs 0001-0005) */}
+            {legendId &&
+              ["0001", "0002", "0003", "0004", "0005"].includes(legendId) && (
+                <div
+                  className="mb-5 p-4 rounded-2xl"
+                  style={{
+                    background: "rgba(255,215,0,0.04)",
+                    border: "1px solid rgba(255,215,0,0.18)",
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <span
+                      className="font-display font-black text-xs uppercase tracking-wider"
+                      style={{ color: "#ffd700" }}
                     >
-                      {/* Transparent background area -- no clipping so animation overflows */}
-                      <div
-                        className="relative"
-                        style={{ width: 80, height: 80 }}
-                      >
-                        {/* Profile image inside frame */}
-                        <img
-                          src={getProfilePicSrc(
-                            selectedProfilePic,
-                            customShopAvatars,
-                          )}
-                          alt="preview"
-                          className="w-full h-full rounded-full object-cover"
-                          style={{
-                            border: "2px solid rgba(255,255,255,0.15)",
-                            filter: isOwned ? "none" : "brightness(0.65)",
-                          }}
-                        />
-                        {/* Animated frame SVG overlay -- no overflow:hidden on parent */}
-                        <FrameComp
-                          size={80}
-                          isPreview={!isOwned}
-                          isActive={isActive}
-                        />
-                      </div>
-                      {isOwned && (
-                        <div className="absolute top-2 right-2">
-                          <span
-                            className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
+                      👑 Only For Admins
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {shopFramesData
+                      .filter((f) => f.name.startsWith("[ADMIN]"))
+                      .map((frame, i) => {
+                        const animEntry = getAnimatedFrame(frame.index);
+                        if (!animEntry) return null;
+                        const FrameComp = animEntry.Component;
+                        const frameColor = animEntry.color;
+                        const isOwned = (profile?.purchasedFrames ?? [])
+                          .map(Number)
+                          .includes(frame.index);
+                        const isActive = selectedFrame === frame.index;
+                        const effectivePrice =
+                          frame.discount > 0
+                            ? Math.round(
+                                frame.price * (1 - frame.discount / 100),
+                              )
+                            : frame.price;
+                        const canAfford = Number(balance) >= effectivePrice;
+                        const isLoading = selectingFrame === frame.index;
+                        const expired = isExpired(frame.expiryDate);
+                        return (
+                          <div
+                            key={frame.index}
+                            data-ocid={`shop.admin_frame_item.${i + 1}`}
+                            className="rounded-2xl overflow-visible flex flex-col"
                             style={{
-                              background: "rgba(204,136,255,0.85)",
-                              color: "#fff",
+                              background: "rgba(255,215,0,0.03)",
+                              border: `1px solid ${frameColor}44`,
                             }}
                           >
-                            OWNED
-                          </span>
-                        </div>
-                      )}
-                      {isActive && (
-                        <div className="absolute top-2 left-2">
-                          <span
-                            className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
-                            style={{ background: "#ffd700", color: "#000" }}
-                          >
-                            ACTIVE
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Card body */}
-                    <div className="p-3 flex flex-col gap-2">
-                      <p
-                        className="font-display font-black text-sm"
-                        style={{ color: frame.color }}
-                      >
-                        {frame.name}
-                      </p>
-                      <p
-                        className="text-xs font-body"
-                        style={{ color: "rgba(255,255,255,0.35)" }}
-                      >
-                        {frame.description}
-                      </p>
-                      <div
-                        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg"
-                        style={{
-                          background: "rgba(255,215,0,0.06)",
-                          border: "1px solid rgba(255,215,0,0.15)",
-                        }}
-                      >
-                        <LegendCoin size={14} />
-                        <span
-                          className="font-display font-black text-sm tabular-nums"
-                          style={{ color: "#ffd700" }}
-                        >
-                          {frame.price.toLocaleString()}
-                        </span>
-                      </div>
-
-                      {isOwned ? (
-                        <button
-                          type="button"
-                          data-ocid={`shop.frame_select_button.${i + 1}`}
-                          onClick={async () => {
-                            if (isActive) return;
-                            await handleSelectFrame(frame.index);
-                          }}
-                          disabled={isActive || isLoading}
-                          className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-80 disabled:opacity-50"
-                          style={{
-                            background: isActive
-                              ? "rgba(255,215,0,0.1)"
-                              : "linear-gradient(135deg, rgba(204,136,255,0.85), rgba(150,60,220,0.85))",
-                            border: isActive
-                              ? "1px solid rgba(255,215,0,0.3)"
-                              : "none",
-                            color: isActive ? "#ffd700" : "#fff",
-                          }}
-                        >
-                          {isLoading ? (
-                            <Loader2 className="w-3 h-3 animate-spin inline mr-1" />
-                          ) : null}
-                          {isActive ? "Active" : "Equip"}
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          data-ocid={`shop.frame_buy_button.${i + 1}`}
-                          disabled={!canAfford || isLoading}
-                          onClick={async () => {
-                            if (!actor) return;
-                            const { legendId: bfLid, passwordHash: bfPh } =
-                              useAuthStore.getState();
-                            if (!bfLid || !bfPh) return;
-                            setSelectingFrame(frame.index);
-                            try {
-                              await actor.buyShopFrame(
-                                bfLid,
-                                bfPh,
-                                BigInt(frame.index),
-                              );
-                              await refetchProfile();
-                              queryClient.invalidateQueries({
-                                queryKey: ["userProfile", legendId],
-                              });
-                              toast.success(
-                                `${frame.name} frame unlocked and equipped!`,
-                              );
-                            } catch (err) {
-                              console.error(err);
-                              toast.error("Purchase failed. Please try again.");
-                            } finally {
-                              setSelectingFrame(null);
-                            }
-                          }}
-                          className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1"
-                          style={{
-                            background: canAfford
-                              ? `linear-gradient(135deg, ${frame.color}cc, ${frame.color}88)`
-                              : "rgba(255,255,255,0.05)",
-                            border: canAfford
-                              ? "none"
-                              : "1px solid rgba(255,255,255,0.1)",
-                            color: canAfford
-                              ? "#fff"
-                              : "rgba(255,255,255,0.35)",
-                          }}
-                        >
-                          {isLoading ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : null}
-                          {canAfford ? "BUY" : "Insufficient Coins"}
-                        </button>
-                      )}
-                    </div>
+                            <div
+                              className="relative flex items-center justify-center"
+                              style={{ height: 130 }}
+                            >
+                              <DiscountBadge discount={frame.discount} />
+                              <div
+                                className="relative"
+                                style={{ width: 80, height: 80 }}
+                              >
+                                <img
+                                  src={getProfilePicSrc(
+                                    selectedProfilePic,
+                                    customShopAvatars,
+                                  )}
+                                  alt="preview"
+                                  className="w-full h-full rounded-full object-cover"
+                                  style={{
+                                    border: "2px solid rgba(255,255,255,0.15)",
+                                    filter: isOwned
+                                      ? "none"
+                                      : "brightness(0.65)",
+                                  }}
+                                />
+                                <FrameComp
+                                  size={80}
+                                  isPreview={!isOwned}
+                                  isActive={isActive}
+                                />
+                              </div>
+                              {isOwned && (
+                                <div className="absolute top-2 right-2">
+                                  <span
+                                    className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
+                                    style={{
+                                      background: "rgba(204,136,255,0.85)",
+                                      color: "#fff",
+                                    }}
+                                  >
+                                    OWNED
+                                  </span>
+                                </div>
+                              )}
+                              {isActive && (
+                                <div className="absolute top-2 left-2">
+                                  <span
+                                    className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
+                                    style={{
+                                      background: "#ffd700",
+                                      color: "#000",
+                                    }}
+                                  >
+                                    ACTIVE
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-3 flex flex-col gap-2">
+                              <p
+                                className="font-display font-black text-xs"
+                                style={{ color: frameColor }}
+                              >
+                                {frame.name.replace("[ADMIN] ", "")}
+                              </p>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <div
+                                  className="flex items-center gap-1 px-2 py-1 rounded-lg"
+                                  style={{
+                                    background: "rgba(255,215,0,0.06)",
+                                    border: "1px solid rgba(255,215,0,0.15)",
+                                  }}
+                                >
+                                  <LegendCoin size={12} />
+                                  <span
+                                    className="font-display font-black text-xs"
+                                    style={{ color: "#ffd700" }}
+                                  >
+                                    {effectivePrice}
+                                  </span>
+                                  {frame.discount > 0 && (
+                                    <span
+                                      className="font-body text-xs line-through"
+                                      style={{ color: "rgba(255,255,255,0.3)" }}
+                                    >
+                                      {frame.price}
+                                    </span>
+                                  )}
+                                </div>
+                                <ExpiryCountdown
+                                  expiryDate={frame.expiryDate}
+                                />
+                              </div>
+                              {/* Admin edit/delete */}
+                              {legendId === "0001" && (
+                                <div className="flex gap-1 mt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingFrameIndex(frame.index);
+                                      setEditFrameName(frame.name);
+                                      setEditFramePrice(String(frame.price));
+                                      setEditFrameDiscount(
+                                        String(frame.discount),
+                                      );
+                                      setEditFrameExpire(
+                                        frame.expiryDate > 0
+                                          ? new Date(frame.expiryDate)
+                                              .toISOString()
+                                              .slice(0, 10)
+                                          : "",
+                                      );
+                                    }}
+                                    className="flex-1 py-1.5 rounded-lg text-xs font-display font-bold uppercase tracking-wider hover:opacity-80"
+                                    style={{
+                                      background: "rgba(255,215,0,0.12)",
+                                      color: "#ffd700",
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isDeletingFrame === frame.index}
+                                    onClick={async () => {
+                                      if (!actor) return;
+                                      const {
+                                        legendId: dLid,
+                                        passwordHash: dPh,
+                                      } = useAuthStore.getState();
+                                      if (!dLid || !dPh) return;
+                                      setIsDeletingFrame(frame.index);
+                                      try {
+                                        await actor.deleteShopFrame(
+                                          dLid,
+                                          dPh,
+                                          BigInt(frame.index),
+                                        );
+                                        queryClient.invalidateQueries({
+                                          queryKey: ["shopFrames"],
+                                        });
+                                        toast.success(
+                                          "Frame removed from store",
+                                        );
+                                      } catch {
+                                        toast.error("Failed to delete frame");
+                                      } finally {
+                                        setIsDeletingFrame(null);
+                                      }
+                                    }}
+                                    className="px-2 py-1.5 rounded-lg text-xs font-display font-bold uppercase tracking-wider hover:opacity-80 disabled:opacity-40"
+                                    style={{
+                                      background: "rgba(255,34,0,0.15)",
+                                      color: "#ff4422",
+                                    }}
+                                  >
+                                    {isDeletingFrame === frame.index ? (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      "Del"
+                                    )}
+                                  </button>
+                                </div>
+                              )}
+                              {expired ? (
+                                <div
+                                  className="text-center py-1 text-xs font-display font-bold"
+                                  style={{ color: "#ff4422" }}
+                                >
+                                  EXPIRED — In your collection
+                                </div>
+                              ) : isOwned ? (
+                                <button
+                                  type="button"
+                                  data-ocid={`shop.admin_frame_equip.${i + 1}`}
+                                  onClick={() =>
+                                    !isActive && handleSelectFrame(frame.index)
+                                  }
+                                  disabled={isActive || isLoading}
+                                  className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider hover:opacity-80 disabled:opacity-50"
+                                  style={{
+                                    background: isActive
+                                      ? "rgba(255,215,0,0.1)"
+                                      : "linear-gradient(135deg,rgba(204,136,255,0.85),rgba(150,60,220,0.85))",
+                                    border: isActive
+                                      ? "1px solid rgba(255,215,0,0.3)"
+                                      : "none",
+                                    color: isActive ? "#ffd700" : "#fff",
+                                  }}
+                                >
+                                  {isLoading ? (
+                                    <Loader2 className="w-3 h-3 animate-spin inline mr-1" />
+                                  ) : null}
+                                  {isActive ? "Active" : "Equip"}
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  data-ocid={`shop.admin_frame_buy.${i + 1}`}
+                                  disabled={!canAfford || isLoading}
+                                  onClick={async () => {
+                                    if (!actor) return;
+                                    const {
+                                      legendId: bfLid,
+                                      passwordHash: bfPh,
+                                    } = useAuthStore.getState();
+                                    if (!bfLid || !bfPh) return;
+                                    setSelectingFrame(frame.index);
+                                    try {
+                                      await actor.buyShopFrame(
+                                        bfLid,
+                                        bfPh,
+                                        BigInt(frame.index),
+                                      );
+                                      await refetchProfile();
+                                      queryClient.invalidateQueries({
+                                        queryKey: ["userProfile", legendId],
+                                      });
+                                      toast.success(
+                                        `${frame.name} frame unlocked!`,
+                                      );
+                                    } catch {
+                                      toast.error(
+                                        "Purchase failed. Please try again.",
+                                      );
+                                    } finally {
+                                      setSelectingFrame(null);
+                                    }
+                                  }}
+                                  className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider hover:opacity-90 disabled:opacity-40 flex items-center justify-center gap-1"
+                                  style={{
+                                    background: canAfford
+                                      ? `linear-gradient(135deg,${frameColor}cc,${frameColor}88)`
+                                      : "rgba(255,255,255,0.05)",
+                                    color: canAfford
+                                      ? "#fff"
+                                      : "rgba(255,255,255,0.35)",
+                                  }}
+                                >
+                                  {isLoading ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : null}
+                                  {canAfford ? "BUY" : "Insufficient Coins"}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                   </div>
-                );
-              })}
+                </div>
+              )}
+            {/* ── Edit Frame Modal (admin only) ── */}
+            {editingFrameIndex !== null && (
+              // biome-ignore lint/a11y/useKeyWithClickEvents: backdrop
+              <div
+                className="fixed inset-0 z-[200] flex items-center justify-center px-4"
+                style={{
+                  background: "rgba(0,0,0,0.8)",
+                  backdropFilter: "blur(8px)",
+                }}
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) setEditingFrameIndex(null);
+                }}
+              >
+                <div
+                  className="w-full max-w-xs rounded-2xl overflow-hidden"
+                  style={{
+                    background: "rgba(13,13,26,0.99)",
+                    border: "1px solid rgba(255,215,0,0.3)",
+                  }}
+                >
+                  <div
+                    className="p-5 flex items-center justify-between"
+                    style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+                  >
+                    <h3
+                      className="font-display font-black text-base uppercase tracking-wider"
+                      style={{ color: "#ffd700" }}
+                    >
+                      Edit Frame
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setEditingFrameIndex(null)}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-70"
+                      style={{ background: "rgba(255,255,255,0.08)" }}
+                    >
+                      <X className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                  </div>
+                  <div className="p-5 space-y-3">
+                    {[
+                      ["Name", editFrameName, setEditFrameName, "text"],
+                      [
+                        "Price (LC)",
+                        editFramePrice,
+                        setEditFramePrice,
+                        "number",
+                      ],
+                      [
+                        "Discount %",
+                        editFrameDiscount,
+                        setEditFrameDiscount,
+                        "number",
+                      ],
+                    ].map(([label, val, setter, type]) => (
+                      <div key={String(label)}>
+                        {/* biome-ignore lint/a11y/noLabelWithoutControl: dynamic map prevents static id pairing */}
+                        <label
+                          className="block text-xs font-display font-bold uppercase tracking-wider mb-1"
+                          style={{ color: "rgba(255,255,255,0.5)" }}
+                        >
+                          {String(label)}
+                        </label>
+                        <input
+                          type={String(type)}
+                          value={String(val)}
+                          onChange={(e) =>
+                            (
+                              setter as React.Dispatch<
+                                React.SetStateAction<string>
+                              >
+                            )(e.target.value)
+                          }
+                          className="w-full px-4 py-2.5 rounded-xl font-body text-sm text-foreground"
+                          style={{
+                            background: "rgba(255,255,255,0.04)",
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            outline: "none",
+                          }}
+                        />
+                      </div>
+                    ))}
+                    <div>
+                      {/* biome-ignore lint/a11y/noLabelWithoutControl: standalone date label */}
+                      <label
+                        className="block text-xs font-display font-bold uppercase tracking-wider mb-1"
+                        style={{ color: "rgba(255,255,255,0.5)" }}
+                      >
+                        Expire Date
+                      </label>
+                      <input
+                        type="date"
+                        value={editFrameExpire}
+                        onChange={(e) => setEditFrameExpire(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl font-body text-sm text-foreground"
+                        style={{
+                          background: "rgba(255,255,255,0.04)",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                          outline: "none",
+                          colorScheme: "dark",
+                        }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      data-ocid="shop.frame_edit.save_button"
+                      disabled={isSavingFrame}
+                      onClick={async () => {
+                        if (!actor || editingFrameIndex === null) return;
+                        const { legendId: eLid, passwordHash: ePh } =
+                          useAuthStore.getState();
+                        if (!eLid || !ePh) return;
+                        setIsSavingFrame(true);
+                        try {
+                          const expiryMs = editFrameExpire
+                            ? BigInt(
+                                new Date(editFrameExpire).getTime() * 1_000_000,
+                              )
+                            : BigInt(0);
+                          await actor.updateShopFrame(
+                            eLid,
+                            ePh,
+                            BigInt(editingFrameIndex),
+                            editFrameName,
+                            BigInt(Number(editFramePrice) || 0),
+                            BigInt(Number(editFrameDiscount) || 0),
+                            expiryMs,
+                          );
+                          queryClient.invalidateQueries({
+                            queryKey: ["shopFrames"],
+                          });
+                          toast.success("Frame updated!");
+                          setEditingFrameIndex(null);
+                        } catch {
+                          toast.error("Failed to update frame");
+                        } finally {
+                          setIsSavingFrame(false);
+                        }
+                      }}
+                      className="w-full py-3 rounded-xl font-display font-black text-sm uppercase tracking-wider hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                      style={{
+                        background:
+                          "linear-gradient(135deg,rgba(255,215,0,0.85),rgba(255,153,0,0.85))",
+                        color: "#000",
+                      }}
+                    >
+                      {isSavingFrame ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : null}
+                      {isSavingFrame ? "Saving…" : "Save Changes"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              {shopFramesData
+                .filter((f) => !f.name.startsWith("[ADMIN]"))
+                .map((frame, i) => {
+                  const animEntry = getAnimatedFrame(frame.index);
+                  if (!animEntry) return null;
+                  const FrameComp = animEntry.Component;
+                  const frameColor = animEntry.color;
+                  const isOwned = (profile?.purchasedFrames ?? [])
+                    .map(Number)
+                    .includes(frame.index);
+                  const isActive = selectedFrame === frame.index;
+                  const effectivePrice =
+                    frame.discount > 0
+                      ? Math.round(frame.price * (1 - frame.discount / 100))
+                      : frame.price;
+                  const canAfford = Number(balance) >= effectivePrice;
+                  const isLoading = selectingFrame === frame.index;
+                  const expired = isExpired(frame.expiryDate);
+                  return (
+                    <div
+                      key={frame.index}
+                      data-ocid={`shop.frame_item.${i + 1}`}
+                      className="rounded-2xl overflow-visible flex flex-col"
+                      style={{
+                        background: isOwned
+                          ? "rgba(204,136,255,0.04)"
+                          : "rgba(13,13,26,0.95)",
+                        border: isOwned
+                          ? `1px solid ${frameColor}55`
+                          : "1px solid rgba(255,255,255,0.08)",
+                        boxShadow: isOwned
+                          ? `0 4px 24px ${frameColor}22`
+                          : "0 4px 24px rgba(0,0,0,0.3)",
+                      }}
+                    >
+                      {/* Frame preview */}
+                      <div
+                        className="relative flex items-center justify-center"
+                        style={{ height: 140, background: "transparent" }}
+                      >
+                        <DiscountBadge discount={frame.discount} />
+                        <div
+                          className="relative"
+                          style={{ width: 80, height: 80 }}
+                        >
+                          <img
+                            src={getProfilePicSrc(
+                              selectedProfilePic,
+                              customShopAvatars,
+                            )}
+                            alt="preview"
+                            className="w-full h-full rounded-full object-cover"
+                            style={{
+                              border: "2px solid rgba(255,255,255,0.15)",
+                              filter: isOwned ? "none" : "brightness(0.65)",
+                            }}
+                          />
+                          <FrameComp
+                            size={80}
+                            isPreview={!isOwned}
+                            isActive={isActive}
+                          />
+                        </div>
+                        {isOwned && (
+                          <div className="absolute top-2 right-2">
+                            <span
+                              className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
+                              style={{
+                                background: "rgba(204,136,255,0.85)",
+                                color: "#fff",
+                              }}
+                            >
+                              OWNED
+                            </span>
+                          </div>
+                        )}
+                        {isActive && (
+                          <div className="absolute top-2 left-2">
+                            <span
+                              className="text-xs font-display font-black px-2 py-0.5 rounded-full uppercase"
+                              style={{ background: "#ffd700", color: "#000" }}
+                            >
+                              ACTIVE
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      {/* Card body */}
+                      <div className="p-3 flex flex-col gap-2">
+                        <p
+                          className="font-display font-black text-sm"
+                          style={{ color: frameColor }}
+                        >
+                          {frame.name}
+                        </p>
+                        <p
+                          className="text-xs font-body"
+                          style={{ color: "rgba(255,255,255,0.35)" }}
+                        >
+                          {animEntry.description}
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div
+                            className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg"
+                            style={{
+                              background: "rgba(255,215,0,0.06)",
+                              border: "1px solid rgba(255,215,0,0.15)",
+                            }}
+                          >
+                            <LegendCoin size={14} />
+                            <span
+                              className="font-display font-black text-sm tabular-nums"
+                              style={{ color: "#ffd700" }}
+                            >
+                              {effectivePrice}
+                            </span>
+                            {frame.discount > 0 && (
+                              <span
+                                className="font-body text-xs line-through"
+                                style={{ color: "rgba(255,255,255,0.3)" }}
+                              >
+                                {frame.price}
+                              </span>
+                            )}
+                          </div>
+                          <ExpiryCountdown expiryDate={frame.expiryDate} />
+                        </div>
+                        {/* Admin edit/delete (owner only) */}
+                        {legendId === "0001" && (
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingFrameIndex(frame.index);
+                                setEditFrameName(frame.name);
+                                setEditFramePrice(String(frame.price));
+                                setEditFrameDiscount(String(frame.discount));
+                                setEditFrameExpire(
+                                  frame.expiryDate > 0
+                                    ? new Date(frame.expiryDate)
+                                        .toISOString()
+                                        .slice(0, 10)
+                                    : "",
+                                );
+                              }}
+                              className="flex-1 py-1 rounded-lg text-xs font-display font-bold uppercase tracking-wider hover:opacity-80"
+                              style={{
+                                background: "rgba(255,215,0,0.1)",
+                                color: "#ffd700",
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isDeletingFrame === frame.index}
+                              onClick={async () => {
+                                if (!actor) return;
+                                const { legendId: dLid, passwordHash: dPh } =
+                                  useAuthStore.getState();
+                                if (!dLid || !dPh) return;
+                                setIsDeletingFrame(frame.index);
+                                try {
+                                  await actor.deleteShopFrame(
+                                    dLid,
+                                    dPh,
+                                    BigInt(frame.index),
+                                  );
+                                  queryClient.invalidateQueries({
+                                    queryKey: ["shopFrames"],
+                                  });
+                                  toast.success("Frame removed");
+                                } catch {
+                                  toast.error("Delete failed");
+                                } finally {
+                                  setIsDeletingFrame(null);
+                                }
+                              }}
+                              className="px-2 py-1 rounded-lg text-xs font-display font-bold uppercase tracking-wider hover:opacity-80 disabled:opacity-40 flex items-center"
+                              style={{
+                                background: "rgba(255,34,0,0.12)",
+                                color: "#ff4422",
+                              }}
+                            >
+                              {isDeletingFrame === frame.index ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                "Del"
+                              )}
+                            </button>
+                          </div>
+                        )}
+                        {expired ? (
+                          <div
+                            className="text-center py-1 text-xs font-display font-bold"
+                            style={{ color: "#ff4422" }}
+                          >
+                            EXPIRED
+                          </div>
+                        ) : isOwned ? (
+                          <button
+                            type="button"
+                            data-ocid={`shop.frame_select_button.${i + 1}`}
+                            onClick={() =>
+                              !isActive && handleSelectFrame(frame.index)
+                            }
+                            disabled={isActive || isLoading}
+                            className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider hover:opacity-80 disabled:opacity-50"
+                            style={{
+                              background: isActive
+                                ? "rgba(255,215,0,0.1)"
+                                : "linear-gradient(135deg,rgba(204,136,255,0.85),rgba(150,60,220,0.85))",
+                              border: isActive
+                                ? "1px solid rgba(255,215,0,0.3)"
+                                : "none",
+                              color: isActive ? "#ffd700" : "#fff",
+                            }}
+                          >
+                            {isLoading ? (
+                              <Loader2 className="w-3 h-3 animate-spin inline mr-1" />
+                            ) : null}
+                            {isActive ? "Active" : "Equip"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            data-ocid={`shop.frame_buy_button.${i + 1}`}
+                            disabled={!canAfford || isLoading}
+                            onClick={async () => {
+                              if (!actor) return;
+                              const { legendId: bfLid, passwordHash: bfPh } =
+                                useAuthStore.getState();
+                              if (!bfLid || !bfPh) return;
+                              setSelectingFrame(frame.index);
+                              try {
+                                await actor.buyShopFrame(
+                                  bfLid,
+                                  bfPh,
+                                  BigInt(frame.index),
+                                );
+                                await refetchProfile();
+                                queryClient.invalidateQueries({
+                                  queryKey: ["userProfile", legendId],
+                                });
+                                toast.success(`${frame.name} frame unlocked!`);
+                              } catch {
+                                toast.error(
+                                  "Purchase failed. Please try again.",
+                                );
+                              } finally {
+                                setSelectingFrame(null);
+                              }
+                            }}
+                            className="w-full py-2 rounded-xl font-display font-bold text-xs uppercase tracking-wider hover:opacity-90 disabled:opacity-40 flex items-center justify-center gap-1"
+                            style={{
+                              background: canAfford
+                                ? `linear-gradient(135deg,${frameColor}cc,${frameColor}88)`
+                                : "rgba(255,255,255,0.05)",
+                              border: canAfford
+                                ? "none"
+                                : "1px solid rgba(255,255,255,0.1)",
+                              color: canAfford
+                                ? "#fff"
+                                : "rgba(255,255,255,0.35)",
+                            }}
+                          >
+                            {isLoading ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : null}
+                            {canAfford ? "BUY" : "Insufficient Coins"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           </div>
         )}
@@ -6534,163 +7778,174 @@ export function DashboardPage() {
                   </button>
 
                   {/* Owned frames first */}
-                  {SHOP_FRAMES.filter((f) =>
-                    (profile?.purchasedFrames ?? [])
-                      .map(Number)
-                      .includes(f.index),
-                  ).map((frame, i) => {
-                    const isActive = selectedFrame === frame.index;
-                    const isLoading = selectingFrame === frame.index;
-                    const FrameComp = frame.Component;
-                    return (
-                      <div
-                        key={frame.index}
-                        data-ocid={`avatar_collection.frame_item.${i + 1}`}
-                        className="flex flex-col items-center gap-2 p-3 rounded-2xl"
-                        style={{
-                          background: isActive
-                            ? "rgba(204,136,255,0.08)"
-                            : "rgba(34,204,102,0.04)",
-                          border: isActive
-                            ? "1px solid rgba(204,136,255,0.4)"
-                            : `1px solid ${frame.color}33`,
-                        }}
-                      >
-                        <div
-                          className="relative flex items-center justify-center"
-                          style={{ width: 64, height: 64 }}
-                        >
-                          <img
-                            src={DEFAULT_PROFILE_PIC}
-                            alt="preview"
-                            className="w-full h-full rounded-full object-cover"
-                          />
-                          <FrameComp
-                            size={64}
-                            isPreview={false}
-                            isActive={isActive}
-                          />
-                          {isActive && (
-                            <div
-                              className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-px rounded-full"
-                              style={{ background: "#ffd700", zIndex: 5 }}
-                            >
-                              <span
-                                className="font-display font-black uppercase"
-                                style={{ fontSize: "7px", color: "#000" }}
-                              >
-                                ON
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <span
-                          className="font-display font-black uppercase text-center"
-                          style={{
-                            fontSize: "9px",
-                            letterSpacing: "0.08em",
-                            color: isActive ? "#cc88ff" : frame.color,
-                          }}
-                        >
-                          {frame.name}
-                        </span>
-                        <button
-                          type="button"
-                          data-ocid={`avatar_collection.frame_equip_button.${i + 1}`}
-                          onClick={() =>
-                            !isActive && handleSelectFrame(frame.index)
-                          }
-                          disabled={isActive || isLoading}
-                          className="w-full py-1 rounded-lg font-display font-bold uppercase transition-all hover:opacity-80 disabled:opacity-50 flex items-center justify-center gap-1"
-                          style={{
-                            fontSize: "9px",
-                            background: isActive
-                              ? "rgba(255,215,0,0.1)"
-                              : "rgba(204,136,255,0.8)",
-                            border: isActive
-                              ? "1px solid rgba(255,215,0,0.3)"
-                              : "none",
-                            color: isActive ? "#ffd700" : "#fff",
-                          }}
-                        >
-                          {isLoading ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : null}
-                          {isActive ? "Active" : "Equip"}
-                        </button>
-                      </div>
-                    );
-                  })}
-
-                  {/* Unowned frames */}
-                  {SHOP_FRAMES.filter(
-                    (f) =>
-                      !(profile?.purchasedFrames ?? [])
+                  {shopFramesData
+                    .filter((f) =>
+                      (profile?.purchasedFrames ?? [])
                         .map(Number)
                         .includes(f.index),
-                  ).map((frame, i) => {
-                    const FrameComp = frame.Component;
-                    return (
-                      <div
-                        key={frame.index}
-                        data-ocid={`avatar_collection.frame_item.${i + 6}`}
-                        className="flex flex-col items-center gap-2 p-3 rounded-2xl"
-                        style={{
-                          background: "rgba(255,255,255,0.02)",
-                          border: "1px solid rgba(255,255,255,0.07)",
-                          opacity: 0.7,
-                        }}
-                      >
+                    )
+                    .map((frame, i) => {
+                      const animEntry = getAnimatedFrame(frame.index);
+                      if (!animEntry) return null;
+                      const FrameComp = animEntry.Component;
+                      const frameColor = animEntry.color;
+                      const isActive = selectedFrame === frame.index;
+                      const isLoading = selectingFrame === frame.index;
+                      return (
                         <div
-                          className="relative flex items-center justify-center"
-                          style={{ width: 64, height: 64 }}
+                          key={frame.index}
+                          data-ocid={`avatar_collection.frame_item.${i + 1}`}
+                          className="flex flex-col items-center gap-2 p-3 rounded-2xl"
+                          style={{
+                            background: isActive
+                              ? "rgba(204,136,255,0.08)"
+                              : "rgba(34,204,102,0.04)",
+                            border: isActive
+                              ? "1px solid rgba(204,136,255,0.4)"
+                              : `1px solid ${frameColor}33`,
+                          }}
                         >
-                          <img
-                            src={DEFAULT_PROFILE_PIC}
-                            alt="preview"
-                            className="w-full h-full rounded-full object-cover"
-                            style={{ filter: "brightness(0.5) grayscale(40%)" }}
-                          />
-                          <FrameComp
-                            size={64}
-                            isPreview={true}
-                            isActive={false}
-                          />
+                          <div
+                            className="relative flex items-center justify-center"
+                            style={{ width: 64, height: 64 }}
+                          >
+                            <img
+                              src={DEFAULT_PROFILE_PIC}
+                              alt="preview"
+                              className="w-full h-full rounded-full object-cover"
+                            />
+                            <FrameComp
+                              size={64}
+                              isPreview={false}
+                              isActive={isActive}
+                            />
+                            {isActive && (
+                              <div
+                                className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-px rounded-full"
+                                style={{ background: "#ffd700", zIndex: 5 }}
+                              >
+                                <span
+                                  className="font-display font-black uppercase"
+                                  style={{ fontSize: "7px", color: "#000" }}
+                                >
+                                  ON
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <span
+                            className="font-display font-black uppercase text-center"
+                            style={{
+                              fontSize: "9px",
+                              letterSpacing: "0.08em",
+                              color: isActive ? "#cc88ff" : frameColor,
+                            }}
+                          >
+                            {frame.name}
+                          </span>
+                          <button
+                            type="button"
+                            data-ocid={`avatar_collection.frame_equip_button.${i + 1}`}
+                            onClick={() =>
+                              !isActive && handleSelectFrame(frame.index)
+                            }
+                            disabled={isActive || isLoading}
+                            className="w-full py-1 rounded-lg font-display font-bold uppercase transition-all hover:opacity-80 disabled:opacity-50 flex items-center justify-center gap-1"
+                            style={{
+                              fontSize: "9px",
+                              background: isActive
+                                ? "rgba(255,215,0,0.1)"
+                                : "rgba(204,136,255,0.8)",
+                              border: isActive
+                                ? "1px solid rgba(255,215,0,0.3)"
+                                : "none",
+                              color: isActive ? "#ffd700" : "#fff",
+                            }}
+                          >
+                            {isLoading ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : null}
+                            {isActive ? "Active" : "Equip"}
+                          </button>
                         </div>
-                        <span
-                          className="font-display font-black uppercase text-center"
+                      );
+                    })}
+
+                  {/* Unowned frames */}
+                  {shopFramesData
+                    .filter(
+                      (f) =>
+                        !(profile?.purchasedFrames ?? [])
+                          .map(Number)
+                          .includes(f.index),
+                    )
+                    .map((frame, i) => {
+                      const animEntry = getAnimatedFrame(frame.index);
+                      if (!animEntry) return null;
+                      const FrameComp = animEntry.Component;
+                      return (
+                        <div
+                          key={frame.index}
+                          data-ocid={`avatar_collection.frame_item.${i + 6}`}
+                          className="flex flex-col items-center gap-2 p-3 rounded-2xl"
                           style={{
-                            fontSize: "9px",
-                            letterSpacing: "0.08em",
-                            color: "rgba(255,255,255,0.35)",
+                            background: "rgba(255,255,255,0.02)",
+                            border: "1px solid rgba(255,255,255,0.07)",
+                            opacity: 0.7,
                           }}
                         >
-                          {frame.name}
-                        </span>
-                        <button
-                          type="button"
-                          data-ocid={`avatar_collection.frame_goto_store_button.${i + 1}`}
-                          onClick={() => {
-                            setShowAvatarModal(false);
-                            setActiveTab("shop");
-                          }}
-                          className="font-display font-black uppercase transition-all hover:opacity-80"
-                          style={{
-                            fontSize: "8px",
-                            letterSpacing: "0.08em",
-                            background: "rgba(204,136,255,0.12)",
-                            border: "1px solid rgba(204,136,255,0.3)",
-                            color: "#cc88ff",
-                            borderRadius: "6px",
-                            padding: "2px 6px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Go to Store
-                        </button>
-                      </div>
-                    );
-                  })}
+                          <div
+                            className="relative flex items-center justify-center"
+                            style={{ width: 64, height: 64 }}
+                          >
+                            <img
+                              src={DEFAULT_PROFILE_PIC}
+                              alt="preview"
+                              className="w-full h-full rounded-full object-cover"
+                              style={{
+                                filter: "brightness(0.5) grayscale(40%)",
+                              }}
+                            />
+                            <FrameComp
+                              size={64}
+                              isPreview={true}
+                              isActive={false}
+                            />
+                          </div>
+                          <span
+                            className="font-display font-black uppercase text-center"
+                            style={{
+                              fontSize: "9px",
+                              letterSpacing: "0.08em",
+                              color: "rgba(255,255,255,0.35)",
+                            }}
+                          >
+                            {frame.name}
+                          </span>
+                          <button
+                            type="button"
+                            data-ocid={`avatar_collection.frame_goto_store_button.${i + 1}`}
+                            onClick={() => {
+                              setShowAvatarModal(false);
+                              setActiveTab("shop");
+                            }}
+                            className="font-display font-black uppercase transition-all hover:opacity-80"
+                            style={{
+                              fontSize: "8px",
+                              letterSpacing: "0.08em",
+                              background: "rgba(204,136,255,0.12)",
+                              border: "1px solid rgba(204,136,255,0.3)",
+                              color: "#cc88ff",
+                              borderRadius: "6px",
+                              padding: "2px 6px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Go to Store
+                          </button>
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
             )}

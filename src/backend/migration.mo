@@ -1,6 +1,6 @@
 import Map "mo:core/Map";
 import Nat "mo:core/Nat";
-import Array "mo:core/Array";
+import Int "mo:core/Int";
 
 module {
   type Role = { #admin; #user };
@@ -8,12 +8,52 @@ module {
   type Result = { #win; #loss; #draw };
   type TransactionType = { #deposit; #withdraw };
   type DepositStatus = { #pending; #approved; #rejected };
+  type WithdrawStatus = DepositStatus;
 
-  type CustomShopAvatar = {
+  type ShopFrame = {
+    index : Nat;
+    name : Text;
+    price : Nat;
+    discount : Nat;
+    expiryDate : Int;
+    src : Text;
+  };
+
+  type OldCustomShopAvatar = {
     index : Nat;
     name : Text;
     price : Nat;
     src : Text;
+  };
+
+  type NewCustomShopAvatar = {
+    index : Nat;
+    name : Text;
+    price : Nat;
+    discount : Nat;
+    expiryDate : Int;
+    src : Text;
+  };
+
+  type UserProfile = {
+    legendId : Text;
+    passwordHash : Text;
+    role : Role;
+    walletBalance : Nat;
+    isBanned : Bool;
+    createdAt : Int;
+    matchHistory : [Match];
+    transactions : [Transaction];
+    totalDeposited : Nat;
+    selectedProfilePic : Nat;
+    jazzCashNumber : Text;
+    gameName : Text;
+    gameUID : Text;
+    totalProfit : Nat;
+    purchasedShopAvatars : [Nat];
+    purchasedFrames : [Nat];
+    selectedFrame : Nat;
+    hasClaimedRouletteReward : Bool;
   };
 
   type Match = {
@@ -40,6 +80,16 @@ module {
     submittedAt : Int;
   };
 
+  type WithdrawRequest = {
+    id : Text;
+    legendId : Text;
+    amount : Nat;
+    jazzCashNumber : Text;
+    jazzCashName : Text;
+    status : WithdrawStatus;
+    submittedAt : Int;
+  };
+
   type Tournament = {
     id : Text;
     title : Text;
@@ -58,61 +108,54 @@ module {
     returningCoins : Nat;
   };
 
-  type OldUserProfile = {
-    legendId : Text;
-    passwordHash : Text;
-    role : Role;
-    walletBalance : Nat;
-    isBanned : Bool;
-    createdAt : Int;
-    matchHistory : [Match];
-    transactions : [Transaction];
-    totalDeposited : Nat;
-    selectedProfilePic : Nat;
-    jazzCashNumber : Text;
-    gameName : Text;
-    gameUID : Text;
-    totalProfit : Nat;
-    purchasedShopAvatars : [Nat];
-    purchasedFrames : [Nat];
-    selectedFrame : Nat;
-  };
-
   type OldActor = {
-    users : Map.Map<Text, OldUserProfile>;
-  };
-
-  type NewUserProfile = {
-    legendId : Text;
-    passwordHash : Text;
-    role : Role;
-    walletBalance : Nat;
-    isBanned : Bool;
-    createdAt : Int;
-    matchHistory : [Match];
-    transactions : [Transaction];
-    totalDeposited : Nat;
-    selectedProfilePic : Nat;
-    jazzCashNumber : Text;
-    gameName : Text;
-    gameUID : Text;
-    totalProfit : Nat;
-    purchasedShopAvatars : [Nat];
-    purchasedFrames : [Nat];
-    selectedFrame : Nat;
-    hasClaimedRouletteReward : Bool;
+    isFirstAdminSet : Bool;
+    users : Map.Map<Text, UserProfile>;
+    depositRequests : Map.Map<Text, DepositRequest>;
+    tournaments : Map.Map<Text, Tournament>;
+    depositIdCounter : Nat;
+    tournamentIdCounter : Nat;
+    userIdCounter : Nat;
+    customShopAvatars : Map.Map<Nat, OldCustomShopAvatar>;
+    customAvatarIndexCounter : Nat;
   };
 
   type NewActor = {
-    users : Map.Map<Text, NewUserProfile>;
+    isFirstAdminSet : Bool;
+    users : Map.Map<Text, UserProfile>;
+    depositRequests : Map.Map<Text, DepositRequest>;
+    tournaments : Map.Map<Text, Tournament>;
+    withdrawRequests : Map.Map<Text, WithdrawRequest>;
+    depositIdCounter : Nat;
+    tournamentIdCounter : Nat;
+    userIdCounter : Nat;
+    shopFrames : Map.Map<Nat, ShopFrame>;
+    shopFrameIndexCounter : Nat;
+    customShopAvatars : Map.Map<Nat, NewCustomShopAvatar>;
+    customAvatarIndexCounter : Nat;
   };
 
   public func run(old : OldActor) : NewActor {
-    let newUsers = old.users.map<Text, OldUserProfile, NewUserProfile>(
-      func(_id, oldUser) {
-        { oldUser with hasClaimedRouletteReward = false };
+    let emptyShopFrames = Map.empty<Nat, ShopFrame>();
+
+    let withdrawRequests = Map.empty<Text, WithdrawRequest>();
+
+    let newCustomShopAvatars = old.customShopAvatars.map<Nat, OldCustomShopAvatar, NewCustomShopAvatar>(
+      func(_idx, oldAvatar) {
+        {
+          oldAvatar with
+          discount = 0;
+          expiryDate = 0;
+        };
       }
     );
-    { users = newUsers };
+
+    {
+      old with
+      shopFrames = emptyShopFrames;
+      shopFrameIndexCounter = 20;
+      withdrawRequests;
+      customShopAvatars = newCustomShopAvatars;
+    };
   };
 };

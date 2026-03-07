@@ -8,6 +8,7 @@ import {
   type Transaction,
   TransactionType,
   type UserProfile,
+  type WithdrawRequest,
 } from "@/backend.d";
 import {
   Table,
@@ -2141,8 +2142,69 @@ function MatchManagementSection() {
 
 /* ─── Pending Withdraws Section ────────────────────────────── */
 function PendingWithdrawsSection() {
-  // Withdraw requests are stored locally (frontend-only for now)
-  // They show requests submitted via the Withdraw form
+  const { actor, isFetching } = useActor();
+  const queryClient = useQueryClient();
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+
+  const {
+    data: pendingWithdraws = [],
+    isFetching: isLoadingWithdraws,
+    refetch: refetchWithdraws,
+  } = useQuery<WithdrawRequest[]>({
+    queryKey: ["pendingWithdraws"],
+    queryFn: async () => {
+      if (!actor) return [];
+      const { legendId: adminLid, passwordHash: adminPh } =
+        useAuthStore.getState();
+      if (!adminLid || !adminPh) return [];
+      return actor.getPendingWithdrawRequests(adminLid, adminPh);
+    },
+    enabled: !!actor && !isFetching,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  async function handleApproveWithdraw(req: WithdrawRequest) {
+    if (!actor) return;
+    const { legendId: adminLid, passwordHash: adminPh } =
+      useAuthStore.getState();
+    if (!adminLid || !adminPh) return;
+    setLoadingId(req.id);
+    try {
+      await actor.approveWithdrawRequest(adminLid, adminPh, req.id);
+      toast.success(
+        `Withdraw approved for ${req.legendId} — ${Number(req.amount)} LC`,
+      );
+      queryClient.invalidateQueries({ queryKey: ["pendingWithdraws"] });
+      await refetchWithdraws();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to approve withdraw request");
+    } finally {
+      setLoadingId(null);
+    }
+  }
+
+  async function handleRejectWithdraw(req: WithdrawRequest) {
+    if (!actor) return;
+    const { legendId: adminLid, passwordHash: adminPh } =
+      useAuthStore.getState();
+    if (!adminLid || !adminPh) return;
+    setLoadingId(req.id);
+    try {
+      await actor.rejectWithdrawRequest(adminLid, adminPh, req.id);
+      toast.success("Withdraw request rejected");
+      queryClient.invalidateQueries({ queryKey: ["pendingWithdraws"] });
+      await refetchWithdraws();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to reject withdraw request");
+    } finally {
+      setLoadingId(null);
+    }
+  }
+
   return (
     <div
       className="rounded-2xl p-6"
@@ -2151,47 +2213,189 @@ function PendingWithdrawsSection() {
         border: "1px solid rgba(34,204,102,0.15)",
       }}
     >
-      <div className="flex items-center gap-3 mb-5">
-        <h2 className="font-display font-bold text-base uppercase tracking-wider text-foreground">
-          Pending Withdraw Requests
-        </h2>
-        <span
-          className="text-xs font-display font-black px-2.5 py-0.5 rounded-full"
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <h2 className="font-display font-bold text-base uppercase tracking-wider text-foreground">
+            Pending Withdraw Requests
+          </h2>
+          <span
+            className="text-xs font-display font-black px-2.5 py-0.5 rounded-full"
+            style={{
+              background:
+                pendingWithdraws.length > 0
+                  ? "rgba(34,204,102,0.2)"
+                  : "rgba(255,255,255,0.08)",
+              border:
+                pendingWithdraws.length > 0
+                  ? "1px solid rgba(34,204,102,0.4)"
+                  : "1px solid rgba(255,255,255,0.12)",
+              color:
+                pendingWithdraws.length > 0
+                  ? "#22cc66"
+                  : "rgba(255,255,255,0.4)",
+            }}
+          >
+            {pendingWithdraws.length} pending
+          </span>
+        </div>
+        <button
+          type="button"
+          data-ocid="admin.withdraw.refresh_button"
+          onClick={() => refetchWithdraws()}
+          disabled={isLoadingWithdraws}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-display font-bold uppercase tracking-wider transition-all hover:opacity-80 disabled:opacity-50"
           style={{
-            background: "rgba(255,255,255,0.08)",
-            border: "1px solid rgba(255,255,255,0.12)",
-            color: "rgba(255,255,255,0.4)",
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            color: "rgba(255,255,255,0.6)",
           }}
         >
-          0 pending
-        </span>
-      </div>
-      <div
-        data-ocid="admin.withdraw.empty_state"
-        className="rounded-xl py-12 text-center"
-        style={{
-          background: "rgba(255,255,255,0.02)",
-          border: "1px dashed rgba(34,204,102,0.12)",
-        }}
-      >
-        <svg
-          className="w-10 h-10 mx-auto mb-3"
-          style={{ color: "rgba(34,204,102,0.15)" }}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          aria-hidden="true"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18"
+          <RefreshCcw
+            className={`w-3.5 h-3.5 ${isLoadingWithdraws ? "animate-spin" : ""}`}
           />
-        </svg>
-        <p className="font-body text-muted-foreground text-sm">
-          No pending withdraw requests
-        </p>
+          Refresh
+        </button>
+      </div>
+
+      {isLoadingWithdraws && pendingWithdraws.length === 0 && (
+        <div
+          data-ocid="admin.withdraw.loading_state"
+          className="flex items-center justify-center py-10 gap-3 text-muted-foreground"
+        >
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span className="font-body text-sm">Loading…</span>
+        </div>
+      )}
+
+      {!isLoadingWithdraws && pendingWithdraws.length === 0 && (
+        <div
+          data-ocid="admin.withdraw.empty_state"
+          className="rounded-xl py-12 text-center"
+          style={{
+            background: "rgba(255,255,255,0.02)",
+            border: "1px dashed rgba(34,204,102,0.12)",
+          }}
+        >
+          <svg
+            className="w-10 h-10 mx-auto mb-3"
+            style={{ color: "rgba(34,204,102,0.15)" }}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1.5}
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18"
+            />
+          </svg>
+          <p className="font-body text-muted-foreground text-sm">
+            No pending withdraw requests
+          </p>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {pendingWithdraws.map((req, i) => (
+          <div
+            key={req.id}
+            data-ocid={`admin.withdraw_request.item.${i + 1}`}
+            className="rounded-xl p-4"
+            style={{
+              background: "rgba(34,204,102,0.04)",
+              border: "1px solid rgba(34,204,102,0.15)",
+            }}
+          >
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span
+                    className="font-mono text-sm font-bold"
+                    style={{ color: "#ffd700" }}
+                  >
+                    {req.legendId}
+                  </span>
+                  <span
+                    className="font-display font-black text-xs px-2 py-0.5 rounded-full uppercase"
+                    style={{
+                      background: "rgba(34,204,102,0.15)",
+                      color: "#22cc66",
+                    }}
+                  >
+                    {Number(req.amount).toLocaleString()} LC
+                  </span>
+                </div>
+                <p
+                  className="font-body text-xs"
+                  style={{ color: "rgba(255,255,255,0.5)" }}
+                >
+                  JazzCash:{" "}
+                  <span className="font-mono" style={{ color: "#22cc66" }}>
+                    {req.jazzCashNumber}
+                  </span>
+                  {req.jazzCashName && (
+                    <span style={{ color: "rgba(255,255,255,0.4)" }}>
+                      {" "}
+                      ({req.jazzCashName})
+                    </span>
+                  )}
+                </p>
+                <p
+                  className="font-body text-xs mt-0.5"
+                  style={{ color: "rgba(255,255,255,0.3)" }}
+                >
+                  {new Date(
+                    Number(req.submittedAt) / 1_000_000,
+                  ).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                data-ocid={`admin.withdraw_request.confirm_button.${i + 1}`}
+                onClick={() => handleApproveWithdraw(req)}
+                disabled={loadingId === req.id}
+                className="flex-1 py-2 rounded-lg font-display font-bold text-xs uppercase tracking-wider hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-1"
+                style={{ background: "rgba(34,204,102,0.8)", color: "#fff" }}
+              >
+                {loadingId === req.id ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-3 h-3" />
+                )}
+                Approve
+              </button>
+              <button
+                type="button"
+                data-ocid={`admin.withdraw_request.cancel_button.${i + 1}`}
+                onClick={() => handleRejectWithdraw(req)}
+                disabled={loadingId === req.id}
+                className="flex-1 py-2 rounded-lg font-display font-bold text-xs uppercase tracking-wider hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-1"
+                style={{
+                  background: "rgba(255,34,0,0.15)",
+                  color: "#ff4422",
+                  border: "1px solid rgba(255,34,0,0.3)",
+                }}
+              >
+                {loadingId === req.id ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <X className="w-3 h-3" />
+                )}
+                Reject
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -2550,6 +2754,8 @@ function AdminStoreAvatarSection() {
         adminPh,
         avatarName.trim(),
         BigInt(price),
+        BigInt(0), // discount
+        BigInt(0), // expiryDate (no expiry by default from admin panel)
         avatarFile,
       );
       await queryClient.invalidateQueries({ queryKey: ["customShopAvatars"] });

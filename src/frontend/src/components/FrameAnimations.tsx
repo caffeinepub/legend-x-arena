@@ -1,102 +1,49 @@
 /**
- * FrameAnimations.tsx
- *
- * 5 premium animated SVG frames -- each is a circular ring that wraps
- * tightly around a profile picture.  All animations are pure CSS/SVG,
- * run in an infinite loop, and have zero glitch because they only use
- * CSS keyframe transforms / opacity / stroke-dashoffset changes that
- * are GPU-composited.
- *
- * Usage:
- *   <FrameAnimationFire size={80} isPreview={false} />
- *
- * size      = diameter of the INNER circle (same as the profile img size)
- * isPreview = true in the shop card (slightly dimmed when not owned)
+ * FrameAnimations.tsx — 15 premium animated SVG frame components
+ * Each is a circular ring that wraps tightly around a profile picture.
+ * All animations are pure CSS/SVG, GPU-composited, infinite loop.
  */
 
 import React from "react";
 
 interface FrameProps {
-  size?: number; // inner circle diameter (profile img size)
-  isPreview?: boolean; // dim when used as locked preview
-  isActive?: boolean; // extra highlight for active equipped frame
+  size?: number;
+  isPreview?: boolean;
+  isActive?: boolean;
 }
 
-/* ──────────────────────────────────────────────────────────────── */
-/*  Shared helpers                                                  */
-/* ──────────────────────────────────────────────────────────────── */
-
-/** Full outer size (frame extends beyond the circle by `bleed` px on each side) */
 function outerSize(size: number, bleed: number) {
   return size + bleed * 2;
 }
-
-/** Center of the SVG canvas */
 function cx(size: number, bleed: number) {
   return size / 2 + bleed;
 }
-
-/** Radius of the decorative ring (midpoint between inner circle edge and canvas edge) */
 function ringR(size: number, bleed: number) {
   return size / 2 + bleed / 2;
 }
 
-/* ──────────────────────────────────────────────────────────────── */
-/*  1. TREE -- Vine tendrils with swaying leaves around the ring   */
-/* ──────────────────────────────────────────────────────────────── */
-export function FrameAnimationTree({
+/* ── 1. Lightning Strike (index 20) ── */
+export function FrameLightning({
   size = 80,
   isPreview = false,
   isActive = false,
 }: FrameProps) {
-  const bleed = Math.round(size * 0.18);
+  const bleed = Math.round(size * 0.22);
   const total = outerSize(size, bleed);
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
-  const opacity = isPreview ? 0.55 : 1;
-  const sw = Math.max(2.5, size * 0.036);
-
-  // 6 vine segments evenly distributed
-  const vineCount = 6;
-  const vines = Array.from({ length: vineCount }, (_, i) => {
-    const baseAngle = (i / vineCount) * 2 * Math.PI - Math.PI / 2;
-    const spanRad = Math.PI * 0.28; // how long each vine arc is
-    const startAngle = baseAngle - spanRad / 2;
-    const endAngle = baseAngle + spanRad / 2;
-    const midAngle = baseAngle;
-
-    // Arc points on ring
-    const sx = C + R * Math.cos(startAngle);
-    const sy = C + R * Math.sin(startAngle);
-    const ex = C + R * Math.cos(endAngle);
-    const ey = C + R * Math.sin(endAngle);
-    // Bezier control point slightly outside ring
-    const mx = C + (R + bleed * 0.55) * Math.cos(midAngle);
-    const my = C + (R + bleed * 0.55) * Math.sin(midAngle);
-
-    // Leaf at end of vine
-    const leafX = C + (R + bleed * 0.18) * Math.cos(endAngle + 0.15);
-    const leafY = C + (R + bleed * 0.18) * Math.sin(endAngle + 0.15);
-    const leafAngleDeg = (endAngle * 180) / Math.PI + 90;
-
-    const delay = (i / vineCount) * 3.0;
-    return {
-      sx,
-      sy,
-      mx,
-      my,
-      ex,
-      ey,
-      leafX,
-      leafY,
-      leafAngleDeg,
-      delay,
-      key: i,
-    };
+  const op = isPreview ? 0.55 : 1;
+  const uid = `lgt_${size}`;
+  const bolts = Array.from({ length: 8 }, (_, i) => {
+    const a = (i / 8) * 2 * Math.PI - Math.PI / 2;
+    const x1 = C + R * Math.cos(a);
+    const y1 = C + R * Math.sin(a);
+    const x2 = C + (R + bleed * 0.7) * Math.cos(a + 0.15);
+    const y2 = C + (R + bleed * 0.7) * Math.sin(a + 0.15);
+    const xm = C + (R + bleed * 0.35) * Math.cos(a - 0.05);
+    const ym = C + (R + bleed * 0.35) * Math.sin(a - 0.05);
+    return { x1, y1, x2, y2, xm, ym, delay: (i / 8) * 1.6, key: i };
   });
-
-  const uid = `tree_${size}`;
-
   return (
     <svg
       width={total}
@@ -107,197 +54,123 @@ export function FrameAnimationTree({
         inset: -bleed,
         pointerEvents: "none",
         overflow: "visible",
-        opacity,
+        opacity: op,
       }}
       aria-hidden="true"
     >
       <defs>
-        <filter id={`${uid}_glow`} x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="1.8" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        <filter id={`${uid}g`} x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="2.5" result="b" />
+          <feComposite in="SourceGraphic" in2="b" operator="over" />
         </filter>
       </defs>
-
-      {/* Slow-rotating base ring -- vine base */}
       <circle
         cx={C}
         cy={C}
         r={R}
         fill="none"
-        stroke="#1a6b0a"
-        strokeWidth={sw * 0.65}
-        strokeDasharray={`${R * 0.22} ${R * 0.08}`}
-        opacity={isActive ? 0.85 : 0.65}
-        filter={`url(#${uid}_glow)`}
+        stroke="#ffe066"
+        strokeWidth={Math.max(2, size * 0.03)}
+        strokeDasharray={`${R * 0.15} ${R * 0.05}`}
+        filter={`url(#${uid}g)`}
+        opacity={isActive ? 0.9 : 0.65}
       >
         <animateTransform
           attributeName="transform"
           type="rotate"
           from={`0 ${C} ${C}`}
           to={`360 ${C} ${C}`}
-          dur="20s"
+          dur="2s"
+          repeatCount="indefinite"
+        />
+        <animate
+          attributeName="stroke"
+          values="#ffe066;#ffffff;#88aaff;#ffe066"
+          dur="0.8s"
           repeatCount="indefinite"
         />
       </circle>
-
-      {/* Vine tendrils */}
-      {vines.map(
-        ({
-          sx,
-          sy,
-          mx,
-          my,
-          ex,
-          ey,
-          leafX,
-          leafY,
-          leafAngleDeg,
-          delay,
-          key,
-        }) => (
-          <g key={key}>
-            {/* Vine arc path */}
-            <path
-              d={`M ${sx} ${sy} Q ${mx} ${my} ${ex} ${ey}`}
-              fill="none"
-              stroke="#44dd22"
-              strokeWidth={sw * 0.85}
-              strokeLinecap="round"
-              filter={`url(#${uid}_glow)`}
-              opacity={0}
-            >
-              <animate
-                attributeName="opacity"
-                values="0;0.9;0.9;0"
-                keyTimes="0;0.2;0.75;1"
-                dur="3s"
-                begin={`${delay}s`}
-                repeatCount="indefinite"
-              />
-            </path>
-
-            {/* Leaf at tip -- sways gently */}
-            <ellipse
-              cx={leafX}
-              cy={leafY}
-              rx={Math.max(3.5, size * 0.048)}
-              ry={Math.max(2, size * 0.026)}
-              fill="#88ff44"
-              transform={`rotate(${leafAngleDeg} ${leafX} ${leafY})`}
-              opacity={0}
-              filter={`url(#${uid}_glow)`}
-            >
-              <animate
-                attributeName="opacity"
-                values="0;1;1;0"
-                keyTimes="0;0.25;0.7;1"
-                dur="3s"
-                begin={`${delay + 0.2}s`}
-                repeatCount="indefinite"
-              />
-              {/* Gentle sway rotation */}
-              <animateTransform
-                attributeName="transform"
-                type="rotate"
-                values={`${leafAngleDeg - 18} ${leafX} ${leafY};${leafAngleDeg + 18} ${leafX} ${leafY};${leafAngleDeg - 18} ${leafX} ${leafY}`}
-                dur="2.4s"
-                begin={`${delay}s`}
-                repeatCount="indefinite"
-                additive="replace"
-              />
-            </ellipse>
-
-            {/* Tiny leaf particle drifting off */}
-            <ellipse
-              cx={leafX}
-              cy={leafY}
-              rx={Math.max(2, size * 0.026)}
-              ry={Math.max(1.2, size * 0.015)}
-              fill="#44ee66"
-              opacity={0}
-            >
-              <animate
-                attributeName="opacity"
-                values="0;0.85;0"
-                dur="2.8s"
-                begin={`${delay + 0.5}s`}
-                repeatCount="indefinite"
-              />
-              <animate
-                attributeName="cy"
-                values={`${leafY};${leafY + size * 0.12};${leafY + size * 0.22}`}
-                dur="2.8s"
-                begin={`${delay + 0.5}s`}
-                repeatCount="indefinite"
-              />
-              <animate
-                attributeName="cx"
-                values={`${leafX};${leafX + (key % 2 === 0 ? -size * 0.05 : size * 0.05)};${leafX + (key % 2 === 0 ? size * 0.07 : -size * 0.07)}`}
-                dur="2.8s"
-                begin={`${delay + 0.5}s`}
-                repeatCount="indefinite"
-              />
-            </ellipse>
-          </g>
-        ),
-      )}
+      {bolts.map(({ x1, y1, x2, y2, xm, ym, delay, key }) => (
+        <polyline
+          key={key}
+          points={`${x1},${y1} ${xm},${ym} ${x2},${y2}`}
+          fill="none"
+          stroke="#ffffff"
+          strokeWidth={Math.max(1.2, size * 0.018)}
+          strokeLinecap="round"
+          filter={`url(#${uid}g)`}
+          opacity={0}
+        >
+          <animate
+            attributeName="opacity"
+            values="0;1;0.8;0"
+            keyTimes="0;0.1;0.35;1"
+            dur="1.2s"
+            begin={`${delay}s`}
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="stroke"
+            values="#ffffff;#aaddff;#ffe066;#ffffff"
+            dur="1.2s"
+            begin={`${delay}s`}
+            repeatCount="indefinite"
+          />
+        </polyline>
+      ))}
+      {bolts.map(({ xm, ym, delay, key }) => (
+        <circle
+          key={`sp_${key}`}
+          cx={xm}
+          cy={ym}
+          r={Math.max(1.5, size * 0.022)}
+          fill="#ffe066"
+          filter={`url(#${uid}g)`}
+          opacity={0}
+        >
+          <animate
+            attributeName="opacity"
+            values="0;1;0"
+            dur="0.5s"
+            begin={`${delay + 0.08}s`}
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="r"
+            values={`${Math.max(1.5, size * 0.022)};${Math.max(3, size * 0.045)};0.5`}
+            dur="0.5s"
+            begin={`${delay + 0.08}s`}
+            repeatCount="indefinite"
+          />
+        </circle>
+      ))}
     </svg>
   );
 }
 
-/* ──────────────────────────────────────────────────────────────── */
-/*  2. FIRE -- Realistic asynchronous flame tongues + embers       */
-/* ──────────────────────────────────────────────────────────────── */
-export function FrameAnimationFire({
+/* ── 2. Galaxy Spiral (index 21) ── */
+export function FrameGalaxy({
   size = 80,
   isPreview = false,
-  isActive = false,
+  // biome-ignore lint/correctness/noUnusedVariables: part of shared FrameProps interface
+  isActive: _isActive = false,
 }: FrameProps) {
-  const bleed = Math.round(size * 0.18);
+  const bleed = Math.round(size * 0.2);
   const total = outerSize(size, bleed);
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
-  const opacity = isPreview ? 0.55 : isActive ? 1 : 0.92;
-  const sw = Math.max(2.5, size * 0.036);
-
-  const flameCount = 9;
-  const flames = Array.from({ length: flameCount }, (_, i) => {
-    const angle = (i / flameCount) * 2 * Math.PI - Math.PI / 2;
-    const x = C + R * Math.cos(angle);
-    const y = C + R * Math.sin(angle);
-    // Each flame points outward from center
-    const angleDeg = (angle * 180) / Math.PI - 90;
-    // Unique timing per flame -- slightly different durations to desync
-    const dur = 1.6 + (i % 4) * 0.22;
-    const delay = (i / flameCount) * 1.4;
-    const colors = [
-      "#fff200",
-      "#ff8800",
-      "#ff4400",
-      "#ff8800",
-      "#ff2200",
-      "#ffd000",
-      "#ff6600",
-      "#ff3300",
-      "#ffaa00",
-    ];
-    const color = colors[i % colors.length];
-    return { x, y, angleDeg, dur, delay, color, key: i };
+  const op = isPreview ? 0.55 : 1;
+  const uid = `gal_${size}`;
+  const stars = Array.from({ length: 16 }, (_, i) => {
+    const a = (i / 16) * 2 * Math.PI;
+    const r = R + (i % 3) * (bleed * 0.22);
+    return {
+      x: C + r * Math.cos(a),
+      y: C + r * Math.sin(a),
+      delay: (i / 16) * 4,
+      key: i,
+    };
   });
-
-  const emberCount = 7;
-  const embers = Array.from({ length: emberCount }, (_, i) => {
-    const angle = (i / emberCount) * 2 * Math.PI;
-    const x = C + R * Math.cos(angle);
-    const y = C + R * Math.sin(angle);
-    const outX = C + (R + bleed * 0.85) * Math.cos(angle + 0.3);
-    const outY = C + (R + bleed * 0.85) * Math.sin(angle + 0.3);
-    const delay = (i / emberCount) * 2.5 + 0.3;
-    return { x, y, outX, outY, delay, key: i };
-  });
-
-  const uid = `fire_${size}`;
-
   return (
     <svg
       width={total}
@@ -308,22 +181,422 @@ export function FrameAnimationFire({
         inset: -bleed,
         pointerEvents: "none",
         overflow: "visible",
-        opacity,
+        opacity: op,
       }}
       aria-hidden="true"
     >
       <defs>
-        <filter id={`${uid}_glow`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="2.2" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
-        </filter>
-        <filter id={`${uid}_halo`} x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation="4" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        <filter id={`${uid}g`} x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="2" result="b" />
+          <feComposite in="SourceGraphic" in2="b" operator="over" />
         </filter>
       </defs>
+      <circle
+        cx={C}
+        cy={C}
+        r={R}
+        fill="none"
+        stroke="url(#galaxyGrad)"
+        strokeWidth={Math.max(2.5, size * 0.038)}
+        strokeDasharray={`${R * 0.4} ${R * 0.1}`}
+        filter={`url(#${uid}g)`}
+        opacity={0.85}
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from={`0 ${C} ${C}`}
+          to={`360 ${C} ${C}`}
+          dur="8s"
+          repeatCount="indefinite"
+        />
+      </circle>
+      <defs>
+        <linearGradient id="galaxyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#9933ff" />
+          <stop offset="35%" stopColor="#0066ff" />
+          <stop offset="65%" stopColor="#ff33aa" />
+          <stop offset="100%" stopColor="#9933ff" />
+        </linearGradient>
+      </defs>
+      <circle
+        cx={C}
+        cy={C}
+        r={R + bleed * 0.3}
+        fill="none"
+        stroke="#221133"
+        strokeWidth={bleed * 0.6}
+        opacity={0.4}
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from={`360 ${C} ${C}`}
+          to={`0 ${C} ${C}`}
+          dur="12s"
+          repeatCount="indefinite"
+        />
+        <animate
+          attributeName="stroke"
+          values="#221133;#331155;#221133"
+          dur="3s"
+          repeatCount="indefinite"
+        />
+      </circle>
+      {stars.map(({ x, y, delay, key }) => (
+        <circle
+          key={key}
+          cx={x}
+          cy={y}
+          r={Math.max(1, size * 0.015)}
+          fill="#ffffff"
+          opacity={0}
+          filter={`url(#${uid}g)`}
+        >
+          <animate
+            attributeName="opacity"
+            values="0;1;0.4;1;0"
+            dur="3.5s"
+            begin={`${delay}s`}
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="r"
+            values={`${Math.max(1, size * 0.015)};${Math.max(2, size * 0.03)};${Math.max(1, size * 0.015)}`}
+            dur="3.5s"
+            begin={`${delay}s`}
+            repeatCount="indefinite"
+          />
+        </circle>
+      ))}
+    </svg>
+  );
+}
 
-      {/* Base ring -- pulsing orange fire */}
+/* ── 3. Blood Drip (index 22) ── */
+export function FrameBloodDrip({
+  size = 80,
+  isPreview = false,
+  isActive = false,
+}: FrameProps) {
+  const bleed = Math.round(size * 0.22);
+  const total = outerSize(size, bleed);
+  const C = cx(size, bleed);
+  const R = ringR(size, bleed);
+  const op = isPreview ? 0.55 : 1;
+  const uid = `bld_${size}`;
+  const drops = Array.from({ length: 10 }, (_, i) => {
+    const a = (i / 10) * 2 * Math.PI - Math.PI / 2;
+    const x = C + R * Math.cos(a);
+    const y = C + R * Math.sin(a);
+    const yEnd = y + bleed * 0.85;
+    return { x, y, yEnd, delay: (i / 10) * 2.5, key: i };
+  });
+  return (
+    <svg
+      width={total}
+      height={total}
+      viewBox={`0 0 ${total} ${total}`}
+      style={{
+        position: "absolute",
+        inset: -bleed,
+        pointerEvents: "none",
+        overflow: "visible",
+        opacity: op,
+      }}
+      aria-hidden="true"
+    >
+      <defs>
+        <filter id={`${uid}g`} x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="1.8" result="b" />
+          <feComposite in="SourceGraphic" in2="b" operator="over" />
+        </filter>
+      </defs>
+      <circle
+        cx={C}
+        cy={C}
+        r={R}
+        fill="none"
+        stroke="#cc0000"
+        strokeWidth={Math.max(3, size * 0.045)}
+        filter={`url(#${uid}g)`}
+        opacity={isActive ? 1 : 0.85}
+      >
+        <animate
+          attributeName="stroke"
+          values="#cc0000;#ff2200;#880000;#cc0000"
+          dur="2s"
+          repeatCount="indefinite"
+        />
+      </circle>
+      {drops.map(({ x, y, yEnd, delay, key }) => (
+        <g key={key}>
+          <ellipse
+            cx={x}
+            cy={y}
+            rx={Math.max(2, size * 0.028)}
+            ry={Math.max(2.5, size * 0.035)}
+            fill="#cc0000"
+            filter={`url(#${uid}g)`}
+            opacity={0}
+          >
+            <animate
+              attributeName="opacity"
+              values="0;0.9;0.7;0"
+              keyTimes="0;0.2;0.6;1"
+              dur="2.2s"
+              begin={`${delay}s`}
+              repeatCount="indefinite"
+            />
+            <animate
+              attributeName="cy"
+              values={`${y};${y + bleed * 0.2};${yEnd}`}
+              dur="2.2s"
+              begin={`${delay}s`}
+              repeatCount="indefinite"
+            />
+            <animate
+              attributeName="ry"
+              values={`${Math.max(2.5, size * 0.035)};${Math.max(4, size * 0.055)};${Math.max(1.5, size * 0.02)}`}
+              dur="2.2s"
+              begin={`${delay}s`}
+              repeatCount="indefinite"
+            />
+          </ellipse>
+          <circle
+            cx={x}
+            cy={yEnd}
+            r={Math.max(1.8, size * 0.025)}
+            fill="#880000"
+            opacity={0}
+          >
+            <animate
+              attributeName="opacity"
+              values="0;0.7;0"
+              keyTimes="0;0.6;1"
+              dur="2.2s"
+              begin={`${delay + 0.4}s`}
+              repeatCount="indefinite"
+            />
+            <animate
+              attributeName="r"
+              values={`0;${Math.max(3, size * 0.042)};${Math.max(1, size * 0.015)}`}
+              dur="2.2s"
+              begin={`${delay + 0.4}s`}
+              repeatCount="indefinite"
+            />
+          </circle>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+/* ── 4. Neon Pulse (index 23) ── */
+export function FrameNeonPulse({
+  size = 80,
+  isPreview = false,
+  isActive: _isActive = false,
+}: FrameProps) {
+  const bleed = Math.round(size * 0.2);
+  const total = outerSize(size, bleed);
+  const C = cx(size, bleed);
+  const R = ringR(size, bleed);
+  const op = isPreview ? 0.55 : 1;
+  const uid = `neo_${size}`;
+  return (
+    <svg
+      width={total}
+      height={total}
+      viewBox={`0 0 ${total} ${total}`}
+      style={{
+        position: "absolute",
+        inset: -bleed,
+        pointerEvents: "none",
+        overflow: "visible",
+        opacity: op,
+      }}
+      aria-hidden="true"
+    >
+      <defs>
+        <filter id={`${uid}g`} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="b" />
+          <feComposite in="SourceGraphic" in2="b" operator="over" />
+        </filter>
+      </defs>
+      {[0, 1, 2].map((layer) => (
+        <circle
+          key={layer}
+          cx={C}
+          cy={C}
+          r={R + layer * (bleed * 0.2)}
+          fill="none"
+          strokeWidth={Math.max(1.5, size * 0.022) * (layer === 1 ? 1 : 0.6)}
+          filter={`url(#${uid}g)`}
+          stroke="#ff00ff"
+          opacity={layer === 1 ? 0.9 : 0.4}
+        >
+          <animate
+            attributeName="stroke"
+            values="#ff00ff;#00ffff;#ffff00;#ff6600;#00ff88;#ff00ff"
+            dur={`${2.4 + layer * 0.6}s`}
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="opacity"
+            values={`${layer === 1 ? "0.9" : "0.3"};${layer === 1 ? "1" : "0.6"};${layer === 1 ? "0.9" : "0.3"}`}
+            dur={`${1.2 + layer * 0.4}s`}
+            repeatCount="indefinite"
+          />
+          <animateTransform
+            attributeName="transform"
+            type="rotate"
+            from={`${layer % 2 === 0 ? 0 : 360} ${C} ${C}`}
+            to={`${layer % 2 === 0 ? 360 : 0} ${C} ${C}`}
+            dur={`${4 + layer * 2}s`}
+            repeatCount="indefinite"
+          />
+        </circle>
+      ))}
+    </svg>
+  );
+}
+
+/* ── 5. Ice Shatter (index 24) ── */
+export function FrameIceShatter({
+  size = 80,
+  isPreview = false,
+  isActive: _isActive = false,
+}: FrameProps) {
+  const bleed = Math.round(size * 0.2);
+  const total = outerSize(size, bleed);
+  const C = cx(size, bleed);
+  const R = ringR(size, bleed);
+  const op = isPreview ? 0.55 : 1;
+  const uid = `ice_${size}`;
+  const shards = Array.from({ length: 12 }, (_, i) => {
+    const a = (i / 12) * 2 * Math.PI;
+    const x = C + R * Math.cos(a);
+    const y = C + R * Math.sin(a);
+    const angleDeg = (a * 180) / Math.PI + 90;
+    return { x, y, angleDeg, delay: (i / 12) * 3, key: i };
+  });
+  const sw = Math.max(2.5, size * 0.036);
+  return (
+    <svg
+      width={total}
+      height={total}
+      viewBox={`0 0 ${total} ${total}`}
+      style={{
+        position: "absolute",
+        inset: -bleed,
+        pointerEvents: "none",
+        overflow: "visible",
+        opacity: op,
+      }}
+      aria-hidden="true"
+    >
+      <defs>
+        <filter id={`${uid}g`} x="-35%" y="-35%" width="170%" height="170%">
+          <feGaussianBlur stdDeviation="2" result="b" />
+          <feComposite in="SourceGraphic" in2="b" operator="over" />
+        </filter>
+      </defs>
+      <circle
+        cx={C}
+        cy={C}
+        r={R}
+        fill="none"
+        stroke="#aaeeff"
+        strokeWidth={sw * 0.7}
+        strokeDasharray={`${R * 0.2} ${R * 0.08}`}
+        filter={`url(#${uid}g)`}
+        opacity={0.7}
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from={`0 ${C} ${C}`}
+          to={`360 ${C} ${C}`}
+          dur="6s"
+          repeatCount="indefinite"
+        />
+      </circle>
+      {shards.map(({ x, y, angleDeg, delay, key }) => {
+        const h = bleed * 0.65;
+        return (
+          <polygon
+            key={key}
+            points={`${x - h * 0.2},${y} ${x},${y - h} ${x + h * 0.2},${y}`}
+            fill="#aaeeff"
+            transform={`rotate(${angleDeg} ${x} ${y})`}
+            filter={`url(#${uid}g)`}
+            opacity={0}
+          >
+            <animate
+              attributeName="opacity"
+              values="0;0.85;0.6;0"
+              keyTimes="0;0.2;0.6;1"
+              dur="2.5s"
+              begin={`${delay}s`}
+              repeatCount="indefinite"
+            />
+            <animate
+              attributeName="fill"
+              values="#aaeeff;#ffffff;#66ccff;#aaeeff"
+              dur="2.5s"
+              begin={`${delay}s`}
+              repeatCount="indefinite"
+            />
+          </polygon>
+        );
+      })}
+    </svg>
+  );
+}
+
+/* ── 6. Lava Flow (index 25) ── */
+export function FrameLavaFlow({
+  size = 80,
+  isPreview = false,
+  isActive: _isActive = false,
+}: FrameProps) {
+  const bleed = Math.round(size * 0.2);
+  const total = outerSize(size, bleed);
+  const C = cx(size, bleed);
+  const R = ringR(size, bleed);
+  const op = isPreview ? 0.55 : 1;
+  const uid = `lav_${size}`;
+  const sw = Math.max(3, size * 0.044);
+  const blobs = Array.from({ length: 8 }, (_, i) => {
+    const a = (i / 8) * 2 * Math.PI;
+    return {
+      x: C + R * Math.cos(a),
+      y: C + R * Math.sin(a),
+      delay: (i / 8) * 2.4,
+      key: i,
+    };
+  });
+  return (
+    <svg
+      width={total}
+      height={total}
+      viewBox={`0 0 ${total} ${total}`}
+      style={{
+        position: "absolute",
+        inset: -bleed,
+        pointerEvents: "none",
+        overflow: "visible",
+        opacity: op,
+      }}
+      aria-hidden="true"
+    >
+      <defs>
+        <filter id={`${uid}g`} x="-35%" y="-35%" width="170%" height="170%">
+          <feGaussianBlur stdDeviation="2.5" result="b" />
+          <feComposite in="SourceGraphic" in2="b" operator="over" />
+        </filter>
+      </defs>
       <circle
         cx={C}
         cy={C}
@@ -331,351 +604,74 @@ export function FrameAnimationFire({
         fill="none"
         stroke="#ff4400"
         strokeWidth={sw}
-        strokeDasharray={`${R * 0.28} ${R * 0.1}`}
-        filter={`url(#${uid}_glow)`}
-        opacity={isActive ? 1 : 0.85}
+        strokeDasharray={`${R * 0.35} ${R * 0.08}`}
+        filter={`url(#${uid}g)`}
+        opacity={0.9}
       >
         <animateTransform
           attributeName="transform"
           type="rotate"
           from={`0 ${C} ${C}`}
           to={`360 ${C} ${C}`}
-          dur="2.8s"
+          dur="5s"
           repeatCount="indefinite"
         />
         <animate
           attributeName="stroke"
-          values="#ff4400;#ffd000;#ff6600;#ff2200;#ff4400"
-          dur="1.8s"
+          values="#ff4400;#ff8800;#ff2200;#ff6600;#ff4400"
+          dur="2s"
           repeatCount="indefinite"
         />
       </circle>
-
-      {/* Outer corona pulse */}
       <circle
         cx={C}
         cy={C}
-        r={R + bleed * 0.5}
+        r={R - sw * 0.4}
         fill="none"
-        stroke="#ff2200"
-        strokeWidth={sw * 0.4}
-        filter={`url(#${uid}_halo)`}
-        opacity={0.2}
-      >
-        <animate
-          attributeName="opacity"
-          values="0.1;0.38;0.1"
-          dur="1.6s"
-          repeatCount="indefinite"
-        />
-        <animate
-          attributeName="r"
-          values={`${R + bleed * 0.35};${R + bleed * 0.65};${R + bleed * 0.35}`}
-          dur="1.6s"
-          repeatCount="indefinite"
-        />
-      </circle>
-
-      {/* Flame tongues -- each independent */}
-      {flames.map(({ x, y, angleDeg, dur, delay, color, key }) => {
-        const riseH = size * 0.18 + (key % 3) * size * 0.04;
-        const rx = Math.max(2, size * 0.028) + (key % 2) * size * 0.008;
-        const ryBase = Math.max(3.5, size * 0.05);
-        const ryTall = Math.max(5.5, size * 0.08);
-        return (
-          <g key={key}>
-            {/* Main flame teardrop */}
-            <ellipse
-              cx={x}
-              cy={y}
-              rx={rx}
-              ry={ryBase}
-              fill={color}
-              filter={`url(#${uid}_glow)`}
-              opacity={0}
-              transform={`rotate(${angleDeg} ${x} ${y})`}
-            >
-              <animate
-                attributeName="opacity"
-                values="0;0.95;0.75;0"
-                keyTimes="0;0.25;0.65;1"
-                dur={`${dur}s`}
-                begin={`${delay}s`}
-                repeatCount="indefinite"
-              />
-              {/* Flame rises outward from ring */}
-              <animate
-                attributeName="cy"
-                values={`${y};${y - riseH * 0.45};${y - riseH}`}
-                dur={`${dur}s`}
-                begin={`${delay}s`}
-                repeatCount="indefinite"
-              />
-              {/* Stretch tall then shrink to tip */}
-              <animate
-                attributeName="ry"
-                values={`${ryBase};${ryTall};${Math.max(1.5, size * 0.02)}`}
-                dur={`${dur}s`}
-                begin={`${delay}s`}
-                repeatCount="indefinite"
-              />
-              <animate
-                attributeName="rx"
-                values={`${rx};${rx * 1.3};${rx * 0.4}`}
-                dur={`${dur}s`}
-                begin={`${delay}s`}
-                repeatCount="indefinite"
-              />
-            </ellipse>
-          </g>
-        );
-      })}
-
-      {/* Embers flying outward */}
-      {embers.map(({ x, y, outX, outY, delay, key }) => (
-        <circle
-          key={key}
-          cx={x}
-          cy={y}
-          r={Math.max(1.2, size * 0.016)}
-          fill="#fff8aa"
-          opacity={0}
-        >
-          <animate
-            attributeName="opacity"
-            values="0;0.95;0"
-            keyTimes="0;0.35;1"
-            dur="2.2s"
-            begin={`${delay}s`}
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="cx"
-            values={`${x};${outX}`}
-            dur="2.2s"
-            begin={`${delay}s`}
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="cy"
-            values={`${y};${outY}`}
-            dur="2.2s"
-            begin={`${delay}s`}
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="r"
-            values={`${Math.max(1.2, size * 0.016)};0.5`}
-            dur="2.2s"
-            begin={`${delay}s`}
-            repeatCount="indefinite"
-          />
-        </circle>
-      ))}
-    </svg>
-  );
-}
-
-/* ──────────────────────────────────────────────────────────────── */
-/*  3. WATER -- Flowing stream with water droplets + ripples       */
-/* ──────────────────────────────────────────────────────────────── */
-export function FrameAnimationWater({
-  size = 80,
-  isPreview = false,
-  isActive = false,
-}: FrameProps) {
-  const bleed = Math.round(size * 0.18);
-  const total = outerSize(size, bleed);
-  const C = cx(size, bleed);
-  const R = ringR(size, bleed);
-  const opacity = isPreview ? 0.55 : isActive ? 1 : 0.92;
-  const sw = Math.max(2.5, size * 0.036);
-
-  // 14 water droplets distributed around the ring
-  const dropCount = 14;
-  const drops = Array.from({ length: dropCount }, (_, i) => {
-    const angle = (i / dropCount) * 2 * Math.PI;
-    const x = C + R * Math.cos(angle);
-    const y = C + R * Math.sin(angle);
-    const delay = (i / dropCount) * 3.8;
-    return { x, y, delay, key: i };
-  });
-
-  // 3 expanding ripple rings
-  const rippleCount = 3;
-  const ripples = Array.from({ length: rippleCount }, (_, i) => ({
-    delay: (i / rippleCount) * 2.5,
-    key: i,
-  }));
-
-  const uid = `water_${size}`;
-  const circumference = 2 * Math.PI * R;
-
-  return (
-    <svg
-      width={total}
-      height={total}
-      viewBox={`0 0 ${total} ${total}`}
-      style={{
-        position: "absolute",
-        inset: -bleed,
-        pointerEvents: "none",
-        overflow: "visible",
-        opacity,
-      }}
-      aria-hidden="true"
-    >
-      <defs>
-        <filter id={`${uid}_glow`} x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="2" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
-        </filter>
-      </defs>
-
-      {/* Outer thin ring -- slowest flow */}
-      <circle
-        cx={C}
-        cy={C}
-        r={R + sw * 0.4}
-        fill="none"
-        stroke="#00eeff"
-        strokeWidth={sw * 0.4}
-        strokeDasharray={`${circumference * 0.18} ${circumference * 0.07}`}
-        opacity={0.45}
+        stroke="#ff8800"
+        strokeWidth={sw * 0.5}
+        strokeDasharray={`${R * 0.28} ${R * 0.12}`}
+        filter={`url(#${uid}g)`}
+        opacity={0.6}
       >
         <animateTransform
           attributeName="transform"
           type="rotate"
           from={`360 ${C} ${C}`}
           to={`0 ${C} ${C}`}
-          dur="9s"
-          repeatCount="indefinite"
-        />
-        <animate
-          attributeName="opacity"
-          values="0.25;0.6;0.25"
           dur="3.5s"
           repeatCount="indefinite"
         />
       </circle>
-
-      {/* Mid ring -- medium flow counter-clockwise */}
-      <circle
-        cx={C}
-        cy={C}
-        r={R}
-        fill="none"
-        stroke="#0088dd"
-        strokeWidth={sw * 0.7}
-        strokeDasharray={`${circumference * 0.28} ${circumference * 0.07}`}
-        filter={`url(#${uid}_glow)`}
-        opacity={0.7}
-      >
-        <animateTransform
-          attributeName="transform"
-          type="rotate"
-          from={`360 ${C} ${C}`}
-          to={`0 ${C} ${C}`}
-          dur="5.5s"
-          repeatCount="indefinite"
-        />
-      </circle>
-
-      {/* Inner ring -- fastest flow */}
-      <circle
-        cx={C}
-        cy={C}
-        r={R - sw * 0.5}
-        fill="none"
-        stroke="#00ccff"
-        strokeWidth={sw}
-        strokeDasharray={`${circumference * 0.38} ${circumference * 0.08}`}
-        filter={`url(#${uid}_glow)`}
-        opacity={isActive ? 1 : 0.88}
-      >
-        <animateTransform
-          attributeName="transform"
-          type="rotate"
-          from={`360 ${C} ${C}`}
-          to={`0 ${C} ${C}`}
-          dur="3.8s"
-          repeatCount="indefinite"
-        />
-        <animate
-          attributeName="stroke"
-          values="#00ccff;#aaeeff;#00aaff;#00eeff;#00ccff"
-          dur="4s"
-          repeatCount="indefinite"
-        />
-      </circle>
-
-      {/* Water droplets appear, stretch, and dissolve */}
-      {drops.map(({ x, y, delay, key }) => (
-        <g key={key}>
-          <ellipse
-            cx={x}
-            cy={y}
-            rx={Math.max(1.8, size * 0.024)}
-            ry={Math.max(2.5, size * 0.036)}
-            fill="#00aaff"
-            opacity={0}
-          >
-            <animate
-              attributeName="opacity"
-              values="0;0.92;0.5;0"
-              keyTimes="0;0.2;0.65;1"
-              dur="3.5s"
-              begin={`${delay}s`}
-              repeatCount="indefinite"
-            />
-            <animate
-              attributeName="ry"
-              values={`${Math.max(2.5, size * 0.036)};${Math.max(4.5, size * 0.06)};${Math.max(1.5, size * 0.02)}`}
-              dur="3.5s"
-              begin={`${delay}s`}
-              repeatCount="indefinite"
-            />
-            <animate
-              attributeName="rx"
-              values={`${Math.max(1.8, size * 0.024)};${Math.max(1.2, size * 0.016)};0.5`}
-              dur="3.5s"
-              begin={`${delay}s`}
-              repeatCount="indefinite"
-            />
-          </ellipse>
-        </g>
-      ))}
-
-      {/* Expanding ripple rings pulsing outward */}
-      {ripples.map(({ delay, key }) => (
+      {blobs.map(({ x, y, delay, key }) => (
         <circle
           key={key}
-          cx={C}
-          cy={C}
-          r={R}
-          fill="none"
-          stroke="#aaeeff"
-          strokeWidth={sw * 0.35}
+          cx={x}
+          cy={y}
+          r={Math.max(2.5, size * 0.036)}
+          fill="#ffaa00"
+          filter={`url(#${uid}g)`}
           opacity={0}
         >
           <animate
             attributeName="opacity"
-            values="0;0.6;0"
-            dur="2.8s"
+            values="0;0.95;0.7;0"
+            keyTimes="0;0.25;0.6;1"
+            dur="2s"
+            begin={`${delay}s`}
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="fill"
+            values="#ffaa00;#ff6600;#ff2200;#ffaa00"
+            dur="2s"
             begin={`${delay}s`}
             repeatCount="indefinite"
           />
           <animate
             attributeName="r"
-            values={`${R};${R + bleed * 0.8}`}
-            dur="2.8s"
-            begin={`${delay}s`}
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="strokeWidth"
-            values={`${sw * 0.35};0.3`}
-            dur="2.8s"
+            values={`${Math.max(2.5, size * 0.036)};${Math.max(4, size * 0.06)};${Math.max(1, size * 0.015)}`}
+            dur="2s"
             begin={`${delay}s`}
             repeatCount="indefinite"
           />
@@ -685,63 +681,24 @@ export function FrameAnimationWater({
   );
 }
 
-/* ──────────────────────────────────────────────────────────────── */
-/*  4. WIND -- Turbulent streaks rushing around the ring           */
-/* ──────────────────────────────────────────────────────────────── */
-export function FrameAnimationWind({
+/* ── 7. Sakura Petals (index 26) ── */
+export function FrameSakura({
   size = 80,
   isPreview = false,
-  isActive = false,
+  isActive: _isActive = false,
 }: FrameProps) {
-  const bleed = Math.round(size * 0.18);
+  const bleed = Math.round(size * 0.22);
   const total = outerSize(size, bleed);
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
-  const opacity = isPreview ? 0.55 : isActive ? 1 : 0.92;
-  const sw = Math.max(2.5, size * 0.036);
-
-  // 9 wind streaks -- mix CW and CCW at different speeds
-  const streakCount = 9;
-  const streaks = Array.from({ length: streakCount }, (_, i) => {
-    const baseAngle = (i / streakCount) * 2 * Math.PI;
-    const spanRad = Math.PI * 0.32; // quarter-ish arc
-    const startAngle = baseAngle;
-    const endAngle = baseAngle + spanRad;
-    const midAngle = baseAngle + spanRad / 2;
-
-    const sx = C + R * Math.cos(startAngle);
-    const sy = C + R * Math.sin(startAngle);
-    const ex = C + R * Math.cos(endAngle);
-    const ey = C + R * Math.sin(endAngle);
-    // Control point slightly outside for the curve
-    const bulge = i % 3 === 0 ? 1.12 : i % 3 === 1 ? 0.9 : 1.05;
-    const mx = C + R * bulge * Math.cos(midAngle);
-    const my = C + R * bulge * Math.sin(midAngle);
-
-    const isCCW = i % 2 === 0;
-    const dur = 1.5 + (i % 4) * 0.38;
-    const delay = (i / streakCount) * 2.2;
-    const alpha = 0.5 + (i % 3) * 0.15;
-    return { sx, sy, mx, my, ex, ey, isCCW, dur, delay, alpha, key: i };
+  const op = isPreview ? 0.55 : 1;
+  const uid = `sak_${size}`;
+  const petals = Array.from({ length: 12 }, (_, i) => {
+    const a = (i / 12) * 2 * Math.PI - Math.PI / 2;
+    const x = C + R * Math.cos(a);
+    const y = C + R * Math.sin(a);
+    return { x, y, delay: (i / 12) * 3.2, key: i };
   });
-
-  // Tiny drift particles
-  const particleCount = 6;
-  const particles = Array.from({ length: particleCount }, (_, i) => {
-    const angle = (i / particleCount) * 2 * Math.PI;
-    const x = C + R * Math.cos(angle);
-    const y = C + R * Math.sin(angle);
-    const delay = (i / particleCount) * 1.8;
-    const dur = 1.4 + (i % 3) * 0.4;
-    const endAngle = angle + (i % 2 === 0 ? 1.2 : -0.9);
-    const ex = C + R * Math.cos(endAngle);
-    const ey = C + R * Math.sin(endAngle);
-    return { x, y, ex, ey, delay, dur, key: i };
-  });
-
-  const uid = `wind_${size}`;
-  const arcLen = 2 * Math.PI * R * 0.32;
-
   return (
     <svg
       width={total}
@@ -752,110 +709,184 @@ export function FrameAnimationWind({
         inset: -bleed,
         pointerEvents: "none",
         overflow: "visible",
-        opacity,
+        opacity: op,
       }}
       aria-hidden="true"
     >
       <defs>
-        <filter id={`${uid}_glow`} x="-25%" y="-25%" width="150%" height="150%">
-          <feGaussianBlur stdDeviation="1.5" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        <filter id={`${uid}g`} x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="1.5" result="b" />
+          <feComposite in="SourceGraphic" in2="b" operator="over" />
         </filter>
       </defs>
-
-      {/* Faint base ring */}
       <circle
         cx={C}
         cy={C}
         r={R}
         fill="none"
-        stroke="#cceeFF"
-        strokeWidth={sw * 0.45}
-        opacity={0.22}
+        stroke="#ffaacc"
+        strokeWidth={Math.max(2, size * 0.03)}
+        strokeDasharray={`${R * 0.25} ${R * 0.07}`}
+        filter={`url(#${uid}g)`}
+        opacity={0.75}
       >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from={`0 ${C} ${C}`}
+          to={`360 ${C} ${C}`}
+          dur="15s"
+          repeatCount="indefinite"
+        />
         <animate
-          attributeName="opacity"
-          values="0.12;0.32;0.12"
-          dur="2.2s"
+          attributeName="stroke"
+          values="#ffaacc;#ffccee;#ff88bb;#ffaacc"
+          dur="4s"
           repeatCount="indefinite"
         />
       </circle>
-
-      {/* Wind streak arcs -- each races around */}
-      {streaks.map(
-        ({ sx, sy, mx, my, ex, ey, isCCW, dur, delay, alpha, key }) => (
-          <path
-            key={key}
-            d={`M ${sx} ${sy} Q ${mx} ${my} ${ex} ${ey}`}
-            fill="none"
-            stroke={
-              key % 3 === 0 ? "#ffffff" : key % 3 === 1 ? "#ddeeff" : "#ccddee"
-            }
-            strokeWidth={Math.max(1.5, sw * (0.55 + (key % 3) * 0.15))}
-            strokeLinecap="round"
-            filter={`url(#${uid}_glow)`}
+      {petals.map(({ x, y, delay, key }) => (
+        <g key={key}>
+          <ellipse
+            cx={x}
+            cy={y - bleed * 0.12}
+            rx={Math.max(3, size * 0.042)}
+            ry={Math.max(2, size * 0.026)}
+            fill="#ffaacc"
+            filter={`url(#${uid}g)`}
             opacity={0}
           >
-            {/* Flash in fast, hold briefly, disappear */}
             <animate
               attributeName="opacity"
-              values={`0;${alpha};${alpha * 0.7};0`}
-              keyTimes="0;0.18;0.6;1"
-              dur={`${dur}s`}
+              values="0;0.9;0.7;0"
+              keyTimes="0;0.15;0.55;1"
+              dur="3s"
               begin={`${delay}s`}
               repeatCount="indefinite"
             />
-            {/* Stroke dash sweeps across: line rushes from start to end */}
             <animate
-              attributeName="strokeDasharray"
-              values={`0 ${arcLen * 1.2};${arcLen * 0.7} ${arcLen * 0.5};${arcLen * 1.2} 0`}
-              keyTimes="0;0.5;1"
-              dur={`${dur}s`}
+              attributeName="cy"
+              values={`${y - bleed * 0.12};${y + bleed * 0.25};${y + bleed * 0.65}`}
+              dur="3s"
               begin={`${delay}s`}
               repeatCount="indefinite"
             />
-            {/* Subtle transform spin to sell motion */}
+            <animate
+              attributeName="cx"
+              values={`${x};${x + (key % 2 === 0 ? -size * 0.06 : size * 0.06)};${x + (key % 2 === 0 ? size * 0.04 : -size * 0.04)}`}
+              dur="3s"
+              begin={`${delay}s`}
+              repeatCount="indefinite"
+            />
             <animateTransform
               attributeName="transform"
               type="rotate"
-              from={`${isCCW ? 360 : 0} ${C} ${C}`}
-              to={`${isCCW ? 0 : 360} ${C} ${C}`}
-              dur={`${dur * 1.5}s`}
+              values={`0 ${x} ${y};${key % 2 === 0 ? 25 : -25} ${x} ${y};${key % 2 === 0 ? -15 : 15} ${x} ${y}`}
+              dur="3s"
               begin={`${delay}s`}
               repeatCount="indefinite"
+              additive="replace"
             />
-          </path>
-        ),
-      )}
+          </ellipse>
+        </g>
+      ))}
+    </svg>
+  );
+}
 
-      {/* Tiny drift particles */}
-      {particles.map(({ x, y, ex, ey, delay, dur, key }) => (
+/* ── 8. Shadow Smoke (index 27) ── */
+export function FrameShadowSmoke({
+  size = 80,
+  isPreview = false,
+  isActive: _isActive = false,
+}: FrameProps) {
+  const bleed = Math.round(size * 0.22);
+  const total = outerSize(size, bleed);
+  const C = cx(size, bleed);
+  const R = ringR(size, bleed);
+  const op = isPreview ? 0.55 : 1;
+  const uid = `smk_${size}`;
+  const puffs = Array.from({ length: 9 }, (_, i) => {
+    const a = (i / 9) * 2 * Math.PI;
+    const x = C + R * Math.cos(a);
+    const y = C + R * Math.sin(a);
+    return { x, y, delay: (i / 9) * 3.5, key: i };
+  });
+  return (
+    <svg
+      width={total}
+      height={total}
+      viewBox={`0 0 ${total} ${total}`}
+      style={{
+        position: "absolute",
+        inset: -bleed,
+        pointerEvents: "none",
+        overflow: "visible",
+        opacity: op,
+      }}
+      aria-hidden="true"
+    >
+      <defs>
+        <filter id={`${uid}g`} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3.5" result="b" />
+          <feComposite in="SourceGraphic" in2="b" operator="over" />
+        </filter>
+      </defs>
+      <circle
+        cx={C}
+        cy={C}
+        r={R}
+        fill="none"
+        stroke="#6622aa"
+        strokeWidth={Math.max(3, size * 0.04)}
+        strokeDasharray={`${R * 0.4} ${R * 0.1}`}
+        filter={`url(#${uid}g)`}
+        opacity={0.8}
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from={`360 ${C} ${C}`}
+          to={`0 ${C} ${C}`}
+          dur="7s"
+          repeatCount="indefinite"
+        />
+        <animate
+          attributeName="stroke"
+          values="#6622aa;#3300aa;#aa22ff;#6622aa"
+          dur="3s"
+          repeatCount="indefinite"
+        />
+      </circle>
+      {puffs.map(({ x, y, delay, key }) => (
         <circle
           key={key}
           cx={x}
           cy={y}
-          r={Math.max(1, size * 0.014)}
-          fill="#e8f8ff"
+          r={Math.max(4, size * 0.055)}
+          fill="#330066"
+          filter={`url(#${uid}g)`}
           opacity={0}
         >
           <animate
             attributeName="opacity"
-            values="0;0.8;0"
-            dur={`${dur}s`}
+            values="0;0.6;0.4;0"
+            keyTimes="0;0.3;0.6;1"
+            dur="3s"
+            begin={`${delay}s`}
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="r"
+            values={`${Math.max(4, size * 0.055)};${Math.max(8, size * 0.11)};${Math.max(12, size * 0.16)}`}
+            dur="3s"
             begin={`${delay}s`}
             repeatCount="indefinite"
           />
           <animate
             attributeName="cx"
-            values={`${x};${ex}`}
-            dur={`${dur}s`}
-            begin={`${delay}s`}
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="cy"
-            values={`${y};${ey}`}
-            dur={`${dur}s`}
+            values={`${x};${x + (key % 2 === 0 ? -size * 0.05 : size * 0.05)};${x}`}
+            dur="3s"
             begin={`${delay}s`}
             repeatCount="indefinite"
           />
@@ -865,103 +896,29 @@ export function FrameAnimationWind({
   );
 }
 
-/* ──────────────────────────────────────────────────────────────── */
-/*  5. STONE -- Grinding rock segments with sparks & dust          */
-/* ──────────────────────────────────────────────────────────────── */
-export function FrameAnimationStone({
+/* ── 9. Gold Crown (index 28) ── */
+export function FrameGoldCrown({
   size = 80,
   isPreview = false,
   isActive = false,
 }: FrameProps) {
-  const bleed = Math.round(size * 0.18);
+  const bleed = Math.round(size * 0.2);
   const total = outerSize(size, bleed);
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
-  const opacity = isPreview ? 0.55 : isActive ? 1 : 0.92;
-
-  const segmentCount = 8;
-  const arcSpan = (2 * Math.PI) / segmentCount;
-  const gap = arcSpan * 0.18;
-  const sw = Math.max(4, size * 0.062);
-  const swOuter = Math.max(2.5, size * 0.038);
-
-  const colors = [
-    "#888899",
-    "#aaaaaa",
-    "#99998a",
-    "#777788",
-    "#aaa9a0",
-    "#8a8a9a",
-    "#9a9988",
-    "#7a7a8a",
-  ];
-  const highlightColors = [
-    "#c0c0c8",
-    "#d0d0cc",
-    "#c0bfb0",
-    "#a8a8b8",
-    "#cccccc",
-    "#b0b0ba",
-    "#bebe aa",
-    "#a8a8b8",
-  ];
-
-  const segments = Array.from({ length: segmentCount }, (_, i) => {
-    const startAngle = i * arcSpan - Math.PI / 2;
-    const endAngle = startAngle + arcSpan - gap;
-    const sx = C + R * Math.cos(startAngle);
-    const sy = C + R * Math.sin(startAngle);
-    const ex = C + R * Math.cos(endAngle);
-    const ey = C + R * Math.sin(endAngle);
-    const largeArc = arcSpan - gap > Math.PI ? 1 : 0;
-    const d = `M ${sx} ${sy} A ${R} ${R} 0 ${largeArc} 1 ${ex} ${ey}`;
-
-    // Outer highlight ring slightly bigger radius
-    const Rh = R + sw * 0.28;
-    const hsx = C + Rh * Math.cos(startAngle);
-    const hsy = C + Rh * Math.sin(startAngle);
-    const hex = C + Rh * Math.cos(endAngle);
-    const hey = C + Rh * Math.sin(endAngle);
-    const dh = `M ${hsx} ${hsy} A ${Rh} ${Rh} 0 ${largeArc} 1 ${hex} ${hey}`;
-
+  const op = isPreview ? 0.55 : 1;
+  const uid = `cro_${size}`;
+  const sparkles = Array.from({ length: 14 }, (_, i) => {
+    const a = (i / 14) * 2 * Math.PI;
+    const r = R + (i % 2 === 0 ? 0 : bleed * 0.28);
     return {
-      d,
-      dh,
-      color: colors[i % colors.length],
-      highlight: highlightColors[i % highlightColors.length],
+      x: C + r * Math.cos(a),
+      y: C + r * Math.sin(a),
+      delay: (i / 14) * 2.8,
       key: i,
     };
   });
-
-  // Crack lines (precomputed to avoid Array.from in JSX)
-  const crackLines = Array.from({ length: 4 }, (_, i) => {
-    const angle = (i / 4) * 2 * Math.PI - Math.PI / 2;
-    const inner = size / 2 - sw * 0.1;
-    const outer = size / 2 + sw * 1.2;
-    return {
-      ix: C + inner * Math.cos(angle),
-      iy: C + inner * Math.sin(angle),
-      ox: C + outer * Math.cos(angle),
-      oy: C + outer * Math.sin(angle),
-      key: i,
-    };
-  });
-
-  // Dust particles at segment ends
-  const dustCount = 6;
-  const dusts = Array.from({ length: dustCount }, (_, i) => {
-    const angle = (i / dustCount) * 2 * Math.PI - Math.PI / 2;
-    const x = C + R * Math.cos(angle);
-    const y = C + R * Math.sin(angle);
-    const outAngle = angle + 0.25;
-    const outX = C + (R + bleed * 0.8) * Math.cos(outAngle);
-    const outY = C + (R + bleed * 0.8) * Math.sin(outAngle);
-    const delay = (i / dustCount) * 8;
-    return { x, y, outX, outY, delay, key: i };
-  });
-
-  const uid = `stone_${size}`;
-
+  const sw = Math.max(3, size * 0.042);
   return (
     <svg
       width={total}
@@ -972,69 +929,50 @@ export function FrameAnimationStone({
         inset: -bleed,
         pointerEvents: "none",
         overflow: "visible",
-        opacity,
+        opacity: op,
       }}
       aria-hidden="true"
     >
       <defs>
-        <filter id={`${uid}_glow`} x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="1.4" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
-        </filter>
-        <filter id={`${uid}_deep`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="3.5" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        <filter id={`${uid}g`} x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="2.5" result="b" />
+          <feComposite in="SourceGraphic" in2="b" operator="over" />
         </filter>
       </defs>
-
-      {/* Deep shadow ring (depth effect) */}
       <circle
         cx={C}
         cy={C}
         r={R}
         fill="none"
-        stroke="#33334a"
-        strokeWidth={sw * 1.5}
-        filter={`url(#${uid}_deep)`}
+        stroke="#ffd700"
+        strokeWidth={sw}
+        filter={`url(#${uid}g)`}
+        opacity={isActive ? 1 : 0.88}
+      >
+        <animate
+          attributeName="stroke"
+          values="#ffd700;#fff4aa;#ffaa00;#ffd700"
+          dur="2.2s"
+          repeatCount="indefinite"
+        />
+        <animate
+          attributeName="opacity"
+          values="0.88;1;0.88"
+          dur="1.8s"
+          repeatCount="indefinite"
+        />
+      </circle>
+      <circle
+        cx={C}
+        cy={C}
+        r={R + bleed * 0.45}
+        fill="none"
+        stroke="#ffd700"
+        strokeWidth={sw * 0.35}
+        strokeDasharray={`3 ${R * 0.12}`}
+        filter={`url(#${uid}g)`}
         opacity={0.5}
-      />
-
-      {/* Spinning stone segments group */}
-      <g filter={`url(#${uid}_glow)`}>
-        {segments.map(({ d, color, key }) => (
-          <path
-            key={key}
-            d={d}
-            fill="none"
-            stroke={color}
-            strokeWidth={sw}
-            strokeLinecap="butt"
-          >
-            {/* Spark flash: each segment briefly flashes near-white */}
-            <animate
-              attributeName="stroke"
-              values={`${color};${color};#e8e8ee;${color};${color}`}
-              keyTimes={`0;${(key / segmentCount) * 0.9};${(key / segmentCount) * 0.9 + 0.04};${(key / segmentCount) * 0.9 + 0.08};1`}
-              dur="6s"
-              repeatCount="indefinite"
-            />
-          </path>
-        ))}
-
-        {/* Highlight arcs on top (3D effect) */}
-        {segments.map(({ dh, highlight, key }) => (
-          <path
-            key={`h_${key}`}
-            d={dh}
-            fill="none"
-            stroke={highlight}
-            strokeWidth={swOuter * 0.5}
-            strokeLinecap="butt"
-            opacity={0.55}
-          />
-        ))}
-
-        {/* Rotate all stone segments together */}
+      >
         <animateTransform
           attributeName="transform"
           type="rotate"
@@ -1042,69 +980,505 @@ export function FrameAnimationStone({
           to={`360 ${C} ${C}`}
           dur="10s"
           repeatCount="indefinite"
-          additive="sum"
         />
-      </g>
-
-      {/* Crack lines between segments for realism */}
-      {crackLines.map(({ ix, iy, ox, oy, key }) => (
-        <line
-          key={key}
-          x1={ix}
-          y1={iy}
-          x2={ox}
-          y2={oy}
-          stroke="#22222a"
-          strokeWidth={1.2}
-          opacity={0.6}
-        >
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from={`0 ${C} ${C}`}
-            to={`360 ${C} ${C}`}
-            dur="10s"
-            repeatCount="indefinite"
-          />
-        </line>
+      </circle>
+      {sparkles.map(({ x, y, delay, key }) => (
+        <g key={key}>
+          <line
+            x1={x - bleed * 0.1}
+            y1={y}
+            x2={x + bleed * 0.1}
+            y2={y}
+            stroke="#fff4aa"
+            strokeWidth={Math.max(1, size * 0.015)}
+            filter={`url(#${uid}g)`}
+            opacity={0}
+          >
+            <animate
+              attributeName="opacity"
+              values="0;1;0"
+              dur="1.4s"
+              begin={`${delay}s`}
+              repeatCount="indefinite"
+            />
+          </line>
+          <line
+            x1={x}
+            y1={y - bleed * 0.1}
+            x2={x}
+            y2={y + bleed * 0.1}
+            stroke="#fff4aa"
+            strokeWidth={Math.max(1, size * 0.015)}
+            filter={`url(#${uid}g)`}
+            opacity={0}
+          >
+            <animate
+              attributeName="opacity"
+              values="0;1;0"
+              dur="1.4s"
+              begin={`${delay}s`}
+              repeatCount="indefinite"
+            />
+          </line>
+        </g>
       ))}
+    </svg>
+  );
+}
 
-      {/* Dust particles flying off at segment ends */}
-      {dusts.map(({ x, y, outX, outY, delay, key }) => (
-        <circle
+/* ── 10. Cyber Hex (index 29) ── */
+export function FrameCyberHex({
+  size = 80,
+  isPreview = false,
+  isActive: _isActive = false,
+}: FrameProps) {
+  const bleed = Math.round(size * 0.22);
+  const total = outerSize(size, bleed);
+  const C = cx(size, bleed);
+  const R = ringR(size, bleed);
+  const op = isPreview ? 0.55 : 1;
+  const uid = `hex_${size}`;
+  const hexes = Array.from({ length: 10 }, (_, i) => {
+    const a = (i / 10) * 2 * Math.PI;
+    const x = C + R * Math.cos(a);
+    const y = C + R * Math.sin(a);
+    const s = Math.max(5, size * 0.07);
+    const pts = Array.from({ length: 6 }, (_, j) => {
+      const ja = (j / 6) * 2 * Math.PI;
+      return `${x + s * Math.cos(ja)},${y + s * Math.sin(ja)}`;
+    }).join(" ");
+    return { pts, delay: (i / 10) * 2.5, key: i };
+  });
+  return (
+    <svg
+      width={total}
+      height={total}
+      viewBox={`0 0 ${total} ${total}`}
+      style={{
+        position: "absolute",
+        inset: -bleed,
+        pointerEvents: "none",
+        overflow: "visible",
+        opacity: op,
+      }}
+      aria-hidden="true"
+    >
+      <defs>
+        <filter id={`${uid}g`} x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="2" result="b" />
+          <feComposite in="SourceGraphic" in2="b" operator="over" />
+        </filter>
+      </defs>
+      <circle
+        cx={C}
+        cy={C}
+        r={R}
+        fill="none"
+        stroke="#00ffcc"
+        strokeWidth={Math.max(1.5, size * 0.022)}
+        strokeDasharray={`${R * 0.2} ${R * 0.06}`}
+        filter={`url(#${uid}g)`}
+        opacity={0.7}
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from={`0 ${C} ${C}`}
+          to={`360 ${C} ${C}`}
+          dur="4s"
+          repeatCount="indefinite"
+        />
+        <animate
+          attributeName="stroke"
+          values="#00ffcc;#00aaff;#00ffcc"
+          dur="2s"
+          repeatCount="indefinite"
+        />
+      </circle>
+      {hexes.map(({ pts, delay, key }) => (
+        <polygon
           key={key}
-          cx={x}
-          cy={y}
-          r={Math.max(1.5, size * 0.02)}
-          fill="#aaaaaa"
+          points={pts}
+          fill="none"
+          stroke="#00ffcc"
+          strokeWidth={Math.max(1, size * 0.014)}
+          filter={`url(#${uid}g)`}
           opacity={0}
         >
           <animate
             attributeName="opacity"
-            values="0;0.82;0"
-            keyTimes="0;0.3;1"
-            dur="8s"
+            values="0;0.85;0.5;0"
+            keyTimes="0;0.2;0.6;1"
+            dur="2s"
             begin={`${delay}s`}
             repeatCount="indefinite"
           />
           <animate
-            attributeName="cx"
-            values={`${x};${outX}`}
-            dur="8s"
+            attributeName="stroke"
+            values="#00ffcc;#00aaff;#aaffee;#00ffcc"
+            dur="2s"
+            begin={`${delay}s`}
+            repeatCount="indefinite"
+          />
+        </polygon>
+      ))}
+    </svg>
+  );
+}
+
+/* ── 11. Void Portal (index 30) ── */
+export function FrameVoidPortal({
+  size = 80,
+  isPreview = false,
+  isActive: _isActive = false,
+}: FrameProps) {
+  const bleed = Math.round(size * 0.22);
+  const total = outerSize(size, bleed);
+  const C = cx(size, bleed);
+  const R = ringR(size, bleed);
+  const op = isPreview ? 0.55 : 1;
+  const uid = `voi_${size}`;
+  return (
+    <svg
+      width={total}
+      height={total}
+      viewBox={`0 0 ${total} ${total}`}
+      style={{
+        position: "absolute",
+        inset: -bleed,
+        pointerEvents: "none",
+        overflow: "visible",
+        opacity: op,
+      }}
+      aria-hidden="true"
+    >
+      <defs>
+        <filter id={`${uid}g`} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="4" result="b" />
+          <feComposite in="SourceGraphic" in2="b" operator="over" />
+        </filter>
+      </defs>
+      {[0, 1, 2, 3].map((i) => (
+        <circle
+          key={i}
+          cx={C}
+          cy={C}
+          r={R + i * (bleed * 0.18)}
+          fill="none"
+          stroke={i % 2 === 0 ? "#4400cc" : "#220088"}
+          strokeWidth={Math.max(2, size * 0.03) * (1 - i * 0.18)}
+          filter={`url(#${uid}g)`}
+          opacity={0.85 - i * 0.15}
+        >
+          <animateTransform
+            attributeName="transform"
+            type="rotate"
+            from={`${i % 2 === 0 ? 0 : 360} ${C} ${C}`}
+            to={`${i % 2 === 0 ? 360 : 0} ${C} ${C}`}
+            dur={`${3 + i * 1.5}s`}
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="stroke"
+            values={
+              i % 2 === 0
+                ? "#4400cc;#6600ff;#220088;#4400cc"
+                : "#220088;#000044;#4400cc;#220088"
+            }
+            dur={`${2.5 + i}s`}
+            repeatCount="indefinite"
+          />
+        </circle>
+      ))}
+    </svg>
+  );
+}
+
+/* ── 12. Dragon Scale (index 31) ── */
+export function FrameDragonScale({
+  size = 80,
+  isPreview = false,
+  isActive: _isActive = false,
+}: FrameProps) {
+  const bleed = Math.round(size * 0.2);
+  const total = outerSize(size, bleed);
+  const C = cx(size, bleed);
+  const R = ringR(size, bleed);
+  const op = isPreview ? 0.55 : 1;
+  const uid = `dra_${size}`;
+  const scaleCount = 14;
+  const sw = Math.max(3, size * 0.04);
+  const scales = Array.from({ length: scaleCount }, (_, i) => {
+    const arcSpan = (2 * Math.PI) / scaleCount;
+    const startA = i * arcSpan - Math.PI / 2;
+    const endA = startA + arcSpan * 0.85;
+    const sx = C + R * Math.cos(startA);
+    const sy = C + R * Math.sin(startA);
+    const ex = C + R * Math.cos(endA);
+    const ey = C + R * Math.sin(endA);
+    const largeArc = arcSpan * 0.85 > Math.PI ? 1 : 0;
+    return {
+      d: `M ${sx} ${sy} A ${R} ${R} 0 ${largeArc} 1 ${ex} ${ey}`,
+      key: i,
+    };
+  });
+  const colors = [
+    "#cc2200",
+    "#ff4400",
+    "#ffd700",
+    "#cc2200",
+    "#ff6600",
+    "#ffaa00",
+    "#cc2200",
+  ];
+  return (
+    <svg
+      width={total}
+      height={total}
+      viewBox={`0 0 ${total} ${total}`}
+      style={{
+        position: "absolute",
+        inset: -bleed,
+        pointerEvents: "none",
+        overflow: "visible",
+        opacity: op,
+      }}
+      aria-hidden="true"
+    >
+      <defs>
+        <filter id={`${uid}g`} x="-25%" y="-25%" width="150%" height="150%">
+          <feGaussianBlur stdDeviation="1.8" result="b" />
+          <feComposite in="SourceGraphic" in2="b" operator="over" />
+        </filter>
+      </defs>
+      {scales.map(({ d, key }) => (
+        <path
+          key={key}
+          d={d}
+          fill="none"
+          stroke={colors[key % colors.length]}
+          strokeWidth={sw}
+          strokeLinecap="butt"
+          filter={`url(#${uid}g)`}
+        >
+          <animate
+            attributeName="stroke"
+            values={`${colors[key % colors.length]};${colors[(key + 2) % colors.length]};${colors[key % colors.length]}`}
+            dur={`${1.8 + (key % 4) * 0.3}s`}
+            begin={`${(key / scaleCount) * 1.8}s`}
+            repeatCount="indefinite"
+          />
+        </path>
+      ))}
+      <animateTransform
+        attributeName="transform"
+        type="rotate"
+        from={`0 ${C} ${C}`}
+        to={`360 ${C} ${C}`}
+        dur="8s"
+        repeatCount="indefinite"
+      />
+    </svg>
+  );
+}
+
+/* ── 13. Storm Cloud (index 32) ── */
+export function FrameStormCloud({
+  size = 80,
+  isPreview = false,
+  isActive: _isActive = false,
+}: FrameProps) {
+  const bleed = Math.round(size * 0.22);
+  const total = outerSize(size, bleed);
+  const C = cx(size, bleed);
+  const R = ringR(size, bleed);
+  const op = isPreview ? 0.55 : 1;
+  const uid = `sto_${size}`;
+  const streaks = Array.from({ length: 12 }, (_, i) => {
+    const a = (i / 12) * 2 * Math.PI;
+    const x1 = C + R * Math.cos(a);
+    const y1 = C + R * Math.sin(a);
+    const span = 0.3 + (i % 3) * 0.1;
+    const x2 = C + R * Math.cos(a + span);
+    const y2 = C + R * Math.sin(a + span);
+    return { x1, y1, x2, y2, delay: (i / 12) * 2.2, key: i };
+  });
+  return (
+    <svg
+      width={total}
+      height={total}
+      viewBox={`0 0 ${total} ${total}`}
+      style={{
+        position: "absolute",
+        inset: -bleed,
+        pointerEvents: "none",
+        overflow: "visible",
+        opacity: op,
+      }}
+      aria-hidden="true"
+    >
+      <defs>
+        <filter id={`${uid}g`} x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="2.2" result="b" />
+          <feComposite in="SourceGraphic" in2="b" operator="over" />
+        </filter>
+      </defs>
+      <circle
+        cx={C}
+        cy={C}
+        r={R}
+        fill="none"
+        stroke="#334455"
+        strokeWidth={Math.max(4, size * 0.055)}
+        filter={`url(#${uid}g)`}
+        opacity={0.85}
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from={`0 ${C} ${C}`}
+          to={`360 ${C} ${C}`}
+          dur="5s"
+          repeatCount="indefinite"
+        />
+        <animate
+          attributeName="stroke"
+          values="#334455;#445566;#223344;#334455"
+          dur="2.5s"
+          repeatCount="indefinite"
+        />
+      </circle>
+      {streaks.map(({ x1, y1, x2, y2, delay, key }) => (
+        <line
+          key={key}
+          x1={x1}
+          y1={y1}
+          x2={x2}
+          y2={y2}
+          stroke="#aabbcc"
+          strokeWidth={Math.max(1.5, size * 0.02)}
+          strokeLinecap="round"
+          filter={`url(#${uid}g)`}
+          opacity={0}
+        >
+          <animate
+            attributeName="opacity"
+            values="0;0.8;0.5;0"
+            keyTimes="0;0.15;0.5;1"
+            dur="1.8s"
+            begin={`${delay}s`}
+            repeatCount="indefinite"
+          />
+        </line>
+      ))}
+    </svg>
+  );
+}
+
+/* ── 14. Crystal Clear (index 33) ── */
+export function FrameCrystalClear({
+  size = 80,
+  isPreview = false,
+  isActive: _isActive = false,
+}: FrameProps) {
+  const bleed = Math.round(size * 0.2);
+  const total = outerSize(size, bleed);
+  const C = cx(size, bleed);
+  const R = ringR(size, bleed);
+  const op = isPreview ? 0.55 : 1;
+  const uid = `cry_${size}`;
+  const prisms = Array.from({ length: 12 }, (_, i) => {
+    const a = (i / 12) * 2 * Math.PI;
+    return {
+      x: C + R * Math.cos(a),
+      y: C + R * Math.sin(a),
+      delay: (i / 12) * 3.6,
+      key: i,
+    };
+  });
+  const rainbowColors = [
+    "#ff0000",
+    "#ff8800",
+    "#ffff00",
+    "#00ff00",
+    "#0088ff",
+    "#8800ff",
+  ];
+  return (
+    <svg
+      width={total}
+      height={total}
+      viewBox={`0 0 ${total} ${total}`}
+      style={{
+        position: "absolute",
+        inset: -bleed,
+        pointerEvents: "none",
+        overflow: "visible",
+        opacity: op,
+      }}
+      aria-hidden="true"
+    >
+      <defs>
+        <filter id={`${uid}g`} x="-35%" y="-35%" width="170%" height="170%">
+          <feGaussianBlur stdDeviation="1.8" result="b" />
+          <feComposite in="SourceGraphic" in2="b" operator="over" />
+        </filter>
+      </defs>
+      <circle
+        cx={C}
+        cy={C}
+        r={R}
+        fill="none"
+        stroke="#ffffff"
+        strokeWidth={Math.max(2, size * 0.028)}
+        strokeDasharray={`${R * 0.22} ${R * 0.06}`}
+        filter={`url(#${uid}g)`}
+        opacity={0.8}
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from={`0 ${C} ${C}`}
+          to={`360 ${C} ${C}`}
+          dur="7s"
+          repeatCount="indefinite"
+        />
+        <animate
+          attributeName="stroke"
+          values="#ffffff;#ffccff;#ccffff;#ffffcc;#ffffff"
+          dur="4s"
+          repeatCount="indefinite"
+        />
+      </circle>
+      {prisms.map(({ x, y, delay, key }) => (
+        <circle
+          key={key}
+          cx={x}
+          cy={y}
+          r={Math.max(2, size * 0.028)}
+          fill="#ffffff"
+          filter={`url(#${uid}g)`}
+          opacity={0}
+        >
+          <animate
+            attributeName="opacity"
+            values="0;1;0.6;0"
+            keyTimes="0;0.2;0.5;1"
+            dur="2.8s"
             begin={`${delay}s`}
             repeatCount="indefinite"
           />
           <animate
-            attributeName="cy"
-            values={`${y};${outY}`}
-            dur="8s"
+            attributeName="fill"
+            values={rainbowColors.concat([rainbowColors[0]]).join(";")}
+            dur="2.8s"
             begin={`${delay}s`}
             repeatCount="indefinite"
           />
           <animate
             attributeName="r"
-            values={`${Math.max(1.5, size * 0.02)};0.5`}
-            dur="8s"
+            values={`${Math.max(2, size * 0.028)};${Math.max(4, size * 0.055)};0.5`}
+            dur="2.8s"
             begin={`${delay}s`}
             repeatCount="indefinite"
           />
@@ -1114,73 +1488,260 @@ export function FrameAnimationStone({
   );
 }
 
-/* ──────────────────────────────────────────────────────────────── */
-/*  Frame lookup by index                                           */
-/* ──────────────────────────────────────────────────────────────── */
+/* ── 15. Matrix Rain (index 34) ── */
+export function FrameMatrixRain({
+  size = 80,
+  isPreview = false,
+  isActive: _isActive = false,
+}: FrameProps) {
+  const bleed = Math.round(size * 0.22);
+  const total = outerSize(size, bleed);
+  const C = cx(size, bleed);
+  const R = ringR(size, bleed);
+  const op = isPreview ? 0.55 : 1;
+  const uid = `mat_${size}`;
+  const drops = Array.from({ length: 14 }, (_, i) => {
+    const a = (i / 14) * 2 * Math.PI - Math.PI / 2;
+    const x = C + R * Math.cos(a);
+    const y = C + R * Math.sin(a);
+    const yEnd = y + bleed * 0.9;
+    return { x, y, yEnd, delay: (i / 14) * 2.8, key: i };
+  });
+  return (
+    <svg
+      width={total}
+      height={total}
+      viewBox={`0 0 ${total} ${total}`}
+      style={{
+        position: "absolute",
+        inset: -bleed,
+        pointerEvents: "none",
+        overflow: "visible",
+        opacity: op,
+      }}
+      aria-hidden="true"
+    >
+      <defs>
+        <filter id={`${uid}g`} x="-25%" y="-25%" width="150%" height="150%">
+          <feGaussianBlur stdDeviation="1.5" result="b" />
+          <feComposite in="SourceGraphic" in2="b" operator="over" />
+        </filter>
+      </defs>
+      <circle
+        cx={C}
+        cy={C}
+        r={R}
+        fill="none"
+        stroke="#00ff44"
+        strokeWidth={Math.max(2, size * 0.028)}
+        strokeDasharray={`${R * 0.15} ${R * 0.05}`}
+        filter={`url(#${uid}g)`}
+        opacity={0.75}
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from={`0 ${C} ${C}`}
+          to={`360 ${C} ${C}`}
+          dur="3s"
+          repeatCount="indefinite"
+        />
+      </circle>
+      {drops.map(({ x, y, yEnd, delay, key }) => (
+        <line
+          key={key}
+          x1={x}
+          y1={y}
+          x2={x}
+          y2={y}
+          stroke="#00ff44"
+          strokeWidth={Math.max(1.5, size * 0.02)}
+          strokeLinecap="round"
+          filter={`url(#${uid}g)`}
+          opacity={0}
+        >
+          <animate
+            attributeName="opacity"
+            values="0;1;0.7;0"
+            keyTimes="0;0.2;0.7;1"
+            dur="1.8s"
+            begin={`${delay}s`}
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="y2"
+            values={`${y};${y + bleed * 0.45};${yEnd}`}
+            dur="1.8s"
+            begin={`${delay}s`}
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="stroke"
+            values="#00ff44;#88ffaa;#00cc33;#00ff44"
+            dur="1.8s"
+            begin={`${delay}s`}
+            repeatCount="indefinite"
+          />
+        </line>
+      ))}
+    </svg>
+  );
+}
 
+/* ── ANIMATED_FRAMES lookup table ── */
 export const ANIMATED_FRAMES = [
   {
     index: 20,
-    name: "Forest Spirit",
-    label: "TREE",
-    price: 200,
-    color: "#22cc44",
-    Component: FrameAnimationTree,
-    description: "Vine tendrils grow around your profile",
+    name: "Lightning Strike",
+    label: "LIGHTNING",
+    price: 150,
+    color: "#ffe066",
+    Component: FrameLightning,
+    description: "Electric sparks orbit your profile",
   },
   {
     index: 21,
-    name: "Inferno Ring",
-    label: "FIRE",
-    price: 200,
-    color: "#ff6600",
-    Component: FrameAnimationFire,
-    description: "Real flames dance and embers fly",
+    name: "Galaxy Spiral",
+    label: "GALAXY",
+    price: 150,
+    color: "#9933ff",
+    Component: FrameGalaxy,
+    description: "Stars & nebula rotate in deep space",
   },
   {
     index: 22,
-    name: "Tidal Halo",
-    label: "WATER",
-    price: 200,
-    color: "#00ccff",
-    Component: FrameAnimationWater,
-    description: "Water streams flow and droplets ripple",
+    name: "Blood Drip",
+    label: "BLOOD",
+    price: 150,
+    color: "#cc0000",
+    Component: FrameBloodDrip,
+    description: "Red drops fall around the ring",
   },
   {
     index: 23,
-    name: "Storm Wreath",
-    label: "WIND",
-    price: 200,
-    color: "#aaeeff",
-    Component: FrameAnimationWind,
-    description: "Turbulent wind streaks race around",
+    name: "Neon Pulse",
+    label: "NEON",
+    price: 150,
+    color: "#ff00ff",
+    Component: FrameNeonPulse,
+    description: "Color-cycling neon border pulses",
   },
   {
     index: 24,
-    name: "Granite Grind",
-    label: "STONE",
-    price: 200,
-    color: "#999999",
-    Component: FrameAnimationStone,
-    description: "Stone segments grind with sparks",
+    name: "Ice Shatter",
+    label: "ICE",
+    price: 150,
+    color: "#aaeeff",
+    Component: FrameIceShatter,
+    description: "Crystalline shards spin outward",
+  },
+  {
+    index: 25,
+    name: "Lava Flow",
+    label: "LAVA",
+    price: 150,
+    color: "#ff4400",
+    Component: FrameLavaFlow,
+    description: "Molten lava flows around the ring",
+  },
+  {
+    index: 26,
+    name: "Sakura Petals",
+    label: "SAKURA",
+    price: 150,
+    color: "#ffaacc",
+    Component: FrameSakura,
+    description: "Pink petals drift and fall",
+  },
+  {
+    index: 27,
+    name: "Shadow Smoke",
+    label: "SMOKE",
+    price: 150,
+    color: "#8833cc",
+    Component: FrameShadowSmoke,
+    description: "Dark purple smoke swirls mysteriously",
+  },
+  {
+    index: 28,
+    name: "Gold Crown",
+    label: "CROWN",
+    price: 150,
+    color: "#ffd700",
+    Component: FrameGoldCrown,
+    description: "Golden crown sparkles and shines",
+  },
+  {
+    index: 29,
+    name: "Cyber Hex",
+    label: "CYBER",
+    price: 150,
+    color: "#00ffcc",
+    Component: FrameCyberHex,
+    description: "Teal hexagons pulse with energy",
+  },
+  {
+    index: 30,
+    name: "Void Portal",
+    label: "VOID",
+    price: 150,
+    color: "#4400cc",
+    Component: FrameVoidPortal,
+    description: "Deep vortex pulls you in",
+  },
+  {
+    index: 31,
+    name: "Dragon Scale",
+    label: "DRAGON",
+    price: 150,
+    color: "#cc2200",
+    Component: FrameDragonScale,
+    description: "Red & gold scales gleam",
+  },
+  {
+    index: 32,
+    name: "Storm Cloud",
+    label: "STORM",
+    price: 150,
+    color: "#334455",
+    Component: FrameStormCloud,
+    description: "Dark swirling storm rumbles",
+  },
+  {
+    index: 33,
+    name: "Crystal Clear",
+    label: "CRYSTAL",
+    price: 150,
+    color: "#ccddff",
+    Component: FrameCrystalClear,
+    description: "Rainbow prism shimmer effect",
+  },
+  {
+    index: 34,
+    name: "Matrix Rain",
+    label: "MATRIX",
+    price: 150,
+    color: "#00ff44",
+    Component: FrameMatrixRain,
+    description: "Green digital rain falls",
   },
 ] as const;
 
-/** Get a frame definition by its index */
-export function getAnimatedFrame(index: number) {
-  return ANIMATED_FRAMES.find((f) => f.index === index) ?? null;
+export type AnimatedFrameEntry = (typeof ANIMATED_FRAMES)[number];
+
+export function getAnimatedFrame(index: number): AnimatedFrameEntry | null {
+  return (
+    (ANIMATED_FRAMES.find((f) => f.index === index) as
+      | AnimatedFrameEntry
+      | undefined) ?? null
+  );
 }
 
-/** Render the animated frame overlay at the given size */
 export function AnimatedFrameOverlay({
   frameIndex,
   size = 80,
   isActive = false,
-}: {
-  frameIndex: number;
-  size?: number;
-  isActive?: boolean;
-}) {
+}: { frameIndex: number; size?: number; isActive?: boolean }) {
   const frame = getAnimatedFrame(frameIndex);
   if (!frame) return null;
   const { Component } = frame;
