@@ -24,6 +24,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Ban,
+  BarChart2,
   CheckCircle,
   ChevronDown,
   ChevronUp,
@@ -90,6 +91,14 @@ function UserCard({
   const [matchHistoryOpen, setMatchHistoryOpen] = useState(false);
   const [txHistoryOpen, setTxHistoryOpen] = useState(false);
 
+  // Ranking adjustment state
+  const [rankingPanelOpen, setRankingPanelOpen] = useState(false);
+  const [rankingTab, setRankingTab] = useState<"global" | "prime" | "oldest">(
+    "global",
+  );
+  const [rankingAmount, setRankingAmount] = useState("");
+  const [isAdjustingRanking, setIsAdjustingRanking] = useState(false);
+
   async function handleAddCoins(e: React.FormEvent) {
     e.preventDefault();
     const amount = Math.floor(Number(addCoinsAmount));
@@ -114,6 +123,57 @@ function UserCard({
       toast.error("Failed to add coins. Please try again.");
     } finally {
       setIsAddingCoins(false);
+    }
+  }
+
+  async function handleAdjustRanking(direction: "increase" | "decrease") {
+    const amount = Math.floor(Number(rankingAmount));
+    if (!amount || amount <= 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+    if (!actor) return;
+    const { legendId: adminLid, passwordHash: adminPh } =
+      useAuthStore.getState();
+    if (!adminLid || !adminPh) return;
+    setIsAdjustingRanking(true);
+
+    let delta: bigint;
+    if (rankingTab === "oldest") {
+      // Convert days to nanoseconds: days * 86400 * 1_000_000_000
+      const ns = BigInt(amount) * BigInt(86400) * BigInt(1_000_000_000);
+      delta = direction === "increase" ? ns : -ns;
+    } else {
+      delta = direction === "increase" ? BigInt(amount) : BigInt(-amount);
+    }
+
+    const tabLabel =
+      rankingTab === "global"
+        ? "Global Profit"
+        : rankingTab === "prime"
+          ? "Prime Deposit"
+          : "Oldest Join Date";
+
+    try {
+      await actor.adminAdjustRanking(
+        adminLid,
+        adminPh,
+        profile.legendId,
+        rankingTab,
+        delta,
+      );
+      const sign = direction === "increase" ? "+" : "-";
+      const unit = rankingTab === "oldest" ? "d" : " LC";
+      toast.success(
+        `${tabLabel} adjusted ${sign}${amount}${unit} for ${profile.legendId}`,
+      );
+      setRankingAmount("");
+      onCoinsAdded?.();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to adjust ranking. Please try again.");
+    } finally {
+      setIsAdjustingRanking(false);
     }
   }
 
@@ -700,6 +760,172 @@ function UserCard({
                 {isAddingCoins ? "Sending…" : "Send"}
               </button>
             </form>
+          </div>
+
+          {/* RANKING ADJUSTMENTS */}
+          <div
+            className="rounded-xl overflow-hidden"
+            style={{
+              background: "rgba(100,80,255,0.04)",
+              border: "1px solid rgba(100,80,255,0.2)",
+            }}
+          >
+            {/* Collapsible header */}
+            <button
+              type="button"
+              data-ocid="admin.user.ranking_toggle"
+              onClick={() => setRankingPanelOpen((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 transition-opacity hover:opacity-80"
+            >
+              <div className="flex items-center gap-2">
+                <BarChart2 className="w-4 h-4" style={{ color: "#a070ff" }} />
+                <span
+                  className="font-display font-black text-xs uppercase tracking-[0.18em]"
+                  style={{ color: "#a070ff" }}
+                >
+                  Ranking Adjustments
+                </span>
+              </div>
+              {rankingPanelOpen ? (
+                <ChevronUp
+                  className="w-4 h-4"
+                  style={{ color: "rgba(160,112,255,0.6)" }}
+                />
+              ) : (
+                <ChevronDown
+                  className="w-4 h-4"
+                  style={{ color: "rgba(160,112,255,0.6)" }}
+                />
+              )}
+            </button>
+
+            {rankingPanelOpen && (
+              <div className="px-4 pb-4 pt-1">
+                {/* Sub-tabs: Global / Prime / Oldest */}
+                <div
+                  className="flex rounded-lg overflow-hidden mb-3"
+                  style={{ border: "1px solid rgba(100,80,255,0.25)" }}
+                >
+                  {(
+                    [
+                      { key: "global", label: "Global" },
+                      { key: "prime", label: "Prime" },
+                      { key: "oldest", label: "Oldest" },
+                    ] as const
+                  ).map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      data-ocid={`admin.user.ranking_${tab.key}_tab`}
+                      onClick={() => {
+                        setRankingTab(tab.key);
+                        setRankingAmount("");
+                      }}
+                      className="flex-1 py-1.5 font-display font-bold text-xs uppercase tracking-wider transition-all duration-200"
+                      style={{
+                        background:
+                          rankingTab === tab.key
+                            ? "rgba(100,80,255,0.35)"
+                            : "transparent",
+                        color:
+                          rankingTab === tab.key
+                            ? "#c0a0ff"
+                            : "rgba(180,160,255,0.45)",
+                        borderRight:
+                          tab.key !== "oldest"
+                            ? "1px solid rgba(100,80,255,0.25)"
+                            : "none",
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Description */}
+                <p
+                  className="text-xs font-body mb-3"
+                  style={{ color: "rgba(200,180,255,0.55)" }}
+                >
+                  {rankingTab === "global" &&
+                    "Adjust Total Profit (Global Ranking)"}
+                  {rankingTab === "prime" &&
+                    "Adjust Total Deposited (Prime Ranking)"}
+                  {rankingTab === "oldest" &&
+                    "Adjust Join Date in days — negative = older (higher rank)"}
+                </p>
+
+                {/* Amount input */}
+                <input
+                  type="number"
+                  min="1"
+                  data-ocid="admin.user.ranking_amount_input"
+                  value={rankingAmount}
+                  onChange={(e) => setRankingAmount(e.target.value)}
+                  placeholder={
+                    rankingTab === "oldest" ? "Days…" : "Amount (LC)…"
+                  }
+                  className="w-full px-3 py-2.5 rounded-lg font-body text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200 mb-3"
+                  style={{
+                    background: "rgba(100,80,255,0.08)",
+                    border: "1px solid rgba(100,80,255,0.25)",
+                    outline: "none",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "rgba(160,112,255,0.6)";
+                    e.target.style.boxShadow = "0 0 0 2px rgba(100,80,255,0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "rgba(100,80,255,0.25)";
+                    e.target.style.boxShadow = "none";
+                  }}
+                />
+
+                {/* Increase / Decrease buttons */}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    data-ocid="admin.user.ranking_increase_button"
+                    disabled={isAdjustingRanking}
+                    onClick={() => handleAdjustRanking("increase")}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, rgba(34,204,102,0.25), rgba(0,160,70,0.25))",
+                      border: "1px solid rgba(34,204,102,0.45)",
+                      color: "#22cc66",
+                    }}
+                  >
+                    {isAdjustingRanking ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <span className="text-sm leading-none">+</span>
+                    )}
+                    Increase
+                  </button>
+                  <button
+                    type="button"
+                    data-ocid="admin.user.ranking_decrease_button"
+                    disabled={isAdjustingRanking}
+                    onClick={() => handleAdjustRanking("decrease")}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg font-display font-bold text-xs uppercase tracking-wider transition-all duration-200 hover:opacity-90 disabled:opacity-50"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, rgba(255,34,0,0.2), rgba(180,0,0,0.2))",
+                      border: "1px solid rgba(255,34,0,0.45)",
+                      color: "#ff4422",
+                    }}
+                  >
+                    {isAdjustingRanking ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <span className="text-sm leading-none">-</span>
+                    )}
+                    Decrease
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* DELETE ACCOUNT */}

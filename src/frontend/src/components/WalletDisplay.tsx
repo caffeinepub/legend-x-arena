@@ -30,30 +30,29 @@ export function WalletDisplay({ balance }: WalletDisplayProps) {
           : "0 0 8px rgba(255, 215, 0, 0.2)",
       }}
     >
-      {/* L-coin -- static position, shining glow only */}
+      {/* L-coin -- black background, golden border, bold 𝐋 */}
       <div
         style={{
           width: "26px",
           height: "26px",
           borderRadius: "50%",
-          background:
-            "radial-gradient(circle at 35% 30%, #fff7aa, #ffd700 40%, #b8860b 80%, #8b6914)",
-          border: "2px solid #ffa500",
+          background: "#000",
+          border: "2px solid #ffd700",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: "13px",
+          fontSize: "14px",
           fontFamily: "Mona Sans, sans-serif",
           fontWeight: 900,
-          color: "#3d2200",
+          color: "#ffd700",
           flexShrink: 0,
           animation: "coinLGlow 2s ease-in-out infinite",
-          textShadow:
-            "0 1px 2px rgba(255,255,180,0.8), 0 0 4px rgba(255,200,0,0.6)",
-          letterSpacing: "-0.5px",
+          textShadow: "0 0 4px rgba(255,215,0,0.8)",
+          boxShadow:
+            "0 0 6px rgba(255,215,0,0.5), inset 0 0 3px rgba(255,215,0,0.1)",
         }}
       >
-        L
+        𝐋
       </div>
       <span
         className="font-display font-bold tabular-nums"

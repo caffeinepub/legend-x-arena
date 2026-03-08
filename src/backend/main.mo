@@ -7,9 +7,8 @@ import Iter "mo:core/Iter";
 import Time "mo:core/Time";
 import Runtime "mo:core/Runtime";
 import Order "mo:core/Order";
-import Migration "migration";
+import List "mo:core/List";
 
-(with migration = Migration.run)
 actor {
   type Role = { #admin; #user };
   type GameMode = { #loneWolf; #csMod; #brMod };
@@ -89,6 +88,7 @@ actor {
     jazzCashName : Text;
     status : WithdrawStatus;
     submittedAt : Int;
+    paymentMethod : Text;
   };
 
   type Tournament = {
@@ -374,6 +374,7 @@ actor {
     amount : Nat,
     jazzCashNumber : Text,
     jazzCashName : Text,
+    paymentMethod : Text,
   ) : async () {
     let userProfile = getUserByLegendIdOrTrap(legendId);
     if (not (userProfile.passwordHash == passwordHash)) { Runtime.trap("Incorrect password") };
@@ -393,6 +394,7 @@ actor {
       jazzCashName;
       status = #pending;
       submittedAt = Time.now();
+      paymentMethod;
     };
 
     withdrawRequests.add(withdrawId, newRequest);
@@ -489,6 +491,14 @@ actor {
     let userProfile = getUserByLegendIdOrTrap(legendId);
     if (not (userProfile.passwordHash == passwordHash)) { Runtime.trap("Incorrect password") };
 
+    // If the picIndex is in user's purchasedShopAvatars, allow it unconditionally
+    if (userProfile.purchasedShopAvatars.any(func(v) { v == picIndex })) {
+      let updatedProfile = { userProfile with selectedProfilePic = picIndex };
+      users.add(legendId, updatedProfile);
+      return ();
+    };
+
+    // Apply deposit tier checks ONLY for indices 1-6 that are NOT in purchasedShopAvatars
     switch (picIndex) {
       case (0) { // Default avatar, always allowed
         let updatedProfile = { userProfile with selectedProfilePic = 0 };
@@ -860,58 +870,148 @@ actor {
     };
   };
 
+  public shared ({ caller }) func adminAdjustRanking(
+    adminLegendId : Text,
+    adminPasswordHash : Text,
+    targetLegendId : Text,
+    rankingType : Text,
+    delta : Int,
+  ) : async () {
+    assertAdmin(adminLegendId, adminPasswordHash);
+    let userProfile = getUserByLegendIdOrTrap(targetLegendId);
+
+    let updatedProfile = switch (rankingType) {
+      case ("global") {
+        if (delta == 0) { Runtime.trap("Delta must be non-zero") };
+        let currentTotalProfit = userProfile.totalProfit;
+        { userProfile with totalProfit = calculateAdjustedNat(currentTotalProfit, delta); };
+      };
+      case ("prime") {
+        let currentTotalDeposited = userProfile.totalDeposited;
+        { userProfile with totalDeposited = calculateAdjustedNat(currentTotalDeposited, delta); };
+      };
+      case ("oldest") {
+        { userProfile with createdAt = userProfile.createdAt + delta };
+      };
+      case (_) { Runtime.trap("Invalid ranking type. Must be 'global', 'prime', or 'oldest'") };
+    };
+
+    users.add(targetLegendId, updatedProfile);
+  };
+
+  func calculateAdjustedNat(currentValue : Nat, delta : Int) : Nat {
+    if (delta == 0) { return currentValue };
+    if (delta > 0) {
+      let deltaNat = Int.abs(delta);
+      if (deltaNat > 0) {
+        currentValue + deltaNat;
+      } else {
+        currentValue;
+      };
+    } else {
+      let deltaNat = Int.abs(delta);
+      if (deltaNat >= currentValue) { return 0 };
+      currentValue - deltaNat;
+    };
+  };
+
   func isValidRange(value : Nat, start : Nat, end : Nat) : Bool {
     value >= start and value <= end
   };
 
+  let shopAvatarPrices : [(Nat, Nat)] = [
+    (10, 200),
+    (11, 350),
+    (12, 500),
+    (13, 150),
+    (14, 275),
+    (15, 450),
+    (16, 325),
+    (17, 600),
+    (18, 400),
+    (19, 250),
+  ];
+
   public shared ({ caller }) func buyShopAvatar(legendId : Text, passwordHash : Text, avatarIndex : Nat) : async () {
-    if (not isValidRange(avatarIndex, 10, 19)) {
-      Runtime.trap("Invalid avatar index");
+    let priceOpt = shopAvatarPrices.find(
+      func((index, _)) { index == avatarIndex }
+    ).map(func((_, price)) { price });
+
+    switch (priceOpt) {
+      case (?price) {
+        let userProfile = getUserByLegendIdOrTrap(legendId);
+        if (not (userProfile.passwordHash == passwordHash)) {
+          Runtime.trap("Incorrect password");
+        };
+
+        if (userProfile.purchasedShopAvatars.any(func(v) { v == avatarIndex })) {
+          Runtime.trap("Avatar already purchased");
+        };
+
+        if (userProfile.walletBalance < price) {
+          Runtime.trap("Insufficient balance");
+        };
+
+        let avatarArray = userProfile.purchasedShopAvatars.concat([avatarIndex]);
+
+        let newTransaction : Transaction = {
+          txType = #withdraw;
+          amount = price;
+          date = Time.now();
+          description = "Avatar Purchase";
+        };
+
+        let updatedProfile : UserProfile = {
+          userProfile with
+          walletBalance = userProfile.walletBalance - price;
+          transactions = userProfile.transactions.concat([newTransaction]);
+          purchasedShopAvatars = avatarArray;
+          selectedProfilePic = avatarIndex;
+        };
+
+        users.add(legendId, updatedProfile);
+      };
+      case (null) {
+        if (avatarIndex >= 30) {
+          let customAvatar = switch (customShopAvatars.get(avatarIndex)) {
+            case (null) { Runtime.trap("Custom avatar not found") };
+            case (?avatar) { avatar };
+          };
+
+          let userProfile = getUserByLegendIdOrTrap(legendId);
+          if (not (userProfile.passwordHash == passwordHash)) { Runtime.trap("Incorrect password") };
+
+          if (userProfile.purchasedShopAvatars.any(func(v) { v == avatarIndex })) {
+            Runtime.trap("Avatar already purchased");
+          };
+
+          if (userProfile.walletBalance < customAvatar.price) {
+            Runtime.trap("Insufficient balance");
+          };
+
+          let avatarArray = userProfile.purchasedShopAvatars.concat([avatarIndex]);
+
+          let newTransaction : Transaction = {
+            txType = #withdraw;
+            amount = customAvatar.price;
+            date = Time.now();
+            description = "Custom Avatar Purchase";
+          };
+
+          let updatedProfile : UserProfile = {
+            userProfile with
+            walletBalance = userProfile.walletBalance - customAvatar.price;
+            transactions = userProfile.transactions.concat([newTransaction]);
+            purchasedShopAvatars = avatarArray;
+            selectedProfilePic = avatarIndex;
+          };
+
+          users.add(legendId, updatedProfile);
+        } else {
+          Runtime.trap("Invalid avatar index");
+        };
+      };
     };
-
-    let price = switch (avatarIndex) {
-      case (10) { 200 };
-      case (11) { 350 };
-      case (12) { 500 };
-      case (13) { 150 };
-      case (14) { 275 };
-      case (15) { 450 };
-      case (16) { 325 };
-      case (17) { 600 };
-      case (18) { 400 };
-      case (19) { 250 };
-      case (_) { Runtime.trap("Invalid avatar index") };
-    };
-
-    let userProfile = getUserByLegendIdOrTrap(legendId);
-    if (not (userProfile.passwordHash == passwordHash)) { Runtime.trap("Incorrect password") };
-
-    if (userProfile.purchasedShopAvatars.any(func(v) { v == avatarIndex })) {
-      Runtime.trap("Avatar already purchased");
-    };
-
-    if (userProfile.walletBalance < price) {
-      Runtime.trap("Insufficient balance");
-    };
-
-    let avatarArray = userProfile.purchasedShopAvatars.concat([avatarIndex]);
-
-    let newTransaction : Transaction = {
-      txType = #withdraw;
-      amount = price;
-      date = Time.now();
-      description = "Avatar Purchase";
-    };
-
-    let updatedProfile : UserProfile = {
-      userProfile with
-      walletBalance = userProfile.walletBalance - price;
-      transactions = userProfile.transactions.concat([newTransaction]);
-      purchasedShopAvatars = avatarArray;
-      selectedProfilePic = avatarIndex;
-    };
-
-    users.add(legendId, updatedProfile);
   };
 
   public shared ({ caller }) func buyCustomShopAvatar(
@@ -1223,4 +1323,3 @@ actor {
     };
   };
 };
-

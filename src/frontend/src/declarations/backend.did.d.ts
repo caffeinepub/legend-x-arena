@@ -114,6 +114,7 @@ export interface WithdrawRequest {
   'id' : string,
   'jazzCashName' : string,
   'status' : WithdrawStatus,
+  'paymentMethod' : string,
   'legendId' : string,
   'submittedAt' : bigint,
   'jazzCashNumber' : string,
@@ -131,6 +132,10 @@ export interface _SERVICE {
   'addShopFrame' : ActorMethod<
     [string, string, string, bigint, bigint, bigint, string],
     bigint
+  >,
+  'adminAdjustRanking' : ActorMethod<
+    [string, string, string, string, bigint],
+    undefined
   >,
   'approveDepositRequest' : ActorMethod<[string, string, string], undefined>,
   'approveWithdrawRequest' : ActorMethod<[string, string, string], undefined>,
@@ -203,7 +208,7 @@ export interface _SERVICE {
     undefined
   >,
   'submitWithdrawRequest' : ActorMethod<
-    [string, string, bigint, string, string],
+    [string, string, bigint, string, string, string],
     undefined
   >,
   'toggleBan' : ActorMethod<[string, string, string], undefined>,

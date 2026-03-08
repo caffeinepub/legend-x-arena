@@ -116,6 +116,7 @@ export const WithdrawRequest = IDL.Record({
   'id' : IDL.Text,
   'jazzCashName' : IDL.Text,
   'status' : WithdrawStatus,
+  'paymentMethod' : IDL.Text,
   'legendId' : IDL.Text,
   'submittedAt' : IDL.Int,
   'jazzCashNumber' : IDL.Text,
@@ -140,6 +141,11 @@ export const idlService = IDL.Service({
   'addShopFrame' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Nat, IDL.Int, IDL.Text],
       [IDL.Nat],
+      [],
+    ),
+  'adminAdjustRanking' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Int],
+      [],
       [],
     ),
   'approveDepositRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
@@ -229,7 +235,7 @@ export const idlService = IDL.Service({
       [],
     ),
   'submitWithdrawRequest' : IDL.Func(
-      [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text],
+      [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text, IDL.Text],
       [],
       [],
     ),
@@ -380,6 +386,7 @@ export const idlFactory = ({ IDL }) => {
     'id' : IDL.Text,
     'jazzCashName' : IDL.Text,
     'status' : WithdrawStatus,
+    'paymentMethod' : IDL.Text,
     'legendId' : IDL.Text,
     'submittedAt' : IDL.Int,
     'jazzCashNumber' : IDL.Text,
@@ -404,6 +411,11 @@ export const idlFactory = ({ IDL }) => {
     'addShopFrame' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Nat, IDL.Nat, IDL.Int, IDL.Text],
         [IDL.Nat],
+        [],
+      ),
+    'adminAdjustRanking' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Int],
+        [],
         [],
       ),
     'approveDepositRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
@@ -497,7 +509,7 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'submitWithdrawRequest' : IDL.Func(
-        [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text],
+        [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text, IDL.Text],
         [],
         [],
       ),

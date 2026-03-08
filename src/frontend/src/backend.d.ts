@@ -64,6 +64,7 @@ export interface WithdrawRequest {
     id: string;
     jazzCashName: string;
     status: WithdrawStatus;
+    paymentMethod: string;
     legendId: string;
     submittedAt: bigint;
     jazzCashNumber: string;
@@ -130,6 +131,7 @@ export interface backendInterface {
     addCoins(adminLegendId: string, adminPasswordHash: string, targetLegendId: string, amount: bigint): Promise<void>;
     addCustomShopAvatar(adminLegendId: string, adminPasswordHash: string, name: string, price: bigint, discount: bigint, expiryDate: bigint, src: string): Promise<bigint>;
     addShopFrame(adminLegendId: string, adminPasswordHash: string, name: string, price: bigint, discount: bigint, expiryDate: bigint, src: string): Promise<bigint>;
+    adminAdjustRanking(adminLegendId: string, adminPasswordHash: string, targetLegendId: string, rankingType: string, delta: bigint): Promise<void>;
     approveDepositRequest(adminLegendId: string, adminPasswordHash: string, requestId: string): Promise<void>;
     approveWithdrawRequest(adminLegendId: string, adminPasswordHash: string, requestId: string): Promise<void>;
     authenticate(legendId: string, passwordHash: string): Promise<boolean>;
@@ -168,7 +170,7 @@ export interface backendInterface {
     setProfilePicture(legendId: string, passwordHash: string, picIndex: bigint): Promise<void>;
     setTournamentRoom(adminLegendId: string, adminPasswordHash: string, tournamentId: string, roomId: string, roomPassword: string): Promise<void>;
     submitDepositRequest(legendId: string, passwordHash: string, amount: bigint, transactionId: string): Promise<void>;
-    submitWithdrawRequest(legendId: string, passwordHash: string, amount: bigint, jazzCashNumber: string, jazzCashName: string): Promise<void>;
+    submitWithdrawRequest(legendId: string, passwordHash: string, amount: bigint, jazzCashNumber: string, jazzCashName: string, paymentMethod: string): Promise<void>;
     toggleBan(adminLegendId: string, adminPasswordHash: string, targetLegendId: string): Promise<void>;
     updateCustomShopAvatar(adminLegendId: string, adminPasswordHash: string, avatarIndex: bigint, name: string, price: bigint, discount: bigint, expiryDate: bigint): Promise<void>;
     updatePlayerInfo(legendId: string, passwordHash: string, gameName: string, gameUID: string, jazzCashNumber: string): Promise<void>;

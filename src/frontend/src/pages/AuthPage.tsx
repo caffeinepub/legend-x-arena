@@ -656,21 +656,21 @@ export function AuthPage() {
                         )}
                       </div>
 
-                      {/* JazzCash Number */}
+                      {/* JazzCash / EasyPaisa Number */}
                       <div>
                         <label
                           className="block text-xs font-body uppercase tracking-wider mb-2"
                           style={{ color: "rgba(255,255,255,0.5)" }}
                           htmlFor="register-jazzcash"
                         >
-                          JazzCash Number
+                          Jazzcash/Easypaisa Number
                         </label>
                         <input
                           id="register-jazzcash"
                           data-ocid="auth.jazzcash_input"
                           type="tel"
                           className="input-fire-blue w-full px-4 py-3 rounded-lg font-body text-sm text-foreground transition-all duration-200"
-                          placeholder="Enter your JazzCash number"
+                          placeholder="Enter your Jazzcash/Easypaisa number"
                           autoComplete="tel"
                           style={{
                             background: "rgba(255,255,255,0.05)",
