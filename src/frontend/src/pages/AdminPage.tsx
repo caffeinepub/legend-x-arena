@@ -23,6 +23,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
+  ArrowUpRight,
   Ban,
   BarChart2,
   CheckCircle,
@@ -32,6 +33,7 @@ import {
   Edit2,
   ImageIcon,
   Key,
+  Layers,
   Loader2,
   LogOut,
   Plus,
@@ -47,6 +49,100 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+
+/* ─── L BADGE helpers ────────────────────────────────────────── */
+const HARDCODED_L_BADGE_IDS = new Set(["0003", "0004", "0005"]);
+
+function hasLBadgeAdmin(legendId: string): boolean {
+  if (HARDCODED_L_BADGE_IDS.has(legendId)) return true;
+  try {
+    const stored: string[] = JSON.parse(
+      localStorage.getItem("lxa_l_badges") ?? "[]",
+    );
+    return stored.includes(legendId);
+  } catch {
+    return false;
+  }
+}
+
+function assignLBadge(legendId: string): void {
+  try {
+    const stored: string[] = JSON.parse(
+      localStorage.getItem("lxa_l_badges") ?? "[]",
+    );
+    if (!stored.includes(legendId)) {
+      stored.push(legendId);
+      localStorage.setItem("lxa_l_badges", JSON.stringify(stored));
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function revokeLBadge(legendId: string): void {
+  try {
+    const stored: string[] = JSON.parse(
+      localStorage.getItem("lxa_l_badges") ?? "[]",
+    );
+    const updated = stored.filter((id) => id !== legendId);
+    localStorage.setItem("lxa_l_badges", JSON.stringify(updated));
+  } catch {
+    /* ignore */
+  }
+}
+
+function LBadgeIcon() {
+  return (
+    <span
+      aria-label="L Badge"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 22,
+        height: 22,
+        flexShrink: 0,
+        position: "relative",
+      }}
+    >
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 22 22"
+        fill="none"
+        style={{ position: "absolute", inset: 0 }}
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient id="lbg2" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#ff2200" />
+            <stop offset="100%" stopColor="#880000" />
+          </linearGradient>
+        </defs>
+        <polygon
+          points="11,1 20,6 20,16 11,21 2,16 2,6"
+          fill="url(#lbg2)"
+          stroke="#ffd700"
+          strokeWidth="1.5"
+        />
+      </svg>
+      <span
+        style={{
+          position: "relative",
+          zIndex: 1,
+          fontSize: "9px",
+          fontWeight: 900,
+          color: "#ffd700",
+          lineHeight: 1,
+        }}
+      >
+        𝐋
+      </span>
+    </span>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────── */
 
 function formatDate(ts: bigint): string {
   try {
@@ -98,6 +194,12 @@ function UserCard({
   );
   const [rankingAmount, setRankingAmount] = useState("");
   const [isAdjustingRanking, setIsAdjustingRanking] = useState(false);
+
+  // L Badge state — only 0001 can assign
+  const { legendId: adminLegendId } = useAuthStore();
+  const [lBadgeHeld, setLBadgeHeld] = useState(() =>
+    hasLBadgeAdmin(profile.legendId),
+  );
 
   async function handleAddCoins(e: React.FormEvent) {
     e.preventDefault();
@@ -927,6 +1029,39 @@ function UserCard({
               </div>
             )}
           </div>
+
+          {/* L BADGE (only admin 0001 can assign/revoke) */}
+          {adminLegendId === "0001" &&
+            !HARDCODED_L_BADGE_IDS.has(profile.legendId) && (
+              <button
+                type="button"
+                data-ocid="admin.user.lbadge_toggle"
+                onClick={() => {
+                  if (lBadgeHeld) {
+                    revokeLBadge(profile.legendId);
+                    setLBadgeHeld(false);
+                    toast.success(`L Badge removed from ${profile.legendId}`);
+                  } else {
+                    assignLBadge(profile.legendId);
+                    setLBadgeHeld(true);
+                    toast.success(`L Badge assigned to ${profile.legendId}!`);
+                  }
+                }}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-display font-black text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-90"
+                style={{
+                  background: lBadgeHeld
+                    ? "rgba(180,0,0,0.2)"
+                    : "linear-gradient(135deg, rgba(255,34,0,0.2), rgba(180,0,0,0.2))",
+                  border: lBadgeHeld
+                    ? "1px solid rgba(255,215,0,0.4)"
+                    : "1px solid rgba(255,100,0,0.4)",
+                  color: lBadgeHeld ? "#ffd700" : "#ff8844",
+                }}
+              >
+                <LBadgeIcon />
+                {lBadgeHeld ? "Revoke L Badge" : "Assign L Badge"}
+              </button>
+            )}
 
           {/* DELETE ACCOUNT */}
           {onDeleteUser && (
@@ -2694,21 +2829,6 @@ function PendingDepositsSection() {
     }
   }
 
-  function formatDate(ts: bigint): string {
-    try {
-      const ms = Number(ts) / 1_000_000;
-      return new Date(ms).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return "—";
-    }
-  }
-
   return (
     <div
       className="rounded-2xl p-6 mb-8"
@@ -2908,7 +3028,9 @@ function AdminStoreAvatarSection() {
   const [avatarPrice, setAvatarPrice] = useState("200");
   const [isSaving, setIsSaving] = useState(false);
   const [deletingIndex, setDeletingIndex] = useState<bigint | null>(null);
-  const [resetingTier, setResetingTier] = useState<number | null>(null);
+  const [exchangeFromTier, setExchangeFromTier] = useState<number>(0);
+  const [exchangeToTier, setExchangeToTier] = useState<number>(1);
+  const [isExchanging, setIsExchanging] = useState(false);
 
   // Load custom shop avatars from backend
   const { data: customAvatars = [] } = useQuery<CustomShopAvatar[]>({
@@ -3015,24 +3137,31 @@ function AdminStoreAvatarSection() {
     }
   }
 
-  async function handleResetTier(tierIndex: number) {
+  async function handleExchangeTier() {
+    if (exchangeFromTier === exchangeToTier) {
+      toast.error("Source and destination tiers must be different");
+      return;
+    }
     if (!actor) return;
     const { legendId: adminLid, passwordHash: adminPh } =
       useAuthStore.getState();
     if (!adminLid || !adminPh) return;
-    setResetingTier(tierIndex);
+    setIsExchanging(true);
     try {
+      // Reset users who have the 'from' tier, then they'll naturally re-qualify for 'to' tier
       await actor.resetUsersWithDepositTierAvatar(
         adminLid,
         adminPh,
-        BigInt(tierIndex),
+        BigInt(exchangeFromTier),
       );
-      toast.success(`Tier ${tierIndex} avatar reset for affected users`);
+      toast.success(
+        `Exchanged Tier ${exchangeFromTier} → Tier ${exchangeToTier}: users reset, will receive new tier avatar`,
+      );
     } catch (err) {
       console.error(err);
-      toast.error("Reset failed");
+      toast.error("Exchange failed");
     } finally {
-      setResetingTier(null);
+      setIsExchanging(false);
     }
   }
 
@@ -3313,65 +3442,136 @@ function AdminStoreAvatarSection() {
         </div>
       )}
 
-      {/* Deposit Tier Avatar Reset */}
+      {/* Deposit Tier Avatar Exchange */}
       <div
         className="rounded-xl p-5"
         style={{
-          background: "rgba(255,80,80,0.04)",
-          border: "1px solid rgba(255,80,80,0.15)",
+          background: "rgba(255,165,0,0.04)",
+          border: "1px solid rgba(255,165,0,0.15)",
         }}
       >
         <p
-          className="text-xs font-display font-bold uppercase tracking-wider mb-3"
-          style={{ color: "rgba(255,100,100,0.8)" }}
+          className="text-xs font-display font-bold uppercase tracking-wider mb-1"
+          style={{ color: "rgba(255,180,50,0.9)" }}
         >
-          Deposit Tier Avatar Reset
+          Gallery Exchange
         </p>
         <p
           className="text-xs font-body mb-4"
           style={{ color: "rgba(255,255,255,0.4)" }}
         >
-          Reset all users who have a specific deposit-tier avatar equipped back
-          to the default (Joker). Use after changing tier images.
+          Exchange a player's deposit-tier avatar from one tier to another.
+          Select source tier (from) and destination tier (to), then confirm.
         </p>
-        <div className="flex flex-col gap-2">
-          {DEPOSIT_TIERS.map((tier) => (
-            <div
-              key={tier.index}
-              data-ocid={`admin.tier_reset.item.${tier.index + 1}`}
-              className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg"
+        <div className="flex flex-col gap-3">
+          {/* From tier selector */}
+          <div>
+            <p
+              className="text-xs font-display font-bold mb-1.5 uppercase tracking-wider"
+              style={{ color: "rgba(255,180,50,0.7)" }}
+            >
+              From Tier
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {DEPOSIT_TIERS.map((tier) => (
+                <button
+                  key={`from-${tier.index}`}
+                  type="button"
+                  data-ocid={`admin.exchange.from_tier.${tier.index + 1}`}
+                  onClick={() => setExchangeFromTier(tier.index)}
+                  className="text-xs px-2.5 py-1.5 rounded-lg font-display font-bold transition-all hover:opacity-80"
+                  style={{
+                    background:
+                      exchangeFromTier === tier.index
+                        ? "rgba(255,165,0,0.25)"
+                        : "rgba(255,255,255,0.04)",
+                    border:
+                      exchangeFromTier === tier.index
+                        ? "1px solid rgba(255,165,0,0.5)"
+                        : "1px solid rgba(255,255,255,0.08)",
+                    color:
+                      exchangeFromTier === tier.index
+                        ? "#ffa030"
+                        : "rgba(255,255,255,0.45)",
+                  }}
+                >
+                  {tier.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* To tier selector */}
+          <div>
+            <p
+              className="text-xs font-display font-bold mb-1.5 uppercase tracking-wider"
+              style={{ color: "rgba(255,180,50,0.7)" }}
+            >
+              To Tier
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {DEPOSIT_TIERS.map((tier) => (
+                <button
+                  key={`to-${tier.index}`}
+                  type="button"
+                  data-ocid={`admin.exchange.to_tier.${tier.index + 1}`}
+                  onClick={() => setExchangeToTier(tier.index)}
+                  className="text-xs px-2.5 py-1.5 rounded-lg font-display font-bold transition-all hover:opacity-80"
+                  style={{
+                    background:
+                      exchangeToTier === tier.index
+                        ? "rgba(34,204,102,0.2)"
+                        : "rgba(255,255,255,0.04)",
+                    border:
+                      exchangeToTier === tier.index
+                        ? "1px solid rgba(34,204,102,0.4)"
+                        : "1px solid rgba(255,255,255,0.08)",
+                    color:
+                      exchangeToTier === tier.index
+                        ? "#22cc66"
+                        : "rgba(255,255,255,0.45)",
+                  }}
+                >
+                  {tier.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Exchange summary */}
+          <div
+            className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg"
+            style={{
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <span
+              className="text-xs font-body"
+              style={{ color: "rgba(255,255,255,0.5)" }}
+            >
+              {DEPOSIT_TIERS[exchangeFromTier]?.label ?? "?"}{" "}
+              <span style={{ color: "#ffa030" }}>→</span>{" "}
+              {DEPOSIT_TIERS[exchangeToTier]?.label ?? "?"}
+            </span>
+            <button
+              type="button"
+              data-ocid="admin.exchange.confirm_button"
+              onClick={handleExchangeTier}
+              disabled={isExchanging || exchangeFromTier === exchangeToTier}
+              className="text-xs px-3 py-1.5 rounded-lg font-display font-bold uppercase tracking-wider transition-all hover:opacity-80 disabled:opacity-50 flex items-center gap-1"
               style={{
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.06)",
+                background: "rgba(255,165,0,0.18)",
+                border: "1px solid rgba(255,165,0,0.35)",
+                color: "#ffa030",
               }}
             >
-              <span
-                className="text-xs font-display font-bold"
-                style={{ color: "rgba(255,255,255,0.7)" }}
-              >
-                {tier.label}
-              </span>
-              <button
-                type="button"
-                data-ocid={`admin.tier_reset.button.${tier.index + 1}`}
-                onClick={() => handleResetTier(tier.index)}
-                disabled={resetingTier === tier.index}
-                className="text-xs px-3 py-1.5 rounded-lg font-display font-bold uppercase tracking-wider transition-all hover:opacity-80 disabled:opacity-50 flex items-center gap-1"
-                style={{
-                  background: "rgba(255,80,80,0.12)",
-                  border: "1px solid rgba(255,80,80,0.25)",
-                  color: "#ff5050",
-                }}
-              >
-                {resetingTier === tier.index ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <RefreshCcw className="w-3 h-3" />
-                )}
-                Reset
-              </button>
-            </div>
-          ))}
+              {isExchanging ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <RefreshCcw className="w-3 h-3" />
+              )}
+              Exchange
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -3386,6 +3586,10 @@ export function AdminPage() {
   const queryClient = useQueryClient();
 
   const [txSection, setTxSection] = useState<"deposit" | "withdraw">("deposit");
+  const [showMatchesDepWith, setShowMatchesDepWith] = useState(false);
+  const [mDepWithSection, setMDepWithSection] = useState<
+    "matches" | "deposit" | "withdraw"
+  >("matches");
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState<string | null>(null);
   const searchResultRef = useRef<HTMLDivElement>(null);
@@ -3851,7 +4055,125 @@ export function AdminPage() {
 
         {/* ── Pending Withdraw Requests ── */}
         {txSection === "withdraw" && <PendingWithdrawsSection />}
+
+        {/* ── Matches Dep/With Button ── */}
+        <button
+          type="button"
+          data-ocid="admin.matches_dep_with_button"
+          onClick={() => setShowMatchesDepWith(true)}
+          className="w-full flex items-center justify-center gap-3 py-5 rounded-2xl font-display font-black text-base uppercase tracking-wider transition-all duration-200 hover:opacity-90 mt-4"
+          style={{
+            background:
+              "linear-gradient(135deg, rgba(255,100,0,0.18), rgba(255,34,0,0.12), rgba(0,102,255,0.12))",
+            border: "1px solid rgba(255,120,0,0.35)",
+            color: "#ff8844",
+            boxShadow:
+              "0 0 24px rgba(255,100,0,0.1), inset 0 1px 0 rgba(255,255,255,0.04)",
+          }}
+        >
+          <Layers className="w-5 h-5" />
+          Matches Dep/With
+          <ArrowUpRight className="w-4 h-4 opacity-60" />
+        </button>
       </main>
+
+      {/* ── Matches Dep/With Full-Screen Modal ── */}
+      {showMatchesDepWith && (
+        <div
+          data-ocid="admin.matches_dep_with.modal"
+          className="fixed inset-0 z-[150] flex flex-col"
+          style={{ background: "#08080f" }}
+        >
+          {/* Header */}
+          <div
+            className="flex items-center justify-between px-5 py-4 flex-shrink-0"
+            style={{
+              background: "rgba(10,10,15,0.98)",
+              borderBottom: "1px solid rgba(255,120,0,0.2)",
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <Layers className="w-5 h-5" style={{ color: "#ff8844" }} />
+              <h2
+                className="font-display font-black text-base uppercase tracking-widest"
+                style={{ color: "#ff8844" }}
+              >
+                Matches Dep/With
+              </h2>
+            </div>
+            <button
+              type="button"
+              data-ocid="admin.matches_dep_with.close_button"
+              onClick={() => setShowMatchesDepWith(false)}
+              className="flex items-center justify-center w-9 h-9 rounded-xl transition-all hover:opacity-80"
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.1)",
+              }}
+            >
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </div>
+
+          {/* Section tabs */}
+          <div
+            className="flex flex-shrink-0"
+            style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+          >
+            {(
+              [
+                {
+                  key: "matches",
+                  label: "Match Mgmt",
+                  icon: <Trophy className="w-3.5 h-3.5" />,
+                },
+                {
+                  key: "deposit",
+                  label: "Deposits",
+                  icon: <Coins className="w-3.5 h-3.5" />,
+                },
+                {
+                  key: "withdraw",
+                  label: "Withdrawals",
+                  icon: <SendHorizonal className="w-3.5 h-3.5" />,
+                },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                data-ocid={`admin.matches_dep_with.${tab.key}_tab`}
+                onClick={() => setMDepWithSection(tab.key)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-3.5 font-display font-black text-xs uppercase tracking-wider transition-all duration-200"
+                style={
+                  mDepWithSection === tab.key
+                    ? {
+                        background: "rgba(255,120,0,0.1)",
+                        color: "#ff8844",
+                        boxShadow: "inset 0 -2px 0 #ff8844",
+                      }
+                    : {
+                        background: "transparent",
+                        color: "rgba(255,255,255,0.35)",
+                      }
+                }
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+              {mDepWithSection === "matches" && <MatchManagementSection />}
+              {mDepWithSection === "deposit" && <PendingDepositsSection />}
+              {mDepWithSection === "withdraw" && <PendingWithdrawsSection />}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

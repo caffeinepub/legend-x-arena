@@ -84,16 +84,116 @@ function LegendCoin({ size = 16 }: { size?: number }) {
         verticalAlign: "middle",
         lineHeight: 1,
         animation: "coinLGlow 2s ease-in-out infinite",
+        position: "relative",
       }}
     >
       <span
         style={{
           color: "#ffd700",
           fontWeight: 900,
-          fontSize: `${Math.max(7, Math.round(size * 0.55))}px`,
+          fontSize: `${Math.max(7, Math.round(size * 0.52))}px`,
           fontFamily: "Mona Sans, sans-serif",
           lineHeight: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: "100%",
+          height: "100%",
+          position: "absolute",
+          top: 0,
+          left: 0,
           textShadow: "0 0 4px rgba(255,215,0,0.8)",
+          userSelect: "none",
+        }}
+      >
+        𝐋
+      </span>
+    </span>
+  );
+}
+
+/* ─── L BADGE helpers ────────────────────────────────────────── */
+const HARDCODED_L_BADGE_IDS = new Set(["0003", "0004", "0005"]);
+
+function hasLBadge(legendId: string | null | undefined): boolean {
+  if (!legendId) return false;
+  if (HARDCODED_L_BADGE_IDS.has(legendId)) return true;
+  try {
+    const stored: string[] = JSON.parse(
+      localStorage.getItem("lxa_l_badges") ?? "[]",
+    );
+    return stored.includes(legendId);
+  } catch {
+    return false;
+  }
+}
+
+function LBadge() {
+  return (
+    <span
+      aria-label="L Badge"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 22,
+        height: 22,
+        flexShrink: 0,
+        verticalAlign: "middle",
+        marginLeft: 3,
+        position: "relative",
+        animation: "lbadgeGlow 2.5s ease-in-out infinite",
+      }}
+    >
+      {/* Hexagon SVG */}
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 22 22"
+        fill="none"
+        style={{ position: "absolute", inset: 0 }}
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient id="lbg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#ff2200" />
+            <stop offset="50%" stopColor="#cc0011" />
+            <stop offset="100%" stopColor="#880000" />
+          </linearGradient>
+          <linearGradient id="lborder" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#ffd700" />
+            <stop offset="50%" stopColor="#ffaa00" />
+            <stop offset="100%" stopColor="#ffd700" />
+          </linearGradient>
+        </defs>
+        {/* Outer gold hexagon */}
+        <polygon
+          points="11,1 20,6 20,16 11,21 2,16 2,6"
+          fill="url(#lbg)"
+          stroke="url(#lborder)"
+          strokeWidth="1.5"
+        />
+        {/* Tiny laurel dots (left side) */}
+        <circle cx="3.5" cy="9" r="0.9" fill="rgba(255,215,0,0.7)" />
+        <circle cx="3.5" cy="11" r="0.9" fill="rgba(255,215,0,0.7)" />
+        <circle cx="3.5" cy="13" r="0.9" fill="rgba(255,215,0,0.7)" />
+        {/* Tiny laurel dots (right side) */}
+        <circle cx="18.5" cy="9" r="0.9" fill="rgba(255,215,0,0.7)" />
+        <circle cx="18.5" cy="11" r="0.9" fill="rgba(255,215,0,0.7)" />
+        <circle cx="18.5" cy="13" r="0.9" fill="rgba(255,215,0,0.7)" />
+      </svg>
+      {/* L letter */}
+      <span
+        style={{
+          position: "relative",
+          zIndex: 1,
+          fontSize: "9px",
+          fontWeight: 900,
+          fontFamily: "Mona Sans, sans-serif",
+          color: "#ffd700",
+          textShadow: "0 0 4px rgba(255,215,0,0.9)",
+          letterSpacing: "-0.02em",
+          lineHeight: 1,
           userSelect: "none",
         }}
       >
@@ -2389,6 +2489,7 @@ function AdminPlayerLookup({
               >
                 <span className="truncate">{searchResult.gameName || "—"}</span>
                 {searchResult.legendId === "0001" && <AppOwnerBadge />}
+                {hasLBadge(searchResult.legendId) && <LBadge />}
               </div>
               <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                 <span
@@ -3234,9 +3335,9 @@ export function DashboardPage() {
     staleTime: 0, // always refetch on mount
     gcTime: 5 * 60 * 1000, // keep in cache 5 min
     refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    retry: 5,
-    retryDelay: 2000,
+    refetchOnWindowFocus: false,
+    retry: 2,
+    retryDelay: 1500,
   });
 
   // Force refetch whenever actor becomes ready so data isn't stale on app open
@@ -3294,6 +3395,8 @@ export function DashboardPage() {
       },
       enabled: !!actor && !isFetching,
       refetchInterval: 60_000,
+      refetchOnWindowFocus: false,
+      retry: 1,
     });
 
   const handleLogout = useCallback(() => {
@@ -4687,14 +4790,14 @@ export function DashboardPage() {
                             .map(Number)
                             .includes(Number(avatar.index)) ||
                           avatar.price === 0;
-                        const canAfford = Number(balance) >= avatar.price;
-                        const isActive = selectedProfilePic === avatar.index;
                         const effectivePrice =
                           avatar.discount > 0
                             ? Math.round(
                                 avatar.price * (1 - avatar.discount / 100),
                               )
                             : avatar.price;
+                        const canAfford = Number(balance) >= effectivePrice;
+                        const isActive = selectedProfilePic === avatar.index;
                         const expired = isExpired(avatar.expiryDate);
                         return (
                           <div
@@ -6077,6 +6180,7 @@ export function DashboardPage() {
                           {player.gameName || "Player"}
                         </span>
                         {player.legendId === "0001" && <AppOwnerBadge />}
+                        {hasLBadge(player.legendId) && <LBadge />}
                         {isMe && (
                           <span className="text-xs font-body text-muted-foreground">
                             (you)
@@ -6247,6 +6351,7 @@ export function DashboardPage() {
                           {player.gameName || "Player"}
                         </span>
                         {player.legendId === "0001" && <AppOwnerBadge />}
+                        {hasLBadge(player.legendId) && <LBadge />}
                         {isMe && (
                           <span className="text-xs font-body text-muted-foreground">
                             (you)
@@ -6416,6 +6521,7 @@ export function DashboardPage() {
                           {player.gameName || "Player"}
                         </span>
                         {player.legendId === "0001" && <AppOwnerBadge />}
+                        {hasLBadge(player.legendId) && <LBadge />}
                         {isMe && (
                           <span className="text-xs font-body text-muted-foreground">
                             (you)
@@ -6614,6 +6720,7 @@ export function DashboardPage() {
             >
               <span>{profile?.gameName || legendId}</span>
               {legendId === "0001" && <AppOwnerBadge />}
+              {hasLBadge(legendId) && <LBadge />}
             </div>
             {/* Legend ID — visible only to the player themselves (this is always their own profile) */}
             <div
@@ -7284,8 +7391,7 @@ export function DashboardPage() {
           data-ocid="avatar_collection.modal"
           className="fixed inset-0 z-[200] flex flex-col"
           style={{
-            background: "rgba(5,5,10,0.97)",
-            backdropFilter: "blur(12px)",
+            background: "rgba(5,5,10,0.99)",
           }}
         >
           {/* Header */}
@@ -8372,8 +8478,7 @@ export function DashboardPage() {
         className="sticky top-0"
         style={{
           zIndex: 110,
-          background: "rgba(8, 8, 14, 1.0)",
-          backdropFilter: "blur(24px)",
+          background: "rgba(8, 8, 14, 0.98)",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
           boxShadow: "0 2px 20px rgba(0,0,0,0.8)",
         }}
@@ -8529,8 +8634,7 @@ export function DashboardPage() {
         aria-label="Main navigation"
         className="fixed bottom-0 left-0 right-0 z-50"
         style={{
-          background: "rgba(8, 8, 14, 0.97)",
-          backdropFilter: "blur(20px)",
+          background: "rgba(8, 8, 14, 0.99)",
           borderTop: "1px solid rgba(255,255,255,0.08)",
           height: "70px",
           paddingBottom: "env(safe-area-inset-bottom)",
