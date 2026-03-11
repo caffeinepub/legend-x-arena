@@ -1,14 +1,6 @@
 import { FireAnimation } from "@/components/FireAnimation";
 import { Link } from "@tanstack/react-router";
-import {
-  Apple,
-  ArrowDown,
-  Globe,
-  Shield,
-  Smartphone,
-  Sword,
-} from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Globe, Shield, Sword } from "lucide-react";
 
 /* ─── Feature Card ──────────────────────────────────────────── */
 function FeatureCard({
@@ -58,113 +50,45 @@ function FeatureCard({
   );
 }
 
-/* ─── PWA Install Button ────────────────────────────────────── */
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>;
-  readonly userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
-
-function PWAInstallButton() {
-  const deferredPrompt = useRef<BeforeInstallPromptEvent | null>(null);
-  const [isGlowing, setIsGlowing] = useState(false);
-  const [showFallback, setShowFallback] = useState(false);
-
-  useEffect(() => {
-    // Capture the beforeinstallprompt event for native Android install
-    const handler = (e: Event) => {
-      e.preventDefault();
-      deferredPrompt.current = e as BeforeInstallPromptEvent;
-      setShowFallback(false); // prompt is available, no fallback needed
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    // Start glow pulse
-    const interval = setInterval(() => setIsGlowing((g) => !g), 1800);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handler);
-      clearInterval(interval);
-    };
-  }, []);
-
-  const handleInstall = async () => {
-    if (deferredPrompt.current) {
-      await deferredPrompt.current.prompt();
-      const { outcome } = await deferredPrompt.current.userChoice;
-      if (outcome === "accepted") {
-        deferredPrompt.current = null;
-        setShowFallback(false);
-      }
-    } else {
-      // Browser doesn't support the install prompt — show helpful instructions
-      setShowFallback(true);
-    }
-  };
-
-  const colorB = "#ffd700";
-
+/* ─── Big Enter Button ──────────────────────────────────────── */
+function EnterButton() {
   return (
-    <div className="flex flex-col items-center gap-2">
+    <Link to="/auth" data-ocid="landing.enter_button">
       <button
         type="button"
-        data-ocid="landing.install_pwa_button"
-        onClick={handleInstall}
-        className="relative group flex items-center justify-center gap-3 transition-all duration-300 hover:scale-[1.06] hover:-translate-y-1 active:scale-[0.97]"
+        className="relative group flex items-center justify-center transition-all duration-300 hover:scale-[1.06] hover:-translate-y-1 active:scale-[0.97]"
         style={{
-          background: "linear-gradient(135deg, #cc1100, #ff4400)",
-          border: "2px solid rgba(255,215,0,0.5)",
-          borderRadius: "16px",
-          minWidth: "220px",
-          padding: "14px 28px",
-          boxShadow: isGlowing
-            ? "0 0 32px rgba(255,34,0,0.6), 0 0 64px rgba(255,150,0,0.3), 0 4px 20px rgba(0,0,0,0.5)"
-            : "0 0 16px rgba(255,34,0,0.35), 0 4px 20px rgba(0,0,0,0.4)",
-          transition: "box-shadow 1.8s ease-in-out, transform 0.2s",
+          background: "linear-gradient(135deg, #cc1100, #ff4400, #ff6600)",
+          border: "2px solid rgba(255,215,0,0.6)",
+          borderRadius: "20px",
+          minWidth: "260px",
+          padding: "20px 48px",
+          boxShadow:
+            "0 0 40px rgba(255,34,0,0.5), 0 0 80px rgba(255,100,0,0.2), 0 8px 32px rgba(0,0,0,0.6)",
+          animation: "pulseGlow 2s ease-in-out infinite",
         }}
       >
-        {/* Main label */}
-        <div className="flex flex-col items-start relative z-10">
-          <span
-            className="font-display font-black text-lg tracking-widest uppercase"
-            style={{ color: "#fff", letterSpacing: "0.15em", lineHeight: 1.1 }}
-          >
-            Download App
-          </span>
-          <span
-            className="font-body text-xs uppercase tracking-wider mt-0.5"
-            style={{ color: "rgba(255,215,0,0.8)" }}
-          >
-            Free · Legend X Arena
-          </span>
-        </div>
-
-        {/* Bouncing arrow */}
-        <ArrowDown
-          className="w-5 h-5 relative z-10 ml-1 animate-download-bounce flex-shrink-0"
-          style={{ color: colorB }}
-          aria-hidden="true"
-        />
-
-        {/* Glow pulse overlay */}
+        <span
+          className="font-display font-black uppercase tracking-[0.2em]"
+          style={{
+            color: "#fff",
+            fontSize: "clamp(1.5rem, 4vw, 2rem)",
+            letterSpacing: "0.2em",
+          }}
+        >
+          ENTER
+        </span>
+        {/* Glow overlay */}
         <span
           aria-hidden="true"
-          className="absolute inset-0 rounded-2xl pointer-events-none"
+          className="absolute inset-0 rounded-[18px] pointer-events-none"
           style={{
             background:
-              "linear-gradient(135deg, rgba(255,100,0,0.15), transparent)",
-            animation: "pulseGlow 2s ease-in-out infinite",
+              "linear-gradient(135deg, rgba(255,150,0,0.18), transparent)",
           }}
         />
       </button>
-
-      {/* Fallback message when browser doesn't support native install prompt */}
-      {showFallback && (
-        <p
-          className="font-body text-xs text-center max-w-[240px]"
-          style={{ color: "rgba(255,215,0,0.85)" }}
-        >
-          Open in Chrome browser and use menu → Install App
-        </p>
-      )}
-    </div>
+    </Link>
   );
 }
 
@@ -203,34 +127,6 @@ export function LandingPage() {
           zIndex: 1,
         }}
       />
-
-      {/* ── STICKY DOWNLOAD BANNER ── */}
-      <div
-        className="sticky top-0 z-30 w-full py-3 px-4 text-center"
-        style={{
-          background:
-            "linear-gradient(135deg, rgba(255,34,0,0.18), rgba(0,102,255,0.18))",
-          backdropFilter: "blur(16px)",
-          borderBottom: "1px solid",
-          borderImageSlice: 1,
-          borderImageSource:
-            "linear-gradient(90deg, #ff2200, #ffd700, #0066ff)",
-        }}
-      >
-        <div className="flex items-center justify-center gap-3">
-          <Smartphone
-            className="w-4 h-4 flex-shrink-0"
-            style={{ color: "#ffd700" }}
-          />
-          <p className="font-display font-black text-sm sm:text-base uppercase tracking-[0.12em] text-foreground">
-            Download the App to Continue
-          </p>
-          <Smartphone
-            className="w-4 h-4 flex-shrink-0"
-            style={{ color: "#ffd700" }}
-          />
-        </div>
-      </div>
 
       {/* ── TOP NAV ── */}
       <nav className="relative z-20 flex items-center justify-between px-6 py-4">
@@ -343,57 +239,8 @@ export function LandingPage() {
           the global leaderboard.
         </p>
 
-        {/* ── ANIMATED DOWNLOAD BUTTONS ── */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-8 w-full max-w-sm sm:max-w-none sm:w-auto">
-          {/* App Store button */}
-          <a
-            href="https://apps.apple.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            data-ocid="landing.download_appstore_button"
-            className="relative group flex items-center justify-center gap-3 transition-all duration-300 hover:scale-[1.05] hover:-translate-y-1 active:scale-[0.97] no-underline"
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))",
-              border: "1.5px solid rgba(255,255,255,0.3)",
-              borderRadius: "16px",
-              minWidth: "200px",
-              padding: "14px 28px",
-              boxShadow: "0 4px 24px rgba(255,255,255,0.08)",
-              animation: "appStoreGlow 3s ease-in-out infinite",
-            }}
-          >
-            <Apple
-              className="w-7 h-7 flex-shrink-0"
-              style={{ color: "#fff" }}
-            />
-            <div className="flex flex-col items-start">
-              <span
-                className="font-body text-xs uppercase tracking-wider"
-                style={{ color: "rgba(255,255,255,0.6)" }}
-              >
-                Download on the
-              </span>
-              <span
-                className="font-display font-black text-base tracking-wide"
-                style={{ color: "#fff" }}
-              >
-                App Store
-              </span>
-            </div>
-          </a>
-          <PWAInstallButton />
-        </div>
-
-        {/* Continue on web link */}
-        <Link
-          to="/auth"
-          data-ocid="landing.continue_web_link"
-          className="font-body text-xs transition-colors hover:underline"
-          style={{ color: "rgba(255,255,255,0.28)" }}
-        >
-          or continue with limited access on web →
-        </Link>
+        {/* ── BIG ENTER BUTTON ── */}
+        <EnterButton />
       </section>
 
       {/* ── FEATURE HIGHLIGHTS ── */}
@@ -521,18 +368,8 @@ export function LandingPage() {
           </div>
 
           {/* Second CTA */}
-          <div className="text-center mt-12 flex flex-col items-center gap-4">
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <PWAInstallButton />
-            </div>
-            <Link
-              to="/auth"
-              data-ocid="landing.continue_web_link"
-              className="font-body text-xs transition-colors hover:underline"
-              style={{ color: "rgba(255,255,255,0.25)" }}
-            >
-              or continue with limited access on web →
-            </Link>
+          <div className="text-center mt-12">
+            <EnterButton />
           </div>
         </div>
       </section>
