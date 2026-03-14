@@ -1,0 +1,33 @@
+{
+  "name": "Legend X Arena",
+  "short_name": "LXA",
+  "description": "Dominate the Free Fire esports arena. Compete in tournaments, earn Legend Coins.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui", "browser"],
+  "background_color": "#0a0a0f",
+  "theme_color": "#ff2200",
+  "orientation": "portrait",
+  "prefer_related_applications": false,
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "icons": [
+    {
+      "src": "/assets/generated/legend-x-logo-transparent.dim_200x200.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/generated/legend-x-logo-transparent.dim_200x200.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "entertainment"],
+  "lang": "en"
+}

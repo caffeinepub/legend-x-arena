@@ -1,113 +1,80 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 
 interface FireAnimationProps {
   side: "left" | "right";
   intensity: "low" | "high";
 }
 
-interface ParticleConfig {
-  width: number;
-  height: number;
-  left: number;
-  duration: number;
-  delay: number;
-  bottom: string;
-  id: string;
-}
-
-function generateParticles(
-  count: number,
-  colOffset: number,
-  colIndex: number,
-): ParticleConfig[] {
-  // Use deterministic pseudo-random based on index so particles don't
-  // regenerate on re-render (no Math.random() during render)
-  return Array.from({ length: count }, (_, i) => {
-    const seed = colIndex * 100 + i;
-    const r1 = ((seed * 9301 + 49297) % 233280) / 233280;
-    const r2 = (((seed + 1) * 9301 + 49297) % 233280) / 233280;
-    const r3 = (((seed + 2) * 9301 + 49297) % 233280) / 233280;
-    const r4 = (((seed + 3) * 9301 + 49297) % 233280) / 233280;
-    const r5 = (((seed + 4) * 9301 + 49297) % 233280) / 233280;
-    return {
-      id: `col${colIndex}-p${i}`,
-      width: Math.floor(r1 * 8) + 4,
-      height: Math.floor(r2 * 14) + 8,
-      left: colOffset + Math.floor(r3 * 10) - 5,
-      duration: 800 + i * 150 + Math.floor(r4 * 300),
-      delay: i * 200 + Math.floor(r5 * 400),
-      bottom: `${Math.floor(r1 * 80)}%`,
-    };
-  });
-}
-
 export function FireAnimation({ side, intensity }: FireAnimationProps) {
   const isLeft = side === "left";
-  const columnCount = intensity === "high" ? 3 : 1;
+  const isHigh = intensity === "high";
 
-  const colors = isLeft
-    ? ["#ff2200", "#ff6600", "#ff9900"]
-    : ["#0066ff", "#00aaff", "#00ccff"];
+  // Single lightweight CSS-only gradient strip — zero per-frame JS, one GPU layer
+  const width = isHigh ? 56 : 18;
 
-  // Memoize so particles aren't regenerated on parent re-renders
-  const columns = useMemo(
-    () =>
-      Array.from({ length: columnCount }, (_, ci) => {
-        const offset = ci * 18;
-        const particles = generateParticles(6, offset, ci);
-        return { id: `col-${ci}`, offset, particles };
-      }),
-    [columnCount],
-  );
+  // Left side: red/orange, Right side: blue
+  const gradientA = isLeft
+    ? "linear-gradient(to top, #ff2200cc, #ff660088, transparent)"
+    : "linear-gradient(to top, #0055ffcc, #00aaff88, transparent)";
 
-  const baseStyle: React.CSSProperties = {
-    position: "fixed",
-    top: 0,
-    bottom: 0,
-    width: intensity === "high" ? "64px" : "22px",
-    zIndex: 0,
-    pointerEvents: "none",
-    overflow: "hidden",
-    willChange: "transform", // promote to GPU layer
-    ...(isLeft ? { left: 0 } : { right: 0 }),
-  };
+  const gradientB = isLeft
+    ? "linear-gradient(to top, #ff440066, #ff990044, transparent)"
+    : "linear-gradient(to top, #0033cc66, #0099ff44, transparent)";
+
+  const keyA = isLeft ? "fireEdgeLeft" : "fireEdgeRight";
+  const keyB = isLeft ? "fireEdgeFadeLeft" : "fireEdgeFadeRight";
 
   return (
-    <div style={baseStyle} aria-hidden="true">
-      {columns.map((col) => (
-        <div
-          key={col.id}
-          style={{
-            position: "absolute",
-            top: 0,
-            bottom: 0,
-            left: isLeft ? col.offset : undefined,
-            right: !isLeft ? col.offset : undefined,
-            width: "18px",
-          }}
-        >
-          {col.particles.map((p, pi) => (
-            <div
-              key={p.id}
-              style={{
-                position: "absolute",
-                bottom: p.bottom,
-                left: `${p.left}px`,
-                width: `${p.width}px`,
-                height: `${p.height}px`,
-                borderRadius: "50% 50% 40% 40%",
-                background: colors[pi % colors.length],
-                opacity: 0.7,
-                // Avoid per-particle blur — too expensive on mobile; use single
-                // container-level opacity instead
-                animation: `fireRise ${p.duration}ms ease-out ${p.delay}ms infinite`,
-                willChange: "transform, opacity",
-                transform: "translateZ(0)",
-              }}
-            />
-          ))}
-        </div>
-      ))}
-    </div>
+    <>
+      <style>{`
+        @keyframes ${keyA} {
+          0%,100% { opacity:0.55; transform:scaleY(1) translateZ(0); }
+          50%      { opacity:0.85; transform:scaleY(1.06) translateZ(0); }
+        }
+        @keyframes ${keyB} {
+          0%,100% { opacity:0.25; transform:scaleY(0.92) translateZ(0); }
+          50%      { opacity:0.5;  transform:scaleY(1.04) translateZ(0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .fire-strip-a, .fire-strip-b { animation: none !important; }
+        }
+      `}</style>
+
+      {/* Primary strip */}
+      <div
+        aria-hidden="true"
+        className="fire-strip-a"
+        style={{
+          position: "fixed",
+          top: 0,
+          bottom: 0,
+          [isLeft ? "left" : "right"]: 0,
+          width,
+          background: gradientA,
+          zIndex: 0,
+          pointerEvents: "none",
+          willChange: "transform, opacity",
+          animation: `${keyA} 3s ease-in-out infinite`,
+        }}
+      />
+
+      {/* Secondary glow strip (offset) */}
+      <div
+        aria-hidden="true"
+        className="fire-strip-b"
+        style={{
+          position: "fixed",
+          top: 0,
+          bottom: 0,
+          [isLeft ? "left" : "right"]: 0,
+          width: Math.round(width * 0.6),
+          background: gradientB,
+          zIndex: 0,
+          pointerEvents: "none",
+          willChange: "transform, opacity",
+          animation: `${keyB} 3.8s ease-in-out 0.6s infinite`,
+        }}
+      />
+    </>
   );
 }
