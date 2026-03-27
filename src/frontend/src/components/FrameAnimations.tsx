@@ -33,7 +33,7 @@ export function FrameLightning({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `lgt_${size}`;
+  const _uid = `lgt_${size}`;
   const bolts = Array.from({ length: 8 }, (_, i) => {
     const a = (i / 8) * 2 * Math.PI - Math.PI / 2;
     const x1 = C + R * Math.cos(a);
@@ -60,12 +60,6 @@ export function FrameLightning({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="2.5" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       <circle
         cx={C}
         cy={C}
@@ -74,7 +68,6 @@ export function FrameLightning({
         stroke="#ffe066"
         strokeWidth={Math.max(2, size * 0.03)}
         strokeDasharray={`${R * 0.15} ${R * 0.05}`}
-        filter={`url(#${uid}g)`}
         opacity={isActive ? 0.9 : 0.65}
       >
         <animateTransform
@@ -100,7 +93,6 @@ export function FrameLightning({
           stroke="#ffffff"
           strokeWidth={Math.max(1.2, size * 0.018)}
           strokeLinecap="round"
-          filter={`url(#${uid}g)`}
           opacity={0}
         >
           <animate
@@ -127,7 +119,6 @@ export function FrameLightning({
           cy={ym}
           r={Math.max(1.5, size * 0.022)}
           fill="#ffe066"
-          filter={`url(#${uid}g)`}
           opacity={0}
         >
           <animate
@@ -161,7 +152,7 @@ export function FrameGalaxy({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `gal_${size}`;
+  const _uid = `gal_${size}`;
   const stars = Array.from({ length: 16 }, (_, i) => {
     const a = (i / 16) * 2 * Math.PI;
     const r = R + (i % 3) * (bleed * 0.22);
@@ -188,12 +179,6 @@ export function FrameGalaxy({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="2" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       <circle
         cx={C}
         cy={C}
@@ -202,7 +187,6 @@ export function FrameGalaxy({
         stroke="url(#galaxyGrad)"
         strokeWidth={Math.max(2.5, size * 0.038)}
         strokeDasharray={`${R * 0.4} ${R * 0.1}`}
-        filter={`url(#${uid}g)`}
         opacity={0.85}
       >
         <animateTransform
@@ -254,7 +238,6 @@ export function FrameGalaxy({
           r={Math.max(1, size * 0.015)}
           fill="#ffffff"
           opacity={0}
-          filter={`url(#${uid}g)`}
         >
           <animate
             attributeName="opacity"
@@ -287,7 +270,7 @@ export function FrameBloodDrip({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `bld_${size}`;
+  const _uid = `bld_${size}`;
   const drops = Array.from({ length: 10 }, (_, i) => {
     const a = (i / 10) * 2 * Math.PI - Math.PI / 2;
     const x = C + R * Math.cos(a);
@@ -311,12 +294,6 @@ export function FrameBloodDrip({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="1.8" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       <circle
         cx={C}
         cy={C}
@@ -324,7 +301,6 @@ export function FrameBloodDrip({
         fill="none"
         stroke="#cc0000"
         strokeWidth={Math.max(3, size * 0.045)}
-        filter={`url(#${uid}g)`}
         opacity={isActive ? 1 : 0.85}
       >
         <animate
@@ -342,7 +318,6 @@ export function FrameBloodDrip({
             rx={Math.max(2, size * 0.028)}
             ry={Math.max(2.5, size * 0.035)}
             fill="#cc0000"
-            filter={`url(#${uid}g)`}
             opacity={0}
           >
             <animate
@@ -408,7 +383,7 @@ export function FrameNeonPulse({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `neo_${size}`;
+  const _uid = `neo_${size}`;
   return (
     <svg
       width={total}
@@ -425,12 +400,6 @@ export function FrameNeonPulse({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="3" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       {[0, 1, 2].map((layer) => (
         <circle
           key={layer}
@@ -439,7 +408,6 @@ export function FrameNeonPulse({
           r={R + layer * (bleed * 0.2)}
           fill="none"
           strokeWidth={Math.max(1.5, size * 0.022) * (layer === 1 ? 1 : 0.6)}
-          filter={`url(#${uid}g)`}
           stroke="#ff00ff"
           opacity={layer === 1 ? 0.9 : 0.4}
         >
@@ -480,7 +448,7 @@ export function FrameIceShatter({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `ice_${size}`;
+  const _uid = `ice_${size}`;
   const shards = Array.from({ length: 12 }, (_, i) => {
     const a = (i / 12) * 2 * Math.PI;
     const x = C + R * Math.cos(a);
@@ -505,12 +473,6 @@ export function FrameIceShatter({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-35%" y="-35%" width="170%" height="170%">
-          <feGaussianBlur stdDeviation="2" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       <circle
         cx={C}
         cy={C}
@@ -519,7 +481,6 @@ export function FrameIceShatter({
         stroke="#aaeeff"
         strokeWidth={sw * 0.7}
         strokeDasharray={`${R * 0.2} ${R * 0.08}`}
-        filter={`url(#${uid}g)`}
         opacity={0.7}
       >
         <animateTransform
@@ -539,7 +500,6 @@ export function FrameIceShatter({
             points={`${x - h * 0.2},${y} ${x},${y - h} ${x + h * 0.2},${y}`}
             fill="#aaeeff"
             transform={`rotate(${angleDeg} ${x} ${y})`}
-            filter={`url(#${uid}g)`}
             opacity={0}
           >
             <animate
@@ -575,7 +535,7 @@ export function FrameLavaFlow({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `lav_${size}`;
+  const _uid = `lav_${size}`;
   const sw = Math.max(3, size * 0.044);
   const blobs = Array.from({ length: 8 }, (_, i) => {
     const a = (i / 8) * 2 * Math.PI;
@@ -602,12 +562,6 @@ export function FrameLavaFlow({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-35%" y="-35%" width="170%" height="170%">
-          <feGaussianBlur stdDeviation="2.5" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       <circle
         cx={C}
         cy={C}
@@ -616,7 +570,6 @@ export function FrameLavaFlow({
         stroke="#ff4400"
         strokeWidth={sw}
         strokeDasharray={`${R * 0.35} ${R * 0.08}`}
-        filter={`url(#${uid}g)`}
         opacity={0.9}
       >
         <animateTransform
@@ -642,7 +595,6 @@ export function FrameLavaFlow({
         stroke="#ff8800"
         strokeWidth={sw * 0.5}
         strokeDasharray={`${R * 0.28} ${R * 0.12}`}
-        filter={`url(#${uid}g)`}
         opacity={0.6}
       >
         <animateTransform
@@ -661,7 +613,6 @@ export function FrameLavaFlow({
           cy={y}
           r={Math.max(2.5, size * 0.036)}
           fill="#ffaa00"
-          filter={`url(#${uid}g)`}
           opacity={0}
         >
           <animate
@@ -703,7 +654,7 @@ export function FrameSakura({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `sak_${size}`;
+  const _uid = `sak_${size}`;
   const petals = Array.from({ length: 12 }, (_, i) => {
     const a = (i / 12) * 2 * Math.PI - Math.PI / 2;
     const x = C + R * Math.cos(a);
@@ -726,12 +677,6 @@ export function FrameSakura({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="1.5" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       <circle
         cx={C}
         cy={C}
@@ -740,7 +685,6 @@ export function FrameSakura({
         stroke="#ffaacc"
         strokeWidth={Math.max(2, size * 0.03)}
         strokeDasharray={`${R * 0.25} ${R * 0.07}`}
-        filter={`url(#${uid}g)`}
         opacity={0.75}
       >
         <animateTransform
@@ -766,7 +710,6 @@ export function FrameSakura({
             rx={Math.max(3, size * 0.042)}
             ry={Math.max(2, size * 0.026)}
             fill="#ffaacc"
-            filter={`url(#${uid}g)`}
             opacity={0}
           >
             <animate
@@ -818,7 +761,7 @@ export function FrameShadowSmoke({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `smk_${size}`;
+  const _uid = `smk_${size}`;
   const puffs = Array.from({ length: 9 }, (_, i) => {
     const a = (i / 9) * 2 * Math.PI;
     const x = C + R * Math.cos(a);
@@ -841,12 +784,6 @@ export function FrameShadowSmoke({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="3.5" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       <circle
         cx={C}
         cy={C}
@@ -855,7 +792,6 @@ export function FrameShadowSmoke({
         stroke="#6622aa"
         strokeWidth={Math.max(3, size * 0.04)}
         strokeDasharray={`${R * 0.4} ${R * 0.1}`}
-        filter={`url(#${uid}g)`}
         opacity={0.8}
       >
         <animateTransform
@@ -880,7 +816,6 @@ export function FrameShadowSmoke({
           cy={y}
           r={Math.max(4, size * 0.055)}
           fill="#330066"
-          filter={`url(#${uid}g)`}
           opacity={0}
         >
           <animate
@@ -922,7 +857,7 @@ export function FrameGoldCrown({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `cro_${size}`;
+  const _uid = `cro_${size}`;
   const sparkles = Array.from({ length: 14 }, (_, i) => {
     const a = (i / 14) * 2 * Math.PI;
     const r = R + (i % 2 === 0 ? 0 : bleed * 0.28);
@@ -950,12 +885,6 @@ export function FrameGoldCrown({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="2.5" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       <circle
         cx={C}
         cy={C}
@@ -963,7 +892,6 @@ export function FrameGoldCrown({
         fill="none"
         stroke="#ffd700"
         strokeWidth={sw}
-        filter={`url(#${uid}g)`}
         opacity={isActive ? 1 : 0.88}
       >
         <animate
@@ -987,7 +915,6 @@ export function FrameGoldCrown({
         stroke="#ffd700"
         strokeWidth={sw * 0.35}
         strokeDasharray={`3 ${R * 0.12}`}
-        filter={`url(#${uid}g)`}
         opacity={0.5}
       >
         <animateTransform
@@ -1008,7 +935,6 @@ export function FrameGoldCrown({
             y2={y}
             stroke="#fff4aa"
             strokeWidth={Math.max(1, size * 0.015)}
-            filter={`url(#${uid}g)`}
             opacity={0}
           >
             <animate
@@ -1026,7 +952,6 @@ export function FrameGoldCrown({
             y2={y + bleed * 0.1}
             stroke="#fff4aa"
             strokeWidth={Math.max(1, size * 0.015)}
-            filter={`url(#${uid}g)`}
             opacity={0}
           >
             <animate
@@ -1054,7 +979,7 @@ export function FrameCyberHex({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `hex_${size}`;
+  const _uid = `hex_${size}`;
   const hexes = Array.from({ length: 10 }, (_, i) => {
     const a = (i / 10) * 2 * Math.PI;
     const x = C + R * Math.cos(a);
@@ -1082,12 +1007,6 @@ export function FrameCyberHex({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="2" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       <circle
         cx={C}
         cy={C}
@@ -1096,7 +1015,6 @@ export function FrameCyberHex({
         stroke="#00ffcc"
         strokeWidth={Math.max(1.5, size * 0.022)}
         strokeDasharray={`${R * 0.2} ${R * 0.06}`}
-        filter={`url(#${uid}g)`}
         opacity={0.7}
       >
         <animateTransform
@@ -1121,7 +1039,6 @@ export function FrameCyberHex({
           fill="none"
           stroke="#00ffcc"
           strokeWidth={Math.max(1, size * 0.014)}
-          filter={`url(#${uid}g)`}
           opacity={0}
         >
           <animate
@@ -1156,7 +1073,7 @@ export function FrameVoidPortal({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `voi_${size}`;
+  const _uid = `voi_${size}`;
   return (
     <svg
       width={total}
@@ -1173,12 +1090,6 @@ export function FrameVoidPortal({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="4" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       {[0, 1, 2, 3].map((i) => (
         <circle
           key={i}
@@ -1188,7 +1099,6 @@ export function FrameVoidPortal({
           fill="none"
           stroke={i % 2 === 0 ? "#4400cc" : "#220088"}
           strokeWidth={Math.max(2, size * 0.03) * (1 - i * 0.18)}
-          filter={`url(#${uid}g)`}
           opacity={0.85 - i * 0.15}
         >
           <animateTransform
@@ -1226,7 +1136,7 @@ export function FrameDragonScale({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `dra_${size}`;
+  const _uid = `dra_${size}`;
   const scaleCount = 14;
   const sw = Math.max(3, size * 0.04);
   const scales = Array.from({ length: scaleCount }, (_, i) => {
@@ -1268,12 +1178,6 @@ export function FrameDragonScale({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-25%" y="-25%" width="150%" height="150%">
-          <feGaussianBlur stdDeviation="1.8" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       {scales.map(({ d, key }) => (
         <path
           key={key}
@@ -1282,7 +1186,6 @@ export function FrameDragonScale({
           stroke={colors[key % colors.length]}
           strokeWidth={sw}
           strokeLinecap="butt"
-          filter={`url(#${uid}g)`}
         >
           <animate
             attributeName="stroke"
@@ -1316,7 +1219,7 @@ export function FrameStormCloud({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `sto_${size}`;
+  const _uid = `sto_${size}`;
   const streaks = Array.from({ length: 12 }, (_, i) => {
     const a = (i / 12) * 2 * Math.PI;
     const x1 = C + R * Math.cos(a);
@@ -1342,12 +1245,6 @@ export function FrameStormCloud({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="2.2" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       <circle
         cx={C}
         cy={C}
@@ -1355,7 +1252,6 @@ export function FrameStormCloud({
         fill="none"
         stroke="#334455"
         strokeWidth={Math.max(4, size * 0.055)}
-        filter={`url(#${uid}g)`}
         opacity={0.85}
       >
         <animateTransform
@@ -1383,7 +1279,6 @@ export function FrameStormCloud({
           stroke="#aabbcc"
           strokeWidth={Math.max(1.5, size * 0.02)}
           strokeLinecap="round"
-          filter={`url(#${uid}g)`}
           opacity={0}
         >
           <animate
@@ -1411,7 +1306,7 @@ export function FrameCrystalClear({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `cry_${size}`;
+  const _uid = `cry_${size}`;
   const prisms = Array.from({ length: 12 }, (_, i) => {
     const a = (i / 12) * 2 * Math.PI;
     return {
@@ -1445,12 +1340,6 @@ export function FrameCrystalClear({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-35%" y="-35%" width="170%" height="170%">
-          <feGaussianBlur stdDeviation="1.8" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       <circle
         cx={C}
         cy={C}
@@ -1459,7 +1348,6 @@ export function FrameCrystalClear({
         stroke="#ffffff"
         strokeWidth={Math.max(2, size * 0.028)}
         strokeDasharray={`${R * 0.22} ${R * 0.06}`}
-        filter={`url(#${uid}g)`}
         opacity={0.8}
       >
         <animateTransform
@@ -1484,7 +1372,6 @@ export function FrameCrystalClear({
           cy={y}
           r={Math.max(2, size * 0.028)}
           fill="#ffffff"
-          filter={`url(#${uid}g)`}
           opacity={0}
         >
           <animate
@@ -1526,7 +1413,7 @@ export function FrameMatrixRain({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `mat_${size}`;
+  const _uid = `mat_${size}`;
   const drops = Array.from({ length: 14 }, (_, i) => {
     const a = (i / 14) * 2 * Math.PI - Math.PI / 2;
     const x = C + R * Math.cos(a);
@@ -1550,12 +1437,6 @@ export function FrameMatrixRain({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-25%" y="-25%" width="150%" height="150%">
-          <feGaussianBlur stdDeviation="1.5" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       <circle
         cx={C}
         cy={C}
@@ -1564,7 +1445,6 @@ export function FrameMatrixRain({
         stroke="#00ff44"
         strokeWidth={Math.max(2, size * 0.028)}
         strokeDasharray={`${R * 0.15} ${R * 0.05}`}
-        filter={`url(#${uid}g)`}
         opacity={0.75}
       >
         <animateTransform
@@ -1586,7 +1466,6 @@ export function FrameMatrixRain({
           stroke="#00ff44"
           strokeWidth={Math.max(1.5, size * 0.02)}
           strokeLinecap="round"
-          filter={`url(#${uid}g)`}
           opacity={0}
         >
           <animate
@@ -1628,8 +1507,8 @@ export function FrameFlameBurst({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `flb_${size}`;
-  const flames = Array.from({ length: 12 }, (_, i) => {
+  const _uid = `flb_${size}`;
+  const _flames = Array.from({ length: 12 }, (_, i) => {
     const a = (i / 12) * 2 * Math.PI - Math.PI / 2;
     const x = C + R * Math.cos(a);
     const y = C + R * Math.sin(a);
@@ -1637,126 +1516,18 @@ export function FrameFlameBurst({
     const yTip = C + (R + bleed * 0.9) * Math.sin(a);
     return { x, y, xTip, yTip, delay: (i / 12) * 0.8, key: i };
   });
-  return (
-    <svg
-      width={total}
-      height={total}
-      viewBox={`0 0 ${total} ${total}`}
-      style={{
-        position: "absolute",
-        inset: -bleed,
-        pointerEvents: "none",
-        willChange: "transform",
-        transform: "translateZ(0)",
-        overflow: "visible",
-        opacity: op,
-      }}
-      aria-hidden="true"
-    >
-      <defs>
-        <filter id={`${uid}g`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="1.5" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-        <radialGradient id={`${uid}fg`} cx="50%" cy="0%" r="100%">
-          <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="30%" stopColor="#ffee00" />
-          <stop offset="70%" stopColor="#ff6600" />
-          <stop offset="100%" stopColor="#cc2200" />
-        </radialGradient>
-      </defs>
-      <circle
-        cx={C}
-        cy={C}
-        r={R}
-        fill="none"
-        stroke="#ff4400"
-        strokeWidth={Math.max(3, size * 0.04)}
-        filter={`url(#${uid}g)`}
-        opacity={0.9}
-      >
-        <animate
-          attributeName="stroke"
-          values="#ff4400;#ff8800;#ffcc00;#ff4400"
-          dur="0.6s"
-          repeatCount="indefinite"
-        />
-      </circle>
-      {flames.map(({ x, y, xTip, yTip, delay, key }) => (
-        <line
-          key={key}
-          x1={x}
-          y1={y}
-          x2={xTip}
-          y2={yTip}
-          stroke={`url(#${uid}fg)`}
-          strokeWidth={Math.max(2.5, size * 0.035)}
-          strokeLinecap="round"
-          filter={`url(#${uid}g)`}
-          opacity={0}
-        >
-          <animate
-            attributeName="opacity"
-            values="0;1;0.8;0"
-            keyTimes="0;0.15;0.5;1"
-            dur="0.7s"
-            begin={`${delay}s`}
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="x2"
-            values={`${xTip};${xTip + (key % 2 === 0 ? 2 : -2)};${xTip}`}
-            dur="0.4s"
-            begin={`${delay}s`}
-            repeatCount="indefinite"
-          />
-        </line>
-      ))}
-      {flames.map(({ x, y, delay, key }) => (
-        <circle
-          key={`e_${key}`}
-          cx={x}
-          cy={y}
-          r={Math.max(1.5, size * 0.022)}
-          fill="#ffcc00"
-          filter={`url(#${uid}g)`}
-          opacity={0}
-        >
-          <animate
-            attributeName="opacity"
-            values="0;1;0"
-            dur="0.4s"
-            begin={`${delay + 0.05}s`}
-            repeatCount="indefinite"
-          />
-        </circle>
-      ))}
-    </svg>
-  );
-}
-
-/* ── 17. Electric Arc (index 36) ── */
-export function FrameElectricArc({
-  size = 80,
-  isPreview = false,
-  isActive: _isActive = false,
-}: FrameProps) {
-  const bleed = Math.round(size * 0.12);
-  const total = outerSize(size, bleed);
-  const C = cx(size, bleed);
-  const R = ringR(size, bleed);
-  const op = isPreview ? 0.55 : 1;
-  const uid = `ela_${size}`;
-  const arcs = Array.from({ length: 10 }, (_, i) => {
-    const a = (i / 10) * 2 * Math.PI;
-    const a2 = a + 0.4;
-    const x1 = C + R * Math.cos(a);
-    const y1 = C + R * Math.sin(a);
-    const xm = C + (R + bleed * 0.7) * Math.cos(a + 0.2);
-    const ym = C + (R + bleed * 0.7) * Math.sin(a + 0.2);
+  const arcs = Array.from({ length: 8 }, (_, i) => {
+    const a1 = (i / 8) * 2 * Math.PI - Math.PI / 2;
+    const a2 = ((i + 0.5) / 8) * 2 * Math.PI - Math.PI / 2;
+    const am = ((i + 0.25) / 8) * 2 * Math.PI - Math.PI / 2;
+    const rOuter = R + bleed * 0.6;
+    const x1 = C + R * Math.cos(a1);
+    const y1 = C + R * Math.sin(a1);
     const x2 = C + R * Math.cos(a2);
     const y2 = C + R * Math.sin(a2);
-    return { x1, y1, xm, ym, x2, y2, delay: (i / 10) * 1.5, key: i };
+    const xm = C + rOuter * Math.cos(am);
+    const ym = C + rOuter * Math.sin(am);
+    return { x1, y1, x2, y2, xm, ym, delay: (i / 8) * 0.9, key: i };
   });
   return (
     <svg
@@ -1774,12 +1545,6 @@ export function FrameElectricArc({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="2" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       <circle
         cx={C}
         cy={C}
@@ -1788,7 +1553,6 @@ export function FrameElectricArc({
         stroke="#4488ff"
         strokeWidth={Math.max(2, size * 0.028)}
         strokeDasharray={`${R * 0.25} ${R * 0.08}`}
-        filter={`url(#${uid}g)`}
         opacity={0.75}
       >
         <animateTransform
@@ -1814,7 +1578,6 @@ export function FrameElectricArc({
           stroke="#ffffff"
           strokeWidth={Math.max(1.2, size * 0.018)}
           strokeLinecap="round"
-          filter={`url(#${uid}g)`}
           opacity={0}
         >
           <animate
@@ -1838,6 +1601,95 @@ export function FrameElectricArc({
   );
 }
 
+/* ── 17. Electric Arc (index 36) ── */
+export function FrameElectricArc({
+  size = 80,
+  isPreview = false,
+  isActive: _isActive = false,
+}: FrameProps) {
+  const bleed = Math.round(size * 0.12);
+  const total = outerSize(size, bleed);
+  const C = cx(size, bleed);
+  const R = ringR(size, bleed);
+  const op = isPreview ? 0.55 : 1;
+  const arcs = Array.from({ length: 8 }, (_, i) => {
+    const a1 = (i / 8) * 2 * Math.PI - Math.PI / 2;
+    const a2 = ((i + 0.5) / 8) * 2 * Math.PI - Math.PI / 2;
+    const am = ((i + 0.25) / 8) * 2 * Math.PI - Math.PI / 2;
+    const rOuter = R + bleed * 0.6;
+    const x1 = C + R * Math.cos(a1);
+    const y1 = C + R * Math.sin(a1);
+    const x2 = C + R * Math.cos(a2);
+    const y2 = C + R * Math.sin(a2);
+    const xm = C + rOuter * Math.cos(am);
+    const ym = C + rOuter * Math.sin(am);
+    return { x1, y1, x2, y2, xm, ym, delay: (i / 8) * 0.9, key: i };
+  });
+  return (
+    <svg
+      width={total}
+      height={total}
+      viewBox={`0 0 ${total} ${total}`}
+      style={{
+        position: "absolute",
+        inset: -bleed,
+        pointerEvents: "none",
+        willChange: "transform",
+        transform: "translateZ(0)",
+        overflow: "visible",
+        opacity: op,
+      }}
+      aria-hidden="true"
+    >
+      <circle
+        cx={C}
+        cy={C}
+        r={R}
+        fill="none"
+        stroke="#4488ff"
+        strokeWidth={Math.max(2, size * 0.03)}
+        strokeDasharray={`${R * 0.2} ${R * 0.07}`}
+        opacity={0.7}
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from={`0 ${C} ${C}`}
+          to={`360 ${C} ${C}`}
+          dur="2s"
+          repeatCount="indefinite"
+        />
+        <animate
+          attributeName="stroke"
+          values="#4488ff;#aaddff;#0044ff;#4488ff"
+          dur="1s"
+          repeatCount="indefinite"
+        />
+      </circle>
+      {arcs.map(({ x1, y1, xm, ym, x2, y2, delay, key }) => (
+        <polyline
+          key={key}
+          points={`${x1},${y1} ${xm},${ym} ${x2},${y2}`}
+          fill="none"
+          stroke="#88ccff"
+          strokeWidth={Math.max(1.5, size * 0.02)}
+          strokeLinecap="round"
+          opacity={0}
+        >
+          <animate
+            attributeName="opacity"
+            values="0;1;0"
+            keyTimes="0;0.2;1"
+            dur="0.9s"
+            begin={`${delay}s`}
+            repeatCount="indefinite"
+          />
+        </polyline>
+      ))}
+    </svg>
+  );
+}
+
 /* ── 18. Solar Flare (index 37) ── */
 export function FrameSolarFlare({
   size = 80,
@@ -1849,7 +1701,7 @@ export function FrameSolarFlare({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `sol_${size}`;
+  const _uid = `sol_${size}`;
   const rays = Array.from({ length: 16 }, (_, i) => {
     const a = (i / 16) * 2 * Math.PI;
     const len = i % 2 === 0 ? bleed * 0.95 : bleed * 0.55;
@@ -1875,12 +1727,6 @@ export function FrameSolarFlare({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="1.5" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       <circle
         cx={C}
         cy={C}
@@ -1888,7 +1734,6 @@ export function FrameSolarFlare({
         fill="none"
         stroke="#ffee00"
         strokeWidth={Math.max(3, size * 0.04)}
-        filter={`url(#${uid}g)`}
         opacity={0.95}
       >
         <animate
@@ -1918,7 +1763,6 @@ export function FrameSolarFlare({
               : Math.max(1, size * 0.018)
           }
           strokeLinecap="round"
-          filter={`url(#${uid}g)`}
           opacity={0}
         >
           <animate
@@ -1946,7 +1790,7 @@ export function FrameToxicWaste({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `tox_${size}`;
+  const _uid = `tox_${size}`;
   const bubbles = Array.from({ length: 10 }, (_, i) => {
     const a = (i / 10) * 2 * Math.PI;
     const x = C + R * Math.cos(a);
@@ -1970,12 +1814,6 @@ export function FrameToxicWaste({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="1.5" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       <circle
         cx={C}
         cy={C}
@@ -1983,7 +1821,6 @@ export function FrameToxicWaste({
         fill="none"
         stroke="#44ff44"
         strokeWidth={Math.max(3, size * 0.04)}
-        filter={`url(#${uid}g)`}
         opacity={0.9}
       >
         <animate
@@ -2000,7 +1837,6 @@ export function FrameToxicWaste({
             cy={y}
             r={Math.max(2.5, size * 0.036)}
             fill="#44ff44"
-            filter={`url(#${uid}g)`}
             opacity={0}
           >
             <animate
@@ -2027,7 +1863,6 @@ export function FrameToxicWaste({
             stroke="#44ff44"
             strokeWidth={Math.max(1.5, size * 0.02)}
             strokeLinecap="round"
-            filter={`url(#${uid}g)`}
             opacity={0}
           >
             <animate
@@ -2063,87 +1898,20 @@ export function FrameRainbowWave({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `rbw_${size}`;
-  const sw = Math.max(3, size * 0.04);
-  return (
-    <svg
-      width={total}
-      height={total}
-      viewBox={`0 0 ${total} ${total}`}
-      style={{
-        position: "absolute",
-        inset: -bleed,
-        pointerEvents: "none",
-        willChange: "transform",
-        transform: "translateZ(0)",
-        overflow: "visible",
-        opacity: op,
-      }}
-      aria-hidden="true"
-    >
-      <defs>
-        <filter id={`${uid}g`} x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="1.5" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-        <linearGradient id={`${uid}rg`} x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#ff0000" />
-          <stop offset="16%" stopColor="#ff8800" />
-          <stop offset="33%" stopColor="#ffff00" />
-          <stop offset="50%" stopColor="#00ff00" />
-          <stop offset="66%" stopColor="#0088ff" />
-          <stop offset="83%" stopColor="#8800ff" />
-          <stop offset="100%" stopColor="#ff0000" />
-        </linearGradient>
-      </defs>
-      {[0, 1, 2].map((layer) => (
-        <circle
-          key={layer}
-          cx={C}
-          cy={C}
-          r={R + layer * (bleed * 0.22)}
-          fill="none"
-          stroke={`url(#${uid}rg)`}
-          strokeWidth={sw * (1 - layer * 0.25)}
-          filter={`url(#${uid}g)`}
-          opacity={1 - layer * 0.25}
-          strokeDasharray={`${R * 0.5} ${R * 0.05}`}
-        >
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from={`${layer % 2 === 0 ? 0 : 360} ${C} ${C}`}
-            to={`${layer % 2 === 0 ? 360 : 0} ${C} ${C}`}
-            dur={`${3 + layer}s`}
-            repeatCount="indefinite"
-          />
-        </circle>
-      ))}
-    </svg>
-  );
-}
-
-/* ── 21. Cosmic Dust (index 40) ── */
-export function FrameCosmicDust({
-  size = 80,
-  isPreview = false,
-  isActive: _isActive = false,
-}: FrameProps) {
-  const bleed = Math.round(size * 0.12);
-  const total = outerSize(size, bleed);
-  const C = cx(size, bleed);
-  const R = ringR(size, bleed);
-  const op = isPreview ? 0.55 : 1;
-  const uid = `cos_${size}`;
-  const particles = Array.from({ length: 18 }, (_, i) => {
-    const a = (i / 18) * 2 * Math.PI;
-    const rVar = R + (i % 3) * (bleed * 0.3);
+  const _uid = `rbw_${size}`;
+  const _sw = Math.max(3, size * 0.04);
+  const colors = ["#aa44ff", "#ff88ff", "#ff44aa", "#cc88ff", "#ff66cc"];
+  const particles = Array.from({ length: 14 }, (_, i) => {
+    const a = (i / 14) * 2 * Math.PI - Math.PI / 2;
+    const rVar = R + bleed * (0.1 + (i % 3) * 0.25);
+    const x = C + rVar * Math.cos(a);
+    const y = C + rVar * Math.sin(a);
     return {
-      x: C + rVar * Math.cos(a),
-      y: C + rVar * Math.sin(a),
-      delay: (i / 18) * 4.5,
+      x,
+      y,
+      delay: (i / 14) * 2.5,
       key: i,
-      color: i % 3 === 0 ? "#ff88ff" : i % 3 === 1 ? "#aa44ff" : "#ff44aa",
+      color: colors[i % colors.length],
     };
   });
   return (
@@ -2162,12 +1930,6 @@ export function FrameCosmicDust({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="1.5" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       <circle
         cx={C}
         cy={C}
@@ -2176,7 +1938,6 @@ export function FrameCosmicDust({
         stroke="#aa44ff"
         strokeWidth={Math.max(2, size * 0.028)}
         strokeDasharray={`${R * 0.3} ${R * 0.08}`}
-        filter={`url(#${uid}g)`}
         opacity={0.7}
       >
         <animateTransform
@@ -2201,7 +1962,6 @@ export function FrameCosmicDust({
           cy={y}
           r={Math.max(1.2, size * 0.018)}
           fill={color}
-          filter={`url(#${uid}g)`}
           opacity={0}
         >
           <animate
@@ -2224,6 +1984,102 @@ export function FrameCosmicDust({
   );
 }
 
+/* ── 21. Cosmic Dust (index 40) ── */
+export function FrameCosmicDust({
+  size = 80,
+  isPreview = false,
+  isActive: _isActive = false,
+}: FrameProps) {
+  const bleed = Math.round(size * 0.12);
+  const total = outerSize(size, bleed);
+  const C = cx(size, bleed);
+  const R = ringR(size, bleed);
+  const op = isPreview ? 0.55 : 1;
+  const colors = ["#aa44ff", "#ff88ff", "#ff44aa", "#cc88ff", "#ff66cc"];
+  const particles = Array.from({ length: 14 }, (_, i) => {
+    const a = (i / 14) * 2 * Math.PI - Math.PI / 2;
+    const rVar = R + bleed * (0.1 + (i % 3) * 0.25);
+    const x = C + rVar * Math.cos(a);
+    const y = C + rVar * Math.sin(a);
+    return {
+      x,
+      y,
+      delay: (i / 14) * 2.5,
+      key: i,
+      color: colors[i % colors.length],
+    };
+  });
+  return (
+    <svg
+      width={total}
+      height={total}
+      viewBox={`0 0 ${total} ${total}`}
+      style={{
+        position: "absolute",
+        inset: -bleed,
+        pointerEvents: "none",
+        willChange: "transform",
+        transform: "translateZ(0)",
+        overflow: "visible",
+        opacity: op,
+      }}
+      aria-hidden="true"
+    >
+      <circle
+        cx={C}
+        cy={C}
+        r={R}
+        fill="none"
+        stroke="#aa44ff"
+        strokeWidth={Math.max(2, size * 0.028)}
+        strokeDasharray={`${R * 0.3} ${R * 0.08}`}
+        opacity={0.7}
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from={`0 ${C} ${C}`}
+          to={`360 ${C} ${C}`}
+          dur="10s"
+          repeatCount="indefinite"
+        />
+        <animate
+          attributeName="stroke"
+          values="#aa44ff;#ff88ff;#ff44aa;#aa44ff"
+          dur="3s"
+          repeatCount="indefinite"
+        />
+      </circle>
+      {particles.map(({ x, y, delay, key, color }) => (
+        <circle
+          key={key}
+          cx={x}
+          cy={y}
+          r={Math.max(1.2, size * 0.018)}
+          fill={color}
+          opacity={0}
+        >
+          <animate
+            attributeName="opacity"
+            values="0;1;0.6;0"
+            keyTimes="0;0.3;0.7;1"
+            dur="2s"
+            begin={`${delay}s`}
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="r"
+            values={`${Math.max(1, size * 0.015)};${Math.max(2.5, size * 0.03)};${Math.max(1, size * 0.015)}`}
+            dur="2s"
+            begin={`${delay}s`}
+            repeatCount="indefinite"
+          />
+        </circle>
+      ))}
+    </svg>
+  );
+}
+
 /* ── 22. Aurora Borealis (index 41) ── */
 export function FrameAurora({
   size = 80,
@@ -2235,7 +2091,7 @@ export function FrameAurora({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `aur_${size}`;
+  const _uid = `aur_${size}`;
   const waves = [0, 1, 2];
   const colors = ["#00ff88", "#00ccff", "#0088ff"];
   return (
@@ -2254,12 +2110,6 @@ export function FrameAurora({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="2" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       {waves.map((w) => (
         <circle
           key={w}
@@ -2270,7 +2120,6 @@ export function FrameAurora({
           stroke={colors[w]}
           strokeWidth={Math.max(2.5, size * 0.035) * (1 - w * 0.2)}
           strokeDasharray={`${R * 0.6} ${R * 0.15}`}
-          filter={`url(#${uid}g)`}
           opacity={0.8 - w * 0.2}
         >
           <animateTransform
@@ -2304,7 +2153,7 @@ export function FramePlasmaRing({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `pla_${size}`;
+  const _uid = `pla_${size}`;
   const bolts = Array.from({ length: 8 }, (_, i) => {
     const a = (i / 8) * 2 * Math.PI;
     const a2 = a + 0.6;
@@ -2334,12 +2183,6 @@ export function FramePlasmaRing({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="2" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       <circle
         cx={C}
         cy={C}
@@ -2347,7 +2190,6 @@ export function FramePlasmaRing({
         fill="none"
         stroke="#00eeff"
         strokeWidth={Math.max(2.5, size * 0.035)}
-        filter={`url(#${uid}g)`}
         opacity={0.85}
       >
         <animate
@@ -2371,7 +2213,6 @@ export function FramePlasmaRing({
           stroke="#ffffff"
           strokeWidth={Math.max(1, size * 0.016)}
           strokeLinecap="round"
-          filter={`url(#${uid}g)`}
           opacity={0}
         >
           <animate
@@ -2406,7 +2247,7 @@ export function FrameVolcanicAsh({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `vol_${size}`;
+  const _uid = `vol_${size}`;
   const embers = Array.from({ length: 12 }, (_, i) => {
     const a = (i / 12) * 2 * Math.PI - Math.PI / 2;
     const x = C + R * Math.cos(a);
@@ -2431,12 +2272,6 @@ export function FrameVolcanicAsh({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="1.8" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       <circle
         cx={C}
         cy={C}
@@ -2444,7 +2279,6 @@ export function FrameVolcanicAsh({
         fill="none"
         stroke="#776655"
         strokeWidth={Math.max(3, size * 0.04)}
-        filter={`url(#${uid}g)`}
         opacity={0.9}
       >
         <animate
@@ -2463,7 +2297,6 @@ export function FrameVolcanicAsh({
           fill={
             key % 3 === 0 ? "#ff8800" : key % 3 === 1 ? "#ffcc00" : "#aaaaaa"
           }
-          filter={`url(#${uid}g)`}
           opacity={0}
         >
           <animate
@@ -2512,7 +2345,7 @@ export function FrameHologramRings({
   const C = cx(size, bleed);
   const R = ringR(size, bleed);
   const op = isPreview ? 0.55 : 1;
-  const uid = `hol_${size}`;
+  const _uid = `hol_${size}`;
   return (
     <svg
       width={total}
@@ -2529,12 +2362,6 @@ export function FrameHologramRings({
       }}
       aria-hidden="true"
     >
-      <defs>
-        <filter id={`${uid}g`} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="1.5" result="b" />
-          <feComposite in="SourceGraphic" in2="b" operator="over" />
-        </filter>
-      </defs>
       {[0, 1, 2, 3].map((i) => {
         const ringR2 = R + i * (bleed * 0.22);
         const colors = ["#00ffcc", "#44bbff", "#ffffff", "#88eeff"];
@@ -2547,7 +2374,6 @@ export function FrameHologramRings({
             fill="none"
             stroke={colors[i]}
             strokeWidth={Math.max(1.5, size * 0.022) * (1 - i * 0.15)}
-            filter={`url(#${uid}g)`}
             opacity={0.9 - i * 0.18}
           >
             <animate

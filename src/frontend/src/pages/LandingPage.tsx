@@ -65,7 +65,7 @@ function EnterButton() {
           padding: "20px 48px",
           boxShadow:
             "0 0 40px rgba(255,34,0,0.5), 0 0 80px rgba(255,100,0,0.2), 0 8px 32px rgba(0,0,0,0.6)",
-          animation: "pulseGlow 2s ease-in-out infinite",
+          // animation removed for performance
         }}
       >
         <span
@@ -131,16 +131,20 @@ export function LandingPage() {
       {/* ── TOP NAV ── */}
       <nav className="relative z-20 flex items-center justify-between px-6 py-4">
         <div className="font-display font-black text-lg text-foreground flex items-center gap-0">
-          <span className="animate-legend-flame" style={{ color: "#ff2200" }}>
+          <span style={{ color: "#ff2200", textShadow: "0 0 6px #ff2200" }}>
             LEGEND
           </span>
           <span
-            className="animate-x-beat"
-            style={{ color: "#ffd700", fontSize: "1.25em", margin: "0 0.15em" }}
+            style={{
+              color: "#ffd700",
+              fontSize: "1.25em",
+              margin: "0 0.15em",
+              textShadow: "0 0 6px #ffd700",
+            }}
           >
             X
           </span>
-          <span className="animate-arena-electric" style={{ color: "#0066ff" }}>
+          <span style={{ color: "#0066ff", textShadow: "0 0 6px #0066ff" }}>
             ARENA
           </span>
         </div>
@@ -195,26 +199,32 @@ export function LandingPage() {
           }}
         >
           <span
-            className="animate-legend-flame"
-            style={{ display: "block", color: "#ff2200" }}
+            style={{
+              display: "block",
+              color: "#ff2200",
+              textShadow: "0 0 8px #ff2200",
+            }}
           >
             LEGEND
           </span>
           <span
-            className="animate-x-beat"
             style={{
               display: "block",
               fontSize: "0.55em",
               letterSpacing: "0.25em",
               color: "#ffd700",
               lineHeight: 1.1,
+              textShadow: "0 0 8px #ffd700",
             }}
           >
             ✕
           </span>
           <span
-            className="animate-arena-electric"
-            style={{ display: "block", color: "#0066ff" }}
+            style={{
+              display: "block",
+              color: "#0066ff",
+              textShadow: "0 0 8px #0066ff",
+            }}
           >
             ARENA
           </span>
@@ -235,8 +245,7 @@ export function LandingPage() {
           className="font-body text-center mb-12 max-w-sm"
           style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.95rem" }}
         >
-          Compete in real Free Fire tournaments, earn Legend Coins, and climb
-          the global leaderboard.
+          Real tournaments. Real coins. Real glory.
         </p>
 
         {/* ── BIG ENTER BUTTON ── */}

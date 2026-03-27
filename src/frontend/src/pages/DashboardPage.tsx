@@ -83,7 +83,7 @@ function LegendCoin({ size = 16 }: { size?: number }) {
         flexShrink: 0,
         verticalAlign: "middle",
         lineHeight: 1,
-        animation: "coinLGlow 2s ease-in-out infinite",
+        // animation removed for performance
         position: "relative",
       }}
     >
@@ -142,7 +142,7 @@ function LBadge() {
         verticalAlign: "middle",
         marginLeft: 3,
         position: "relative",
-        animation: "lbadgeGlow 2.5s ease-in-out infinite",
+        // animation removed for performance
       }}
     >
       {/* Hexagon SVG */}
@@ -857,7 +857,7 @@ function DepositTab({
                   border: "3px solid #ffd700",
                   boxShadow:
                     "0 0 12px rgba(255,215,0,0.6), inset 0 0 6px rgba(255,215,0,0.15)",
-                  animation: "coinLGlow 2s ease-in-out infinite",
+                  // animation removed for performance
                   flexShrink: 0,
                   display: "flex",
                   alignItems: "center",
@@ -1231,7 +1231,7 @@ function DepositTab({
                   border: "3px solid #ffd700",
                   boxShadow:
                     "0 0 12px rgba(255,215,0,0.6), inset 0 0 6px rgba(255,215,0,0.15)",
-                  animation: "coinLGlow 2s ease-in-out infinite",
+                  // animation removed for performance
                   flexShrink: 0,
                   display: "flex",
                   alignItems: "center",
@@ -1705,7 +1705,7 @@ function ViewDetailsModal({
                 style={{
                   background: "rgba(255,170,0,0.12)",
                   border: "1px solid rgba(255,170,0,0.3)",
-                  animation: "profileGlowPulse 2s ease-in-out infinite",
+                  // animation removed for performance
                 }}
               >
                 <Clock className="w-6 h-6" style={{ color: "#ffaa00" }} />
@@ -5850,20 +5850,33 @@ export function DashboardPage() {
           <p className="text-xs font-body text-muted-foreground flex items-center gap-0.5 flex-wrap">
             The elite warriors of{" "}
             <span
-              className="animate-legend-flame font-bold"
-              style={{ color: "#ff2200", fontSize: "0.75rem" }}
+              className="font-bold"
+              style={{
+                color: "#ff2200",
+                fontSize: "0.75rem",
+                textShadow: "0 0 8px #ff2200",
+              }}
             >
               LEGEND
             </span>
             <span
-              className="animate-x-beat font-black"
-              style={{ color: "#ffd700", fontSize: "0.85rem", margin: "0 1px" }}
+              className="font-black"
+              style={{
+                color: "#ffd700",
+                fontSize: "0.85rem",
+                margin: "0 1px",
+                textShadow: "0 0 8px #ffd700",
+              }}
             >
               X
             </span>
             <span
-              className="animate-arena-electric font-bold"
-              style={{ color: "#0066ff", fontSize: "0.75rem" }}
+              className="font-bold"
+              style={{
+                color: "#0066ff",
+                fontSize: "0.75rem",
+                textShadow: "0 0 8px #0066ff",
+              }}
             >
               ARENA
             </span>
@@ -8491,24 +8504,30 @@ export function DashboardPage() {
               className="font-display font-black text-base flex items-center gap-0"
             >
               <span
-                className="animate-legend-flame"
-                style={{ color: "#ff2200", fontSize: "0.9rem" }}
+                style={{
+                  color: "#ff2200",
+                  fontSize: "0.9rem",
+                  textShadow: "0 0 8px #ff2200",
+                }}
               >
                 L
               </span>
               <span
-                className="animate-x-beat"
                 style={{
                   color: "#ffd700",
                   fontSize: "1.1rem",
                   margin: "0 0.05em",
+                  textShadow: "0 0 8px #ffd700",
                 }}
               >
                 X
               </span>
               <span
-                className="animate-arena-electric"
-                style={{ color: "#0066ff", fontSize: "0.9rem" }}
+                style={{
+                  color: "#0066ff",
+                  fontSize: "0.9rem",
+                  textShadow: "0 0 8px #0066ff",
+                }}
               >
                 A
               </span>

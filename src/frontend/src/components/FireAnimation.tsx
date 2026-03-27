@@ -1,78 +1,46 @@
-import { useEffect, useState } from "react";
-
 interface FireAnimationProps {
   side: "left" | "right";
   intensity: "low" | "high";
 }
 
+// Ultra-lightweight CSS-only red+blue breathing background strips.
+// Zero JS, zero particles, zero per-frame computation.
+// Uses will-change:opacity + translateZ(0) for GPU compositing.
 export function FireAnimation({ side, intensity }: FireAnimationProps) {
   const isLeft = side === "left";
   const isHigh = intensity === "high";
-
-  // Single lightweight CSS-only gradient strip — zero per-frame JS, one GPU layer
-  const width = isHigh ? 56 : 18;
-
-  // Left side: red/orange, Right side: blue
-  const gradientA = isLeft
-    ? "linear-gradient(to top, #ff2200cc, #ff660088, transparent)"
-    : "linear-gradient(to top, #0055ffcc, #00aaff88, transparent)";
-
-  const gradientB = isLeft
-    ? "linear-gradient(to top, #ff440066, #ff990044, transparent)"
-    : "linear-gradient(to top, #0033cc66, #0099ff44, transparent)";
-
-  const keyA = isLeft ? "fireEdgeLeft" : "fireEdgeRight";
-  const keyB = isLeft ? "fireEdgeFadeLeft" : "fireEdgeFadeRight";
+  const keyName = isLeft ? "breatheLeft" : "breatheRight";
+  const color = isLeft ? "rgba(204,0,0,0.08)" : "rgba(0,68,204,0.08)";
+  const colorPeak = isLeft ? "rgba(204,0,0,0.14)" : "rgba(0,68,204,0.14)";
+  const width = isHigh ? "40%" : "30%";
+  const pos = isLeft ? "left" : "right";
 
   return (
     <>
       <style>{`
-        @keyframes ${keyA} {
-          0%,100% { opacity:0.55; transform:scaleY(1) translateZ(0); }
-          50%      { opacity:0.85; transform:scaleY(1.06) translateZ(0); }
-        }
-        @keyframes ${keyB} {
-          0%,100% { opacity:0.25; transform:scaleY(0.92) translateZ(0); }
-          50%      { opacity:0.5;  transform:scaleY(1.04) translateZ(0); }
+        @keyframes ${keyName} {
+          0%,100% { opacity:1; }
+          50%      { opacity:1.8; }
         }
         @media (prefers-reduced-motion: reduce) {
-          .fire-strip-a, .fire-strip-b { animation: none !important; }
+          .arena-bg-strip { animation: none !important; }
         }
       `}</style>
-
-      {/* Primary strip */}
       <div
         aria-hidden="true"
-        className="fire-strip-a"
+        className="arena-bg-strip"
         style={{
           position: "fixed",
           top: 0,
           bottom: 0,
-          [isLeft ? "left" : "right"]: 0,
+          [pos]: 0,
           width,
-          background: gradientA,
+          background: `linear-gradient(to ${isLeft ? "right" : "left"}, ${colorPeak} 0%, ${color} 50%, transparent 100%)`,
           zIndex: 0,
           pointerEvents: "none",
-          willChange: "transform, opacity",
-          animation: `${keyA} 3s ease-in-out infinite`,
-        }}
-      />
-
-      {/* Secondary glow strip (offset) */}
-      <div
-        aria-hidden="true"
-        className="fire-strip-b"
-        style={{
-          position: "fixed",
-          top: 0,
-          bottom: 0,
-          [isLeft ? "left" : "right"]: 0,
-          width: Math.round(width * 0.6),
-          background: gradientB,
-          zIndex: 0,
-          pointerEvents: "none",
-          willChange: "transform, opacity",
-          animation: `${keyB} 3.8s ease-in-out 0.6s infinite`,
+          willChange: "opacity",
+          transform: "translateZ(0)",
+          animation: `${keyName} 5s ease-in-out infinite`,
         }}
       />
     </>
