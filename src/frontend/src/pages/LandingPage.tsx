@@ -1,6 +1,7 @@
 import { FireAnimation } from "@/components/FireAnimation";
 import { Link } from "@tanstack/react-router";
-import { Globe, Shield, Sword } from "lucide-react";
+import { ChevronUp, Globe, Shield, Sword } from "lucide-react";
+import { useEffect, useState } from "react";
 
 /* ─── Feature Card ──────────────────────────────────────────── */
 function FeatureCard({
@@ -65,7 +66,6 @@ function EnterButton() {
           padding: "20px 48px",
           boxShadow:
             "0 0 40px rgba(255,34,0,0.5), 0 0 80px rgba(255,100,0,0.2), 0 8px 32px rgba(0,0,0,0.6)",
-          // animation removed for performance
         }}
       >
         <span
@@ -78,7 +78,6 @@ function EnterButton() {
         >
           ENTER
         </span>
-        {/* Glow overlay */}
         <span
           aria-hidden="true"
           className="absolute inset-0 rounded-[18px] pointer-events-none"
@@ -89,6 +88,55 @@ function EnterButton() {
         />
       </button>
     </Link>
+  );
+}
+
+/* ─── Scroll To Top Button ───────────────────────────────────── */
+function ScrollToTopButton() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setVisible(window.scrollY > 300);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={scrollToTop}
+      aria-label="Scroll to top"
+      style={{
+        position: "fixed",
+        bottom: "28px",
+        right: "20px",
+        zIndex: 9999,
+        width: "48px",
+        height: "48px",
+        borderRadius: "50%",
+        background: "linear-gradient(135deg, #cc1100, #ff4400)",
+        border: "2px solid rgba(255,215,0,0.6)",
+        boxShadow: "0 0 18px rgba(255,34,0,0.55), 0 4px 16px rgba(0,0,0,0.5)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        transition: "opacity 0.25s ease, transform 0.25s ease",
+        opacity: visible ? 1 : 0,
+        transform: visible
+          ? "translateY(0) scale(1)"
+          : "translateY(20px) scale(0.85)",
+        pointerEvents: visible ? "auto" : "none",
+      }}
+    >
+      <ChevronUp
+        style={{ color: "#fff", width: "22px", height: "22px", strokeWidth: 3 }}
+      />
+    </button>
   );
 }
 
@@ -404,6 +452,9 @@ export function LandingPage() {
           </a>
         </p>
       </footer>
+
+      {/* ── SCROLL TO TOP BUTTON ── */}
+      <ScrollToTopButton />
     </div>
   );
 }
