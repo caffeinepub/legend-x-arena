@@ -7292,19 +7292,38 @@ export function DashboardPage() {
         {/* Action buttons */}
         <div className="space-y-3">
           {role === "admin" && (
-            <button
-              type="button"
-              data-ocid="profile.admin_button"
-              onClick={() => navigate({ to: "/admin" })}
-              className="w-full py-3.5 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-80"
-              style={{
-                background: "rgba(255,215,0,0.1)",
-                border: "1px solid rgba(255,215,0,0.35)",
-                color: "#ffd700",
-              }}
-            >
-              ⚙ Admin Panel
-            </button>
+            <>
+              <button
+                type="button"
+                data-ocid="profile.admin_button"
+                onClick={() => navigate({ to: "/admin" })}
+                className="w-full py-3.5 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-80"
+                style={{
+                  background: "rgba(255,215,0,0.1)",
+                  border: "1px solid rgba(255,215,0,0.35)",
+                  color: "#ffd700",
+                }}
+              >
+                ⚙ Admin Panel
+              </button>
+              <button
+                type="button"
+                data-ocid="profile.matches_dep_with_button"
+                onClick={() => {
+                  localStorage.setItem("openMatchesDep", "1");
+                  navigate({ to: "/admin" });
+                }}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-display font-bold text-sm uppercase tracking-wider transition-all duration-200 hover:opacity-80"
+                style={{
+                  background:
+                    "linear-gradient(135deg, rgba(255,100,0,0.15), rgba(0,102,255,0.1))",
+                  border: "1px solid rgba(255,120,0,0.35)",
+                  color: "#ff8844",
+                }}
+              >
+                🏆 Matches Dep/With
+              </button>
+            </>
           )}
           <button
             type="button"

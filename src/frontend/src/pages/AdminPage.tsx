@@ -3585,7 +3585,6 @@ export function AdminPage() {
   const { actor, isFetching } = useActor();
   const queryClient = useQueryClient();
 
-  const [txSection, setTxSection] = useState<"deposit" | "withdraw">("deposit");
   const [showMatchesDepWith, setShowMatchesDepWith] = useState(false);
   const [mDepWithSection, setMDepWithSection] = useState<
     "matches" | "deposit" | "withdraw"
@@ -3616,6 +3615,15 @@ export function AdminPage() {
       searchInputRef.current?.focus();
     }, 200);
     return () => clearTimeout(t);
+  }, []);
+
+  // Auto-open Matches Dep/With modal if navigated from Dashboard button
+  useEffect(() => {
+    const flag = localStorage.getItem("openMatchesDep");
+    if (flag === "1") {
+      localStorage.removeItem("openMatchesDep");
+      setShowMatchesDepWith(true);
+    }
   }, []);
 
   // Auto-scroll result into view when it appears
@@ -3991,70 +3999,8 @@ export function AdminPage() {
           </div>
         </div>
 
-        {/* ── Match Management ── */}
-        <MatchManagementSection />
-
         {/* ── Store Avatar Upload (Admin Only) ── */}
         <AdminStoreAvatarSection />
-
-        {/* ── Deposit / Withdraw Tab Toggle ── */}
-        <div
-          className="flex gap-0 rounded-2xl overflow-hidden mb-5"
-          style={{ border: "1px solid rgba(255,255,255,0.08)" }}
-        >
-          <button
-            type="button"
-            data-ocid="admin.deposit_tab"
-            onClick={() => setTxSection("deposit")}
-            className="flex-1 flex items-center justify-center gap-2 py-4 font-display font-black text-sm uppercase tracking-wider transition-all duration-200"
-            style={
-              txSection === "deposit"
-                ? {
-                    background:
-                      "linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,153,0,0.12))",
-                    color: "#ffd700",
-                    borderRight: "1px solid rgba(255,255,255,0.08)",
-                    boxShadow: "inset 0 -2px 0 #ffd700",
-                  }
-                : {
-                    background: "rgba(255,215,0,0.03)",
-                    color: "rgba(255,215,0,0.4)",
-                    borderRight: "1px solid rgba(255,255,255,0.08)",
-                  }
-            }
-          >
-            <Coins className="w-4 h-4" />
-            Deposit Requests
-          </button>
-          <button
-            type="button"
-            data-ocid="admin.withdraw_tab"
-            onClick={() => setTxSection("withdraw")}
-            className="flex-1 flex items-center justify-center gap-2 py-4 font-display font-black text-sm uppercase tracking-wider transition-all duration-200"
-            style={
-              txSection === "withdraw"
-                ? {
-                    background:
-                      "linear-gradient(135deg, rgba(34,204,102,0.18), rgba(0,180,80,0.12))",
-                    color: "#22cc66",
-                    boxShadow: "inset 0 -2px 0 #22cc66",
-                  }
-                : {
-                    background: "rgba(34,204,102,0.03)",
-                    color: "rgba(34,204,102,0.4)",
-                  }
-            }
-          >
-            <SendHorizonal className="w-4 h-4" />
-            Withdraw Requests
-          </button>
-        </div>
-
-        {/* ── Pending Deposit Requests ── */}
-        {txSection === "deposit" && <PendingDepositsSection />}
-
-        {/* ── Pending Withdraw Requests ── */}
-        {txSection === "withdraw" && <PendingWithdrawsSection />}
 
         {/* ── Matches Dep/With Button ── */}
         <button
